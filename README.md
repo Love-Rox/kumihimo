@@ -2,6 +2,10 @@
 
 **English** | [日本語](README.ja.md)
 
+[![npm](https://img.shields.io/npm/v/@love-rox/kumihimo-core?label=%40love-rox%2Fkumihimo-core)](https://www.npmjs.com/package/@love-rox/kumihimo-core)
+[![CI](https://github.com/Love-Rox/kumihimo/actions/workflows/ci.yml/badge.svg)](https://github.com/Love-Rox/kumihimo/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@love-rox/kumihimo-core)](LICENSE)
+
 Write AV signal flow diagrams (系統図) as text, the way Mermaid does for flowcharts — except that the unit of connection is a **port**, not a node, and the **signal type** on a cable is information the tool understands rather than decoration.
 
 ```khm

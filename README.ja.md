@@ -2,6 +2,10 @@
 
 [English](README.md) | **日本語**
 
+[![npm](https://img.shields.io/npm/v/@love-rox/kumihimo-core?label=%40love-rox%2Fkumihimo-core)](https://www.npmjs.com/package/@love-rox/kumihimo-core)
+[![CI](https://github.com/Love-Rox/kumihimo/actions/workflows/ci.yml/badge.svg)](https://github.com/Love-Rox/kumihimo/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/@love-rox/kumihimo-core)](LICENSE)
+
 映像・音響の **系統図** をテキストで書くための言語とツール群。Mermaid がフローチャートに対してやっていることを系統図に対してやりますが、決定的に違う点が2つあります — 接続の単位が「ノード」ではなく **ポート（端子）** であること、そしてケーブルに載る **信号種別** がツールの理解する情報であって飾りではないことです。
 
 ```khm
