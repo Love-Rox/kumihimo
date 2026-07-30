@@ -130,9 +130,35 @@ All seven packages are **fixed-versioned together**. Any changeset bumps all sev
 OIDC trusted publishing when no changesets are pending. It uses a GitHub App installation
 token so the Release PR triggers required checks.
 
-**Bootstrap caveat:** npm Trusted Publisher cannot be pre-registered for a package that does
-not exist yet, so the first publish of each package must be a local `pnpm publish` (not
-`npm publish` — that does not rewrite `workspace:*` and ships broken dependencies).
+### Bootstrap: what the first local publish actually costs
+
+npm Trusted Publisher cannot be pre-registered for a package that does not exist yet, so
+the first publish of each package must happen locally. Three things bite, in this order:
+
+1. **`pnpm publish`, never `npm publish`.** `npm publish` does not rewrite the
+   `workspace:*` protocol and ships dependencies nobody can install.
+2. **`--no-provenance` is required locally.** `publishConfig.provenance: true` only works
+   inside a supported CI provider; locally it fails with
+   `Automatic provenance generation not supported for provider: null`. The setting cannot
+   be overridden by `NPM_CONFIG_PROVENANCE=false` — `publishConfig` wins — so the flag has
+   to be passed on the command line. Leave the `publishConfig` setting in place: it is
+   correct for every subsequent CI publish.
+3. **`pnpm -r publish` does not forward `--no-provenance` to each package.** The recursive
+   form fails on the first package. Publish one directory at a time, in dependency order:
+
+   ```bash
+   for p in core react rehype cli vue astro editor; do
+     (cd packages/$p && pnpm publish --access public --no-git-checks --no-provenance)
+   done
+   ```
+
+4. **2FA is interactive.** Each publish opens a browser auth flow unless an npm automation
+   token is in the environment. This is the step a coding agent cannot do for you.
+
+Verify before publishing rather than after: `pnpm pack` each package and check that the
+tarball carries `dist/` and a README and that no `workspace:` string survives in its
+`package.json`. Installing the CLI tarball into an empty directory and running it catches
+more than any amount of reading.
 
 ## Tooling
 
