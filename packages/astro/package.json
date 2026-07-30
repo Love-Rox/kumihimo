@@ -1,6 +1,6 @@
 {
   "name": "@love-rox/kumihimo-astro",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Astro integration and component rendering kumihimo AV signal flow diagrams (系統図)",
   "keywords": [
     "astro",
