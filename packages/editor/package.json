@@ -1,0 +1,67 @@
+{
+  "name": "@love-rox/kumihimo-editor",
+  "version": "0.0.0",
+  "description": "Embeddable live editor for kumihimo AV signal flow diagrams (系統図)",
+  "keywords": [
+    "av",
+    "diagram",
+    "editor",
+    "playground",
+    "react",
+    "signal-flow",
+    "系統図"
+  ],
+  "homepage": "https://github.com/Love-Rox/kumihimo#readme",
+  "bugs": {
+    "url": "https://github.com/Love-Rox/kumihimo/issues"
+  },
+  "license": "MIT",
+  "author": "SASAGAWA Kiyoshi <dev@love-rox.cc>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Love-Rox/kumihimo.git",
+    "directory": "packages/editor"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && cp src/styles.css dist/styles.css",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@love-rox/kumihimo-core": "workspace:*",
+    "@love-rox/kumihimo-react": "workspace:*"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.2.0",
+    "happy-dom": "^20.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  }
+}

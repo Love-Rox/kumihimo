@@ -6,7 +6,8 @@
     "packages/rehype/src",
     "packages/react/src",
     "packages/vue/src",
-    "packages/astro/src"
+    "packages/astro/src",
+    "packages/editor/src"
   ],
   "compilerOptions": {
     "types": ["node"],

@@ -9,7 +9,8 @@
       "@love-rox/kumihimo-rehype",
       "@love-rox/kumihimo-react",
       "@love-rox/kumihimo-vue",
-      "@love-rox/kumihimo-astro"
+      "@love-rox/kumihimo-astro",
+      "@love-rox/kumihimo-editor"
     ]
   ],
   "linked": [],

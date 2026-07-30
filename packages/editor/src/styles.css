@@ -1,0 +1,267 @@
+/* Default styling for the kumihimo editor.
+   Everything is namespaced under .khm-editor and driven by custom properties, so a host
+   can restyle it without fighting specificity. */
+
+.khm-editor {
+  --khm-bg: #ffffff;
+  --khm-fg: #0f172a;
+  --khm-muted: #64748b;
+  --khm-line: #e2e8f0;
+  --khm-surface: #f8fafc;
+  --khm-accent: #2563eb;
+  --khm-error: #dc2626;
+  --khm-warning: #ca8a04;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 24rem;
+  color: var(--khm-fg);
+  background: var(--khm-bg);
+  border: 1px solid var(--khm-line);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Hiragino Sans',
+    'Noto Sans JP',
+    sans-serif;
+  font-size: 14px;
+}
+
+.khm-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--khm-surface);
+  border-bottom: 1px solid var(--khm-line);
+}
+
+.khm-editor__toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--khm-muted);
+  font-size: 12px;
+}
+
+.khm-editor__spacer {
+  flex: 1;
+}
+
+.khm-editor__status {
+  color: var(--khm-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.khm-editor__toolbar button {
+  padding: 0.3rem 0.7rem;
+  color: inherit;
+  background: var(--khm-bg);
+  border: 1px solid var(--khm-line);
+  border-radius: 5px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.khm-editor__toolbar button:hover:not(:disabled) {
+  border-color: var(--khm-accent);
+  color: var(--khm-accent);
+}
+
+.khm-editor__toolbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.khm-editor__toast {
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  background: var(--khm-surface);
+  border-bottom: 1px solid var(--khm-line);
+  font-size: 12px;
+  color: var(--khm-muted);
+}
+
+.khm-editor__toast--error {
+  color: var(--khm-error);
+}
+
+.khm-editor__panes {
+  display: grid;
+  grid-template-columns: minmax(16rem, 2fr) 3fr;
+  flex: 1;
+  min-height: 0;
+}
+
+@media (width < 60rem) {
+  .khm-editor__panes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.khm-editor__source {
+  padding: 0.75rem;
+  border: 0;
+  border-right: 1px solid var(--khm-line);
+  resize: none;
+  color: inherit;
+  background: var(--khm-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, 'Noto Sans Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.khm-editor__source:focus {
+  outline: 2px solid var(--khm-accent);
+  outline-offset: -2px;
+}
+
+.khm-editor__output {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.khm-editor__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--khm-line);
+  background: var(--khm-surface);
+}
+
+.khm-editor__tabs button {
+  padding: 0.45rem 0.9rem;
+  color: var(--khm-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.khm-editor__tabs button.is-active {
+  color: var(--khm-fg);
+  border-bottom-color: var(--khm-accent);
+}
+
+.khm-editor__panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.75rem;
+}
+
+.khm-editor__preview svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Diagnostics */
+
+.khm-diagnostics {
+  margin: 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow: auto;
+  list-style: none;
+  border-top: 1px solid var(--khm-line);
+  background: var(--khm-surface);
+}
+
+.khm-diagnostics--clean {
+  padding: 0.5rem 0.75rem;
+  color: var(--khm-muted);
+  font-size: 12px;
+}
+
+.khm-diagnostic {
+  display: grid;
+  grid-template-columns: 4rem 4.5rem 10rem 1fr;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.75rem;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--khm-line);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.khm-diagnostic:hover {
+  background: var(--khm-bg);
+}
+
+.khm-diagnostic__where {
+  color: var(--khm-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.khm-diagnostic--error .khm-diagnostic__severity {
+  color: var(--khm-error);
+}
+
+.khm-diagnostic--warning .khm-diagnostic__severity {
+  color: var(--khm-warning);
+}
+
+.khm-diagnostic__code {
+  color: var(--khm-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (width < 60rem) {
+  .khm-diagnostic {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}
+
+/* Schedules */
+
+.khm-schedule {
+  overflow-x: auto;
+}
+
+.khm-schedule table {
+  /* Size columns to their content and let the container scroll. Stretching the table to
+     the panel squeezes the note column to a sliver, and a wrapped sentence in a sliver
+     makes its whole row several lines tall. */
+  min-width: max-content;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.khm-schedule th,
+.khm-schedule td {
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--khm-line);
+  white-space: nowrap;
+}
+
+.khm-schedule th {
+  color: var(--khm-muted);
+  font-weight: 600;
+}
+
+.khm-schedule td[data-column='note'] {
+  max-width: 32rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--khm-warning);
+}
+
+.khm-schedule--empty {
+  color: var(--khm-muted);
+  font-size: 12px;
+}

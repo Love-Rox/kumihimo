@@ -6,7 +6,8 @@
     "packages/rehype/src/index.ts",
     "packages/react/src/index.ts",
     "packages/vue/src/index.ts",
-    "packages/astro/src/index.ts"
+    "packages/astro/src/index.ts",
+    "packages/editor/src/index.ts"
   ],
   "tsconfig": "tsconfig.typedoc.json",
   "emit": "none",
@@ -14,5 +15,6 @@
     "notDocumented": true,
     "invalidLink": false
   },
-  "treatWarningsAsErrors": true
+  "treatWarningsAsErrors": true,
+  "disableSources": true
 }

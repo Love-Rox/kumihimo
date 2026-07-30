@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  padding: 2rem 1.5rem;
+  background: #f1f5f9;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Hiragino Sans',
+    'Noto Sans JP',
+    sans-serif;
+}
+
+main {
+  max-width: 90rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+}
+
+main > p {
+  margin: 0 0 1.5rem;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.khm-editor {
+  height: 80vh;
+}
