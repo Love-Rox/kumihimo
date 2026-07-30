@@ -1,0 +1,34 @@
+---
+/**
+ * Draw a kumihimo diagram in an `.astro` file.
+ *
+ * Astro components are async and run at build time, so this simply awaits the compile —
+ * no loading state, no client-side layout engine, no hydration.
+ *
+ * @example
+ * ```astro
+ * ---
+ * import Kumihimo from '@love-rox/kumihimo-astro/Kumihimo.astro';
+ * ---
+ * <Kumihimo source={src} theme="dark" />
+ * ```
+ */
+import { compile } from '@love-rox/kumihimo-core';
+import type { CompileOptions, Diagnostic } from '@love-rox/kumihimo-core';
+
+interface Props extends CompileOptions {
+  /** The `.khm` source to draw. */
+  source: string;
+  /** Class applied to the wrapper element. */
+  class?: string;
+  /** Called with whatever the compile had to say, so a build can surface or fail on it. */
+  onDiagnostics?: (diagnostics: readonly Diagnostic[]) => void;
+}
+
+const { source, class: className = 'kumihimo', onDiagnostics, ...options } = Astro.props;
+
+const { svg, diagnostics } = await compile(source, options);
+onDiagnostics?.(diagnostics);
+---
+
+<div class={className} set:html={svg} />
