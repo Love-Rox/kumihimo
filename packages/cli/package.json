@@ -1,0 +1,60 @@
+{
+  "name": "@love-rox/kumihimo-cli",
+  "version": "0.0.0",
+  "description": "Command line interface for kumihimo AV signal flow diagrams (系統図)",
+  "keywords": [
+    "av",
+    "cli",
+    "diagram",
+    "signal-flow",
+    "svg",
+    "wiring",
+    "系統図"
+  ],
+  "homepage": "https://github.com/Love-Rox/kumihimo#readme",
+  "bugs": {
+    "url": "https://github.com/Love-Rox/kumihimo/issues"
+  },
+  "license": "MIT",
+  "author": "SASAGAWA Kiyoshi <dev@love-rox.cc>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Love-Rox/kumihimo.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "khm": "./dist/cli.js",
+    "kumihimo": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@love-rox/kumihimo-core": "workspace:*",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2"
+  }
+}
