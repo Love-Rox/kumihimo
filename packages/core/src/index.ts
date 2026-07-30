@@ -106,5 +106,8 @@ export { THEMES, DEFAULT_THEME, lookupTheme, strokeFor } from './theme.js';
 export type { LinkMedium, CableRow, EquipmentRow, AdapterRow } from './schedule.js';
 export { cableSchedule, equipmentSchedule, adapterSchedule, toTsv } from './schedule.js';
 
+export type { DrawioOptions } from './export/drawio.js';
+export { exportDrawio, toDrawio } from './export/drawio.js';
+
 export type { CompileOptions, CompileResult } from './compile.js';
 export { compile } from './compile.js';

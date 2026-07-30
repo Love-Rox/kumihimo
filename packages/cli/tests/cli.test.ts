@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { runBuild, runCheck } from '../src/commands.js';
+import { runExport } from '../src/export.js';
 import { formatDiagnostic, formatReport, summarize } from '../src/format.js';
 
 const CLEAN = `
@@ -127,5 +128,50 @@ describe('formatting', () => {
 
   it('says so when there is nothing to report', () => {
     expect(formatReport([])).toContain('問題は見つかりませんでした');
+  });
+});
+
+describe('runExport', () => {
+  it('writes a draw.io file', async () => {
+    const { dir, path } = await withFile(CLEAN);
+    const out = join(dir, 'out.drawio');
+    const result = await runExport(path, 'drawio', { out });
+    expect(result.written).toBe(out);
+    expect(await readFile(out, 'utf8')).toContain('<mxfile');
+  });
+
+  it('writes an SVG', async () => {
+    const { path } = await withFile(CLEAN);
+    expect((await runExport(path, 'svg')).content).toContain('<svg');
+  });
+
+  it('writes a cable schedule as TSV with a header', async () => {
+    const { path } = await withFile(CLEAN);
+    const lines = (await runExport(path, 'cable')).content.split('\n');
+    expect(lines[0]).toContain('label');
+    expect(lines[1]).toContain('V-01');
+  });
+
+  it('writes an equipment schedule', async () => {
+    const { path } = await withFile(CLEAN);
+    expect((await runExport(path, 'equipment')).content).toContain('switcher');
+  });
+
+  it('writes an adapter schedule, empty when nothing needs one', async () => {
+    const { path } = await withFile(CLEAN);
+    // Header only.
+    expect((await runExport(path, 'adapter')).content.split('\n')).toHaveLength(1);
+  });
+
+  it('returns content without writing when no output is given', async () => {
+    const { path } = await withFile(CLEAN);
+    const result = await runExport(path, 'drawio');
+    expect(result.written).toBeUndefined();
+    expect(result.content.length).toBeGreaterThan(0);
+  });
+
+  it('reports diagnostics alongside the export', async () => {
+    const { path } = await withFile(BROKEN);
+    expect((await runExport(path, 'drawio')).diagnostics.length).toBeGreaterThan(0);
   });
 });

@@ -11,4 +11,7 @@ export { formatDiagnostic, formatReport, summarize } from './format.js';
 export type { BuildCommandOptions, BuildCommandResult } from './commands.js';
 export { runBuild, runCheck } from './commands.js';
 
+export type { ExportFormat, ExportCommandOptions, ExportCommandResult } from './export.js';
+export { EXPORT_FORMATS, EXPORT_EXTENSIONS, runExport } from './export.js';
+
 export { createFileResolver } from './resolver.js';

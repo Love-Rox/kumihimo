@@ -9,6 +9,8 @@ import { basename, extname, join } from 'node:path';
 import { Command } from 'commander';
 
 import { runBuild, runCheck } from './commands.js';
+import type { ExportFormat } from './export.js';
+import { EXPORT_EXTENSIONS, EXPORT_FORMATS, runExport } from './export.js';
 
 /** Default output path: the input with its extension swapped for `.svg`. */
 function defaultOutput(file: string): string {
@@ -78,6 +80,44 @@ program
         });
       }, 50);
     });
+  });
+
+program
+  .command('export')
+  .description('.khm を別の形式で書き出す')
+  .argument('<file>', '入力する .khm ファイル')
+  .argument('[format]', `形式: ${EXPORT_FORMATS.join(' / ')}`, 'drawio')
+  .option('-o, --out <path>', '出力先。省略時は入力と同じ場所')
+  .option('-t, --theme <name>', 'カラーテーマ')
+  .option('--stdout', 'ファイルに書かず標準出力に流す')
+  .action(async (file: string, format: string, options: Record<string, unknown>) => {
+    if (!EXPORT_FORMATS.includes(format as ExportFormat)) {
+      console.error(`未知の形式: ${format} (${EXPORT_FORMATS.join(' / ')})`);
+      process.exitCode = 1;
+      return;
+    }
+    const kind = format as ExportFormat;
+    const theme = options['theme'] as string | undefined;
+    const toStdout = options['stdout'] === true;
+    const out = toStdout
+      ? undefined
+      : ((options['out'] as string | undefined) ??
+        join(file, '..', `${basename(file, extname(file))}${EXPORT_EXTENSIONS[kind]}`));
+
+    try {
+      const result = await runExport(file, kind, {
+        ...(out === undefined ? {} : { out }),
+        ...(theme ? { theme } : {}),
+      });
+      if (toStdout) {
+        process.stdout.write(result.content);
+      } else {
+        console.log(`→ ${result.written}`);
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
   });
 
 program
