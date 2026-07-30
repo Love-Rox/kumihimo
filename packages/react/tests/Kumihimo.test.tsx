@@ -1,8 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Kumihimo } from '../src/Kumihimo.js';
 
+// Vitest is not running with `globals: true`, so Testing Library's automatic
+// cleanup is not registered and renders would otherwise pile up in one document.
+afterEach(cleanup);
 const SOURCE = `
 diagram "テスト" { direction: LR }
 device cam "カメラ" as camera   { out SDI : sdi }
