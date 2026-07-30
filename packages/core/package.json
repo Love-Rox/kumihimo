@@ -1,0 +1,54 @@
+{
+  "name": "@love-rox/kumihimo-core",
+  "version": "0.0.0",
+  "description": "Parser, model and SVG renderer for kumihimo AV signal flow diagrams (系統図)",
+  "keywords": [
+    "audio",
+    "av",
+    "diagram",
+    "patch",
+    "signal-flow",
+    "video",
+    "wiring",
+    "系統図",
+    "配線図"
+  ],
+  "homepage": "https://github.com/Love-Rox/kumihimo#readme",
+  "bugs": {
+    "url": "https://github.com/Love-Rox/kumihimo/issues"
+  },
+  "license": "MIT",
+  "author": "SASAGAWA Kiyoshi <dev@love-rox.cc>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Love-Rox/kumihimo.git",
+    "directory": "packages/core"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "elkjs": "^0.12.0"
+  }
+}
