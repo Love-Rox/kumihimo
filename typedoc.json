@@ -16,5 +16,6 @@
     "invalidLink": false
   },
   "treatWarningsAsErrors": true,
-  "disableSources": true
+  "disableSources": true,
+  "readme": "none"
 }
