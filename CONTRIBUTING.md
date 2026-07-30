@@ -70,7 +70,8 @@ CI は `lint` → `format:check` → `build` → `check:tsdoc` → `typecheck` �
 
 ## 言語を変更するとき
 
-DSL の文法を変える場合は [docs/SPEC.ja.md](docs/SPEC.ja.md) も同じコミットで更新してください。
+DSL の文法を変える場合は [docs/SPEC.md](docs/SPEC.md)（正）と [docs/SPEC.ja.md](docs/SPEC.ja.md)
+（翻訳）を同じコミットで更新してください。
 仕様書に書かれた例は実際にパースできる必要があります（実例は `examples/` にあります）。
 
 信号種別・互換性ルール・変換部材の表を編集する場合は、**なぜそうなのかをコメントに残して

@@ -167,7 +167,7 @@ the source in the URL fragment — where no server ever sees it.
 
 ## The language
 
-Full specification: [docs/SPEC.ja.md](docs/SPEC.ja.md).
+Full specification: [docs/SPEC.md](docs/SPEC.md).
 
 ```khm
 diagram "Studio A" { direction: LR, theme: light }
