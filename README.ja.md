@@ -159,7 +159,7 @@ import '@love-rox/kumihimo-editor/styles.css';
 
 ## 言語
 
-仕様の全文: [docs/SPEC.ja.md](docs/SPEC.ja.md)
+仕様の全文: [docs/SPEC.ja.md](docs/SPEC.ja.md)（英語版: [docs/SPEC.md](docs/SPEC.md)）
 
 ```khm
 diagram "スタジオA" { direction: LR, theme: light }

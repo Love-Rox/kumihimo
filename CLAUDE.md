@@ -100,6 +100,9 @@ the whole point: flatten them and the export looks identical until someone moves
 Port geometry is a _fraction_ of the parent, so it needs far more precision than a pixel
 coordinate — rounding it to one decimal collapses a 16-channel mixer into overlapping pairs.
 
+The spec lives in `docs/SPEC.md` (canonical) and `docs/SPEC.ja.md` (translation). Change
+the grammar and both move in the same commit; the examples in them must actually parse.
+
 ## Domain notes
 
 The faults worth catching are the ones where the cable plugs in perfectly and nothing works:
