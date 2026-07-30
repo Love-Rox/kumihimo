@@ -1,0 +1,49 @@
+# 機材ライブラリを使った系統図。
+# 機器のポート定義は一切書かず、ライブラリから引く。
+
+use "./lib/blackmagic.khm"
+use "./lib/yamaha.khm"
+
+diagram "ライブラリ利用の例" {
+  direction: LR
+}
+
+group stage "ステージ" {
+  device cam1 "SONY FX3"  as camera     { out HDMI : hdmi }
+  device cam2 "SONY FX30" as camera     { out HDMI : hdmi }
+  device mic1 "SM58"      as microphone { out OUT : xlr }
+}
+
+group rack "メインラック" {
+  # ライブラリから実体化。ポートは model が持っている
+  device sw    from atem_mini_extreme
+  device mixer from dm3
+  device rec   from hyperdeck_hd_mini
+
+  # ラベルだけ差し替えて2台目
+  device rec2  from hyperdeck_hd_mini "HyperDeck (予備)"
+
+  # ATEM は HDMI 出力、HyperDeck は SDI 入力。変換ケーブルでは繋がらないので
+  # 変換器を機器として置く。電源が要る能動機器なので、これが正しい描き方。
+  device conv1 from mini_conv_hdmi_sdi "変換器 1"
+  device conv2 from mini_conv_hdmi_sdi "変換器 2"
+
+  device pc "配信PC" as computer { in LAN : lan }
+}
+
+# 映像
+cam1.HDMI -> sw.1 : hdmi 10m "V-01" [color=青]
+cam2.HDMI -> sw.2 : hdmi 10m "V-02" [color=赤]
+
+# 音響
+mic1.OUT -> mixer.CH1 : xlr 20m "A-01"
+mixer.L  -> sw.MIC1   : xlr 3m  "A-10"
+
+# 収録（変換器を経由する）
+sw.PGM     -> conv1.HDMI : hdmi 1m "V-10"
+conv1.SDI  -> rec.SDI    : sdi  2m "V-11"
+sw.AUX1    -> conv2.HDMI : hdmi 1m "V-12"
+conv2.SDI  -> rec2.SDI   : sdi  2m "V-13"
+
+# 配信
+sw.STREAM  -> pc.LAN   : lan 5m  "N-01"

@@ -1,0 +1,49 @@
+# Blackmagic Design 機材ライブラリ
+#
+# model は「世の中に存在する機材」の定義であり、図には現れない。
+# device ... from <model> で実体化して初めて図に置かれる。
+
+model atem_mini_pro "ATEM Mini Pro" as switcher {
+  in  1..4             : hdmi
+  in  MIC1, MIC2       : trs
+  out PGM              : hdmi
+  out WEBCAM           : usb
+  out STREAM           : lan
+  io  CTRL             : lan
+  @vendor "Blackmagic Design"
+  @ru "1U"
+}
+
+model atem_mini_extreme "ATEM Mini Extreme" as switcher {
+  in  1..8             : hdmi
+  in  MIC1, MIC2       : trs
+  out PGM, AUX1        : hdmi
+  out WEBCAM           : usb
+  out STREAM           : lan
+  io  CTRL             : lan
+  @vendor "Blackmagic Design"
+}
+
+model hyperdeck_hd_mini "HyperDeck Studio HD Mini" as recorder {
+  in  SDI              : sdi
+  out SDI_OUT          : sdi
+  in  REF              : genlock
+  io  ETH              : lan
+  @vendor "Blackmagic Design"
+  @ru "1U"
+}
+
+model mini_conv_hdmi_sdi "Mini Converter HDMI-SDI" as converter {
+  in  HDMI             : hdmi
+  out SDI, SDI_2       : sdi
+  in  DC               : dc
+  @vendor "Blackmagic Design"
+}
+
+model mini_conv_sdi_hdmi "Mini Converter SDI-HDMI" as converter {
+  in  SDI              : sdi
+  out SDI_LOOP         : sdi
+  out HDMI             : hdmi
+  in  DC               : dc
+  @vendor "Blackmagic Design"
+}

@@ -1,0 +1,21 @@
+# Yamaha 機材ライブラリ
+
+model dm3 "Yamaha DM3" as mixer {
+  in  CH[1..16]        : xlr
+  out L, R             : xlr
+  out AUX[1..6]        : xlr
+  io  DANTE            : dante
+  io  NETWORK          : lan
+  in  WORD_IN          : wordclock
+  @vendor "Yamaha"
+  @ru "卓上"
+}
+
+model dm3_standard "Yamaha DM3 Standard" as mixer {
+  in  CH[1..16]        : xlr
+  out L, R             : xlr
+  out AUX[1..6]        : xlr
+  io  NETWORK          : lan
+  @vendor "Yamaha"
+  @note "Dante 非搭載モデル"
+}

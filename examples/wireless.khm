@@ -1,0 +1,63 @@
+# 無線を含む系統図。
+# 無線区間はケーブルではないので、長さの代わりに周波数・チャンネルを書く。
+
+diagram "ワイヤレス構成" {
+  direction: LR
+}
+
+group stage "ステージ" {
+  device mic1 "ワイヤレスマイク A" as microphone { out RF : uhf }
+  device mic2 "ワイヤレスマイク B" as microphone { out RF : uhf }
+  device iem1 "IEM 受信機"         as generic    { in  RF : iem }
+  device cam  "無線カメラ"         as camera     { out RF : wireless-video }
+}
+
+group rack "メインラック" {
+  device rx "ワイヤレス受信機 (2ch)" as interface {
+    in  RF1, RF2   : uhf
+    out CH1, CH2   : xlr
+  }
+
+  device iemtx "IEM 送信機" as interface {
+    in  IN  : xlr
+    out RF  : iem
+  }
+
+  device vrx "無線映像受信機" as converter {
+    in  RF   : wireless-video
+    out SDI  : sdi
+  }
+
+  device mixer "デジタル卓" as mixer {
+    in  CH[1..8] : xlr
+    out L, R     : xlr
+    out MON      : xlr
+    io  WIFI     : wifi
+  }
+
+  device sw "スイッチャー" as switcher {
+    in  1..4 : sdi
+    out PGM  : sdi
+  }
+
+  device ap "無線AP" as router {
+    io  WIFI : wifi
+    io  LAN  : lan
+  }
+
+  device tablet "操作用タブレット" as computer { io WIFI : wifi }
+}
+
+# ── 無線区間（長さではなく周波数・チャンネル）
+mic1.RF -> rx.RF1 : uhf [ch=38]
+mic2.RF -> rx.RF2 : uhf [ch=42]
+iemtx.RF -> iem1.RF : iem [freq="470.125MHz"]
+cam.RF -> vrx.RF : wireless-video [freq="5.8GHz"]
+mixer.WIFI <-> ap.WIFI : wifi [freq="5GHz"]
+tablet.WIFI <-> ap.WIFI : wifi [freq="5GHz"]
+
+# ── 有線区間
+rx.CH1  -> mixer.CH1 : xlr 3m "A-01"
+rx.CH2  -> mixer.CH2 : xlr 3m "A-02"
+mixer.MON -> iemtx.IN : xlr 2m "A-10"
+vrx.SDI -> sw.1 : sdi 5m "V-01"

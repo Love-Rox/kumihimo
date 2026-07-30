@@ -1,0 +1,36 @@
+# kumihimo が検出できる配線ミスの実例。
+# 全ての結線に問題があり、いずれも「ケーブルは挿さる」ものばかり。
+
+diagram "誤配線の例" {
+  direction: LR
+}
+
+device ext  "HDBaseT 送信機"   as converter { out CAT : hdbaset }
+device netsw "ネットワークSW"  as router    { io  1..8 : lan }
+
+device cam  "カメラ"           as camera    { out SDI : sdi }
+device sync "同期発生器"       as generic   { in  REF : genlock }
+
+device cdp  "CDプレーヤー"     as player    { out ANALOG : rca }
+device dac  "オーディオI/F"    as interface { in  DIGITAL : spdif }
+
+device pc   "PC"               as computer  { out HDMI : hdmi }
+device mon  "モニター"         as display   { in  DVI : dvi }
+
+device desk "卓"               as mixer     { out MAIN : xlr }
+device amp  "アンプ"           as amplifier { in  LINE : rca }
+
+# RJ45 は挿さるが Ethernet ではない
+ext.CAT -> netsw.1 : hdbaset 20m "N-90"
+
+# BNC は挿さるが同期基準は映像でロックしない
+cam.SDI -> sync.REF : sdi 5m "V-90"
+
+# RCA は挿さるがアナログを S/PDIF 入力に入れても何も出ない
+cdp.ANALOG -> dac.DIGITAL : rca 1m "A-90"
+
+# 変換ケーブルで成立するが、宣言がないので資材表に載らない
+pc.HDMI -> mon.DVI : hdmi 3m "V-91"
+
+# 繋がるがバランス→アンバランスでレベルが落ちる
+desk.MAIN -> amp.LINE : xlr 10m "A-91"
