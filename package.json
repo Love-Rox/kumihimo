@@ -1,0 +1,29 @@
+{
+  "name": "kumihimo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Text-based AV signal flow diagrams (系統図) — write video/audio wiring like Mermaid",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" run build",
+    "test": "pnpm -r --filter \"./packages/*\" run test",
+    "typecheck": "pnpm -r --filter \"./packages/*\" run typecheck",
+    "check:tsdoc": "typedoc",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "changeset": "changeset",
+    "ci:version": "changeset version",
+    "ci:publish": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "@types/node": "^26.1.2",
+    "oxfmt": "^0.45.0",
+    "oxlint": "^1.60.0",
+    "typedoc": "^0.28.19",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

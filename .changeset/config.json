@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@love-rox/kumihimo-core",
+      "@love-rox/kumihimo-cli",
+      "@love-rox/kumihimo-rehype",
+      "@love-rox/kumihimo-react",
+      "@love-rox/kumihimo-vue",
+      "@love-rox/kumihimo-astro"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}

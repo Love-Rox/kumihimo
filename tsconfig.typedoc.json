@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "packages/core/src",
+    "packages/cli/src",
+    "packages/rehype/src",
+    "packages/react/src",
+    "packages/vue/src",
+    "packages/astro/src"
+  ],
+  "compilerOptions": {
+    "types": ["node"],
+    "jsx": "react-jsx"
+  }
+}
