@@ -1,7 +1,7 @@
 {
   "name": "kumihimo-vscode",
   "displayName": "kumihimo — AV signal flow diagrams",
-  "version": "0.4.1",
+  "version": "0.4.0",
   "private": true,
   "description": "%extension.description%",
   "categories": [
