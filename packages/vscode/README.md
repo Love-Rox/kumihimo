@@ -13,6 +13,8 @@ cam.SDI -> sw.1    : sdi 30m "V-01" [color=blue]
 sw.PGM  -> rec.SDI : sdi 2m  "V-10"
 ```
 
+![The preview: the diagram beside the source](https://raw.githubusercontent.com/Love-Rox/kumihimo/main/packages/vscode/media/preview.png)
+
 ## What it does
 
 **Diagnostics as you type.** Not only syntax. The connections are judged on whether they
@@ -29,6 +31,12 @@ cannot see.
 
 **Live preview.** `⌘K V` / `Ctrl+K V`, or the button in the editor title bar. It redraws
 as you type and follows your colour theme, unless the source names a theme itself.
+
+The same panel carries the schedules the job actually travels with — cables, equipment and
+adapters — from the same functions the CLI exports, so the drawing and the packing list
+cannot disagree.
+
+![The cable schedule in the same panel](https://raw.githubusercontent.com/Love-Rox/kumihimo/main/packages/vscode/media/tables.png)
 
 **Completions**, read from the compiler itself. Signal types after `:` and `|`, device kinds
 after `as`, jacket colours inside `[color=`, themes and directions in a `diagram` block.

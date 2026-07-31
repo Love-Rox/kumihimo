@@ -6,6 +6,10 @@ tsconfig.json
 .gitignore
 *.vsix
 
+# The listing fetches these from the repository by absolute URL, so shipping them in
+# the package would be 210 kB nobody downloads for a reason.
+media/**
+
 # The bundle is the extension; nothing else in dist is needed at runtime.
 dist/**/*.map
 
