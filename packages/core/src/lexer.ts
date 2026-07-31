@@ -46,6 +46,8 @@ export type TokenType =
   | 'at'
   /** `=` inside an attribute list. */
   | 'equals'
+  /** `|` between the signal types a single connector accepts. */
+  | 'pipe'
   /** A line break, which separates statements. */
   | 'newline'
   /** A character the lexer does not recognise. */
@@ -84,6 +86,7 @@ const SINGLE_CHAR_TOKENS: Readonly<Record<string, TokenType>> = {
   ';': 'semicolon',
   '@': 'at',
   '=': 'equals',
+  '|': 'pipe',
 };
 
 function isDigit(ch: string): boolean {

@@ -149,6 +149,32 @@ device mixer "Yamaha DM3" as mixer {
 
 **Declaration order is preserved and drawn.** `IN 1` sits above `IN 2` in every render.
 
+### One connector, more than one thing
+
+Some connectors take more than one kind of plug. A combo jack receives an XLR or a 1/4"
+plug; write both, separated by `|`.
+
+```khm
+device desk "Yamaha DM3" as mixer {
+  in CH[1..8] : xlr | trs   # combo jacks
+  in CH[9..16] : xlr
+}
+
+mic.OUT -> desk.CH1 : xlr   # ok
+di.OUT  -> desk.CH2 : trs   # ok
+```
+
+- The **first** type is what the port is drawn and reported as. A connector has to be one
+  colour on the drawing and one row in the schedule, and the order written decides.
+- The signal named on the connection says **which of them this cable is using**, so that is
+  the one judged. Where the connection names none, the first applies.
+- Every name is checked, so a typo in the second position is reported rather than silently
+  leaving the port with only the half that was spelled correctly.
+
+This is about a connector accepting two things, not about two things being equivalent.
+`xlr` and `trs` are already interchangeable (§9); writing `xlr | trs` says something else —
+that this particular hole physically takes either plug.
+
 ### `gap` — space between blocks of ports
 
 A bare `gap` line leaves blank space above whatever is declared next, so a strip of
@@ -365,7 +391,7 @@ in progress is not a wall of warnings.
 
 #### Power
 
-`ac` `dc` `poe`
+`ac` `dc` `poe` `usbpd`
 
 #### Sync
 

@@ -92,6 +92,11 @@ export const INTERCHANGEABLE_GROUPS: readonly (readonly string[])[] = [
   // TOSLINK as a physical layer, per protocol.
   ['optical', 'adat'],
   ['optical', 'spdif'],
+  // Power and data over the same USB-C cable, treated the way PoE and Ethernet are above.
+  // Deliberately permissive: whether a given port supplies the wattage a sink wants is a
+  // question of numbers this language does not carry, and guessing at it would produce
+  // warnings nobody could act on.
+  ['usb', 'usbpd'],
 ];
 
 /** Two signals that share a connector but are not the same thing. */

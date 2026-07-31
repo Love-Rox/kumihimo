@@ -47,8 +47,21 @@ export interface Port {
   deviceId: string;
   /** Which way signal flows. */
   direction: PortDirection;
-  /** Signal type declared for this port, if any. */
+  /**
+   * Signal type this port is drawn and reported as — the first one declared.
+   *
+   * A connector that takes more than one thing still has to be one colour on the drawing
+   * and one row in the schedule, and the first name the author wrote is the least
+   * surprising choice for both.
+   */
   signal?: string;
+  /**
+   * Everything the connector accepts, when that is more than one thing.
+   *
+   * A combo jack declared `xlr | trs` lists both. Only compatibility reads this; the
+   * drawing and the schedules go by {@link Port.signal}.
+   */
+  accepts?: string[];
   /**
    * Whether the port was invented because a connection referred to it.
    *

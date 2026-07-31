@@ -244,15 +244,24 @@ class Parser {
       this.#skipNewlines();
       spec.push(this.#portSpecItem());
     }
-    let signal: string | undefined;
-    if (this.#accept('colon')) signal = this.#expect('ident', '信号種別名').value;
+    // `xlr | trs`: one connector, more than one thing it takes. The first is what the port
+    // is drawn as, so the order the author wrote them in is kept.
+    const signals: string[] = [];
+    if (this.#accept('colon')) {
+      signals.push(this.#expect('ident', '信号種別名').value);
+      while (this.#accept('pipe')) {
+        this.#skipNewlines();
+        signals.push(this.#expect('ident', '信号種別名').value);
+      }
+    }
+
     const node: PortDecl = {
       type: 'port',
       direction: start.value as PortDirection,
       spec,
       span: this.#span(start),
     };
-    if (signal !== undefined) node.signal = signal;
+    if (signals.length > 0) node.signals = signals;
     return node;
   }
 

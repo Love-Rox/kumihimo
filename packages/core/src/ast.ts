@@ -90,8 +90,14 @@ export interface PortDecl extends Node {
   direction: PortDirection;
   /** The ports declared, still unexpanded. */
   spec: PortSpecItem[];
-  /** Signal type carried by these ports, when the author named one. */
-  signal?: string;
+  /**
+   * Signal types these ports accept, in the order written.
+   *
+   * More than one where a single connector takes more than one thing — a combo jack that
+   * receives XLR or a 1/4" plug is `xlr | trs`. The first is what the port is drawn and
+   * reported as; the rest are what it will also take.
+   */
+  signals?: string[];
   /**
    * Blank space to leave above this declaration, from `gap` lines written before it.
    *
