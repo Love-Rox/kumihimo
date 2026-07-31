@@ -24,7 +24,10 @@ jobs:
     environment:
       name: marketplace
       url: https://marketplace.visualstudio.com/items?itemName=love-rox.kumihimo-vscode
+    # Both tokens live here rather than on their steps: a step's own `env:` is not visible
+    # to that step's `if:`, so the condition would always compare against an empty string.
     env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
     steps:
       - uses: actions/checkout@v6
@@ -73,11 +76,28 @@ jobs:
       - run: pnpm --filter kumihimo-vscode exec vsce package --no-dependencies --out kumihimo.vsix
         if: steps.version.outputs.publish == 'true'
 
-      - name: Publish to the Visual Studio Marketplace
+      # Kept when nothing is published: the point of a version bump is the .vsix, and
+      # somebody has to be able to upload it by hand while automation is unconfigured.
+      - name: Keep the .vsix as an artifact
         if: steps.version.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kumihimo-vscode-${{ steps.version.outputs.current }}
+          path: packages/vscode/kumihimo.vsix
+          if-no-files-found: error
+
+      # Skipped rather than failed when no token is configured, the same way Open VSX is.
+      # A pipeline that has not been given credentials has nothing to report as broken.
+      - name: Publish to the Visual Studio Marketplace
+        if: steps.version.outputs.publish == 'true' && env.VSCE_PAT != ''
         run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath kumihimo.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Say where the .vsix is, when nothing was published
+        if: steps.version.outputs.publish == 'true' && env.VSCE_PAT == ''
+        run: |
+          echo "::notice::VSCE_PAT が未設定のため公開していません。" \
+               "この実行の artifact から kumihimo.vsix を取得し、" \
+               "https://marketplace.visualstudio.com/manage/publishers/love-rox で手動アップロードしてください。"
 
       # VSCodium, Cursor and the rest install from Open VSX rather than the Marketplace.
       # Skipped rather than failed when no token is configured: the Marketplace is the
