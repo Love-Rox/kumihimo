@@ -140,8 +140,8 @@ jobs:
 
       # Nothing long-lived is stored: GitHub mints an OIDC token for this run, Entra ID
       # exchanges it for one that expires in an hour, and `vsce` picks that up through the
-      # signed-in Azure CLI. Preferred over the PAT, which expires on a date nobody
-      # remembers and takes an Azure DevOps organisation to mint in the first place.
+      # signed-in Azure CLI. Tried before the PAT, which is a stored secret with a date on
+      # it — though PATs are not going away, whatever anyone half-remembers.
       - name: Sign in to Entra ID
         if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID != ''
         uses: azure/login@v2

@@ -7,13 +7,17 @@ configured.
 
 There are two ways in, tried in this order:
 
-|                        | Stores a secret? | Expires                                            |
-| ---------------------- | ---------------- | -------------------------------------------------- |
-| **Entra ID over OIDC** | No               | Never — tokens last an hour and are minted per run |
-| Personal Access Token  | `VSCE_PAT`       | Yes, and silently                                  |
+|                        | Stores a secret? | Needs rights in the tenant | Expires           |
+| ---------------------- | ---------------- | -------------------------- | ----------------- |
+| **Entra ID over OIDC** | No               | Yes                        | Never — per run   |
+| Personal Access Token  | `VSCE_PAT`       | No                         | Yes, up to a year |
 
-Prefer the first. A publisher PAT has to be minted inside an Azure DevOps organisation,
-expires on a date nobody remembers, and takes the pipeline down when it does.
+Neither is going away. Microsoft discourages PATs and recommends Entra ID, and has
+announced no date on which PATs stop working.
+
+Pick by which obstacle is smaller. Registering an application needs rights in the Entra
+tenant, which not everyone has; a PAT needs none, at the cost of a date in the calendar. An
+expired PAT fails the run loudly, and Azure DevOps emails a warning before it happens.
 
 ---
 
