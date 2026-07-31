@@ -28,6 +28,13 @@ sw.PGM  -> rec.SDI  : sdi 2m  "V-10"
 - **`@love-rox/kumihimo-astro`** — Astro integration and component
 - **`@love-rox/kumihimo-editor`** — embeddable live editor
 
+There is a [**VS Code extension**](https://marketplace.visualstudio.com/items?itemName=love-rox.kumihimo-vscode)
+too: diagnostics as you type and a live preview beside the source.
+
+```bash
+code --install-extension love-rox.kumihimo-vscode
+```
+
 ## Why
 
 Mermaid draws nodes joined by edges. An AV system is not that. A mixer's `IN 12` is a
