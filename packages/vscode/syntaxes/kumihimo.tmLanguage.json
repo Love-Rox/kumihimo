@@ -1,0 +1,83 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "kumihimo",
+  "scopeName": "source.kumihimo",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#declaration" },
+    { "include": "#port-direction" },
+    { "include": "#arrow" },
+    { "include": "#signal" },
+    { "include": "#measure" },
+    { "include": "#attributes" },
+    { "include": "#meta" },
+    { "include": "#range" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.number-sign.kumihimo",
+      "match": "#.*$"
+    },
+    "string": {
+      "name": "string.quoted.double.kumihimo",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [{ "name": "constant.character.escape.kumihimo", "match": "\\\\." }]
+    },
+    "declaration": {
+      "name": "keyword.control.kumihimo",
+      "match": "(?<![\\w.])(diagram|device|group|model|signal|compat|use|gap)(?![\\w])"
+    },
+    "port-direction": {
+      "name": "storage.type.kumihimo",
+      "match": "(?<![\\w.])(in|out|io)(?![\\w])"
+    },
+    "arrow": {
+      "name": "keyword.operator.kumihimo",
+      "match": "(<->|->|--)"
+    },
+    "signal": {
+      "comment": "The type after a colon: what the port carries, or what the cable is.",
+      "match": "(:)\\s*([A-Za-z][\\w-]*)",
+      "captures": {
+        "1": { "name": "punctuation.separator.kumihimo" },
+        "2": { "name": "entity.name.type.kumihimo" }
+      }
+    },
+    "measure": {
+      "comment": "A bare number and unit is a cable length. `#` is comments only, so it never prefixes one.",
+      "name": "constant.numeric.kumihimo",
+      "match": "(?<![\\w.])\\d+(\\.\\d+)?(mm|cm|m|in|ft)(?![\\w])"
+    },
+    "attributes": {
+      "begin": "\\[",
+      "end": "\\]",
+      "beginCaptures": { "0": { "name": "punctuation.section.brackets.kumihimo" } },
+      "endCaptures": { "0": { "name": "punctuation.section.brackets.kumihimo" } },
+      "patterns": [
+        { "include": "#string" },
+        {
+          "match": "([\\w-]+)\\s*(=)",
+          "captures": {
+            "1": { "name": "variable.parameter.kumihimo" },
+            "2": { "name": "punctuation.separator.kumihimo" }
+          }
+        }
+      ]
+    },
+    "meta": {
+      "comment": "@-prefixed metadata: not drawn, but carried into the schedules.",
+      "match": "(@)([\\w-]+)",
+      "captures": {
+        "1": { "name": "punctuation.definition.keyword.kumihimo" },
+        "2": { "name": "entity.other.attribute-name.kumihimo" }
+      }
+    },
+    "range": {
+      "comment": "1..8 and CH[1..16] — the two forms that expand into many ports.",
+      "name": "constant.numeric.kumihimo",
+      "match": "\\d+\\s*\\.\\.\\s*\\d+"
+    }
+  }
+}

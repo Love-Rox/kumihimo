@@ -1,0 +1,12 @@
+.vscode/**
+node_modules/**
+src/**
+scripts/**
+tsconfig.json
+*.vsix
+
+# The bundle is the extension; nothing else in dist is needed at runtime.
+dist/**/*.map
+
+# Kept: dist/extension.cjs, syntaxes/, language-configuration.json, README.md,
+# CHANGELOG.md, LICENSE, THIRD-PARTY-NOTICES.txt.

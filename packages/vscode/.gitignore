@@ -1,0 +1,6 @@
+# Written by scripts/build-notices.mjs on every build, from the packages actually
+# installed. Committing it would put a copy in git that can disagree with what the last
+# build produced, which for a licence notice is worse than not having one in git at all.
+THIRD-PARTY-NOTICES.txt
+
+*.vsix
