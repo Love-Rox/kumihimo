@@ -2,6 +2,18 @@
 
 ## 0.4.2
 
+- **Format Document.** `⇧⌥F`, or format on save. Indents by nesting, normalises spacing,
+  and lines the columns up down a run of ports or connections. Before this, `.khm` was a
+  language the editor offered to format and then could not, which sends people to the
+  Marketplace to look for a formatter that is not there. Alignment can be turned off with
+  `kumihimo.format.align`.
+- The completions know `adapter`, and the two new device kinds `transmitter` and
+  `receiver` — read from the compiler, so there was nothing to update here.
+
+  Note that the 0.4.1 `.vsix` attached to its GitHub release predates the formatter: it
+  was built when the preview fix landed, and the formatter arrived afterwards without a
+  version of its own. This is the first build that has both.
+
 ### Patch Changes
 
 - Updated dependencies [e86ae97]
