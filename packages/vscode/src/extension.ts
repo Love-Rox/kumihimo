@@ -34,6 +34,10 @@ export function activate(context: vscode.ExtensionContext): void {
    * should keep up with typing, a whole diagram should settle first.
    */
   const redraw = (document: vscode.TextDocument, immediate: boolean): void => {
+    // Without this, saving any file in the workspace armed a timer for a preview that
+    // could never be showing it.
+    if (document.languageId !== LANGUAGE) return;
+
     const key = document.uri.toString();
     const pending = previewTimers.get(key);
     if (pending !== undefined) clearTimeout(pending);
@@ -82,7 +86,7 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.workspace.onDidChangeTextDocument((e) => {
       check(e.document, false);
-      if (e.document.languageId === LANGUAGE) redraw(e.document, false);
+      redraw(e.document, false);
     }),
     vscode.workspace.onDidSaveTextDocument((d) => {
       check(d, true);
