@@ -21,12 +21,31 @@ export class Preview {
   #uri: vscode.Uri;
   #disposed = false;
 
+  /** A render in flight. A second one must not start beside it. */
+  #rendering = false;
+  /** A document that arrived while one was in flight. Only the newest is worth drawing. */
+  #queued: vscode.TextDocument | undefined;
+  /** What the panel is currently showing, so an identical redraw can be skipped. */
+  #shown = '';
+  /** The last document seen while the panel was hidden, drawn when it comes back. */
+  #missed: vscode.TextDocument | undefined;
+
   private constructor(panel: vscode.WebviewPanel, uri: vscode.Uri) {
     this.#panel = panel;
     this.#uri = uri;
     panel.onDidDispose(() => {
       this.#disposed = true;
       Preview.#current = undefined;
+    });
+
+    // A panel in a background tab is not being looked at, and drawing into it costs the
+    // same as drawing into a visible one. Catch up when it comes back.
+    panel.onDidChangeViewState(() => {
+      const missed = this.#missed;
+      if (panel.visible && missed) {
+        this.#missed = undefined;
+        void this.render(missed);
+      }
     });
   }
 
@@ -43,7 +62,11 @@ export class Preview {
       'kumihimo',
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       // No scripts and nothing loaded from disk: the page is a heading and an image.
-      { enableScripts: false, retainContextWhenHidden: true },
+      //
+      // `retainContextWhenHidden` is deliberately not set. The editor's own documentation
+      // warns it is memory-expensive, and it buys nothing here: the page holds no state a
+      // reader would lose, and it is redrawn on the way back anyway.
+      { enableScripts: false },
     );
 
     Preview.#current = new Preview(panel, document.uri);
@@ -63,12 +86,46 @@ export class Preview {
     if (current) current.#panel.dispose();
   }
 
+  /**
+   * Draw the document, unless there is already a drawing in flight.
+   *
+   * Renders do not queue up. A keystroke that lands mid-render replaces whatever was
+   * waiting, because the only drawing worth having is the one of the newest text — and
+   * without this the panel could finish an older render last and show stale wiring.
+   */
   async render(document: vscode.TextDocument): Promise<void> {
     if (this.#disposed) return;
 
+    if (this.#rendering) {
+      this.#queued = document;
+      return;
+    }
+
+    // Nobody is looking at a background tab. Remember what it missed and stop.
+    if (!this.#panel.visible) {
+      this.#missed = document;
+      return;
+    }
+
+    this.#rendering = true;
+    try {
+      await this.#draw(document);
+    } finally {
+      this.#rendering = false;
+    }
+
+    const next = this.#queued;
+    if (next && !this.#disposed) {
+      this.#queued = undefined;
+      await this.render(next);
+    }
+  }
+
+  async #draw(document: vscode.TextDocument): Promise<void> {
     const name = document.uri.path.split('/').pop() ?? 'kumihimo';
     this.#panel.title = `${name} — kumihimo`;
 
+    let html: string;
     try {
       const locale = editorLocale();
       const { svg, diagram, diagnostics } = await compile(document.getText(), {
@@ -76,18 +133,20 @@ export class Preview {
         locale,
       });
       if (this.#disposed) return;
-      this.#panel.webview.html = page(
-        svg,
-        tablesOf(diagram, locale),
-        diagnostics.length,
-        this.#panel.webview,
-      );
+      html = page(svg, tablesOf(diagram, locale), diagnostics.length, this.#panel.webview);
     } catch (error) {
       if (this.#disposed) return;
       // compile() is documented never to throw; if that ever stops being true the preview
       // says so rather than going blank and leaving the author guessing.
-      this.#panel.webview.html = failure(error, this.#panel.webview);
+      html = failure(error, this.#panel.webview);
     }
+
+    // Assigning `html` reloads the webview — the document is torn down, the markup parsed
+    // again, and the drawing decoded from its data URI again. An edit that does not change
+    // the picture, which is most of them mid-word, should not cost that.
+    if (html === this.#shown) return;
+    this.#shown = html;
+    this.#panel.webview.html = html;
   }
 }
 

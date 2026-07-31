@@ -210,3 +210,17 @@ describe('resolveLocale', () => {
     expect(resolveLocale(undefined, {})).toBe('en');
   });
 });
+
+describe('--version', () => {
+  it('reports the version this package actually is', async () => {
+    // It was the literal '0.0.0' for every release up to 0.3.0, so the flag answered 0.0.0
+    // whatever was installed — and that is the number people put in bug reports.
+    const manifest = JSON.parse(
+      await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+
+    const cli = await readFile(new URL('../src/cli.ts', import.meta.url), 'utf8');
+    expect(cli).not.toContain(".version('0.0.0')");
+    expect(manifest.version).not.toBe('0.0.0');
+  });
+});

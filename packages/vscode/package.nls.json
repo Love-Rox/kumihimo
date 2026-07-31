@@ -3,5 +3,6 @@
   "command.showPreview": "kumihimo: Open Diagram Preview",
   "config.preview.theme": "Preview theme. `auto` follows the editor's colour theme. A `diagram { theme: … }` in the source wins over both.",
   "config.diagnostics.enabled": "Report diagnostics while editing.",
-  "config.diagnostics.delay": "How long to wait after typing stops before checking, in milliseconds."
+  "config.diagnostics.delay": "How long to wait after typing stops before checking, in milliseconds.",
+  "config.preview.delay": "How long to wait after typing stops before redrawing the preview, in milliseconds. Redrawing a whole diagram costs more than checking one line, so this is slower than the diagnostics delay."
 }
