@@ -152,15 +152,22 @@ jobs:
           # and requiring one would mean asking for a billing account to upload a file.
           allow-no-subscriptions: true
 
+      # The release step renamed the package to carry its version, so every step after it
+      # has to use that name. This was invisible for as long as publishing was unconfigured:
+      # the step that would have tripped over it never ran.
       - name: Publish to the Visual Studio Marketplace (Entra ID)
         if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID != ''
-        run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath kumihimo.vsix --azure-credential
+        env:
+          VSIX: kumihimo-vscode-${{ steps.version.outputs.current }}.vsix
+        run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath "$VSIX" --azure-credential
 
       # Skipped rather than failed when nothing is configured, the same way Open VSX is.
       # A pipeline that has not been given credentials has nothing to report as broken.
       - name: Publish to the Visual Studio Marketplace (token)
         if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID == '' && env.VSCE_PAT != ''
-        run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath kumihimo.vsix
+        env:
+          VSIX: kumihimo-vscode-${{ steps.version.outputs.current }}.vsix
+        run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath "$VSIX"
 
       - name: Say where the .vsix is, when nothing was published
         if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID == '' && env.VSCE_PAT == ''
@@ -177,4 +184,6 @@ jobs:
       # its `if:` — the condition would always see an empty string.
       - name: Publish to Open VSX
         if: steps.version.outputs.publish == 'true' && env.OVSX_PAT != ''
-        run: pnpm --filter kumihimo-vscode exec ovsx publish kumihimo.vsix
+        env:
+          VSIX: kumihimo-vscode-${{ steps.version.outputs.current }}.vsix
+        run: pnpm --filter kumihimo-vscode exec ovsx publish "$VSIX"
