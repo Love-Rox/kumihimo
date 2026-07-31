@@ -1,0 +1,89 @@
+name: Publish VS Code extension
+
+# The extension is private, so changesets neither versions nor releases it. The version in
+# its manifest is therefore the whole statement of intent: when that changes on main, it is
+# meant to go out. Anything else touching packages/vscode is not a release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/vscode/**'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-vscode
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: marketplace
+      url: https://marketplace.visualstudio.com/items?itemName=love-rox.kumihimo-vscode
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The previous commit, to see whether the version moved.
+          fetch-depth: 2
+
+      - id: version
+        name: Decide whether this is a release
+        run: |
+          current=$(node -p "require('./packages/vscode/package.json').version")
+          previous=$(git show HEAD~1:packages/vscode/package.json 2>/dev/null \
+            | node -p "JSON.parse(require('node:fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
+
+          echo "current=$current"  >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "手動実行のため公開します ($current)"
+          elif [ "$current" != "$previous" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "バージョンが $previous → $current に変わったため公開します"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "バージョンは $current のまま。公開しません"
+          fi
+
+      - uses: pnpm/action-setup@v5
+        if: steps.version.outputs.publish == 'true'
+
+      - uses: actions/setup-node@v6
+        if: steps.version.outputs.publish == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.version.outputs.publish == 'true'
+
+      # `build` also writes THIRD-PARTY-NOTICES.txt, which the .vsix has to carry: the
+      # bundle contains elkjs, and minification leaves no notice in it.
+      - run: pnpm --filter kumihimo-vscode build
+        if: steps.version.outputs.publish == 'true'
+
+      - run: pnpm --filter kumihimo-vscode exec vsce package --no-dependencies --out kumihimo.vsix
+        if: steps.version.outputs.publish == 'true'
+
+      - name: Publish to the Visual Studio Marketplace
+        if: steps.version.outputs.publish == 'true'
+        run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath kumihimo.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      # VSCodium, Cursor and the rest install from Open VSX rather than the Marketplace.
+      # Skipped rather than failed when no token is configured: the Marketplace is the
+      # release, and this is the same bytes reaching a second shop. The token is read from
+      # the job's env rather than the step's, because a step's own `env:` is not visible to
+      # its `if:` — the condition would always see an empty string.
+      - name: Publish to Open VSX
+        if: steps.version.outputs.publish == 'true' && env.OVSX_PAT != ''
+        run: pnpm --filter kumihimo-vscode exec ovsx publish kumihimo.vsix

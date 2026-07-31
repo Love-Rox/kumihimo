@@ -43,7 +43,8 @@
   "devDependencies": {
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.6.0",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.1",
+    "ovsx": "^1.0.2"
   },
   "contributes": {
     "languages": [
