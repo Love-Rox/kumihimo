@@ -480,13 +480,24 @@ class Parser {
     const to = this.#portRef();
 
     let signal: string | undefined;
+    let carrier: string | undefined;
     let length: string | undefined;
     let label: string | undefined;
     let via: string | undefined;
     let attrs: AttrEntry[] = [];
 
-    if (this.#accept('colon'))
+    if (this.#accept('colon')) {
       signal = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' }).value;
+      // `over` binds to the signal rather than sitting with the other modifiers: it says
+      // what that signal is riding on, and reads as one phrase.
+      if (this.#at('ident', 'over')) {
+        this.#next();
+        carrier = this.#expect('ident', {
+          en: 'A signal type name',
+          ja: '信号種別名',
+        }).value;
+      }
+    }
 
     // Modifiers are order-independent, so loop until nothing more applies.
     for (;;) {
@@ -519,6 +530,7 @@ class Parser {
       span: this.#span(start),
     };
     if (signal !== undefined) node.signal = signal;
+    if (carrier !== undefined) node.carrier = carrier;
     if (length !== undefined) node.length = length;
     if (label !== undefined) node.label = label;
     if (via !== undefined) node.via = via;

@@ -41,5 +41,6 @@
   "import a library": "ライブラリの読み込み",
   "adapter in the run": "変換部材",
   "Length units: {0}": "ケーブル長の単位: {0}",
-  "a passive part: a splitter, a converting lead": "変換部材（分岐ケーブル・変換ケーブルなど）"
+  "a passive part: a splitter, a converting lead": "変換部材（分岐ケーブル・変換ケーブルなど）",
+  "what this signal is riding on": "この信号が乗っている搬送"
 }

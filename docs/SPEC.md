@@ -292,6 +292,42 @@ pdu.1       -- rack1.AC    : ac
 pc.HDMI     -> mon.DVI     : hdmi  via "HDMI-DVI cable"
 ```
 
+### `over` — what is riding on what
+
+A port is a piece of physics: an RJ45 socket, a radio. What travels through it is chosen
+per run — NDI today, Dante tomorrow. `over` says both.
+
+```khm
+device cam "PTZ" as camera   { out WIFI : wifi }
+device ap  "AP"  as router   { io WIFI : wifi  out LAN : lan }
+device pc  "PC"  as computer { in LAN : lan }
+device dsk "Desk" as mixer   { in DANTE : lan }
+
+cam.WIFI -> ap.WIFI   : ndi   over wifi [ch=36]
+ap.LAN   -> pc.LAN    : ndi   over lan 10m "N-01"
+ap.LAN   -> dsk.DANTE : dante over lan 15m "N-02"
+```
+
+**The carrier decides the physics.** The connector, whether there is a cable to coil or a
+channel to pick, and whether the two ends can meet at all. **The payload is what the
+drawing is about**, and is what the key names.
+
+The same NDI therefore appears twice, correctly each time:
+
+| No.  | From | To   | Signal | Length | Connectors |
+| ---- | ---- | ---- | ------ | ------ | ---------- |
+| —    | PTZ  | AP   | NDI    | ch 36  | —          |
+| N-01 | AP   | PC   | NDI    | 10m    | RJ45       |
+| N-02 | AP   | Desk | Dante  | 15m    | RJ45       |
+
+Without `over`, a signal is its own carrier and everything behaves as before — `: sdi 30m`
+is unchanged, and always will be.
+
+A length on a run through the air is reported, and so is a channel on a run down a cable.
+They are the same mistake: a line copied from the other kind of run.
+
+---
+
 ### Cable colour
 
 `[color=…]` gives a cable its jacket colour. The line is drawn in that colour, **overriding

@@ -203,7 +203,9 @@ function renderEdge(
   options: Required<Pick<RenderOptions, 'fontFamily' | 'highlightProblems'>>,
 ): string {
   const width = link.signal.width;
-  const wireless = link.signal.wireless;
+  // Drawn in the payload's colour — the reader wants to know it is NDI — but dashed and
+  // glyphed by the carrier, because that is what says "this one is through the air".
+  const wireless = (link.carrier ?? link.signal).wireless;
   const stroke = linkStroke(link, theme);
   const dash = dashArray(stroke, width, wireless);
   const problem = link.compatibility.verdict !== 'ok';
