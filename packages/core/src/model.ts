@@ -30,6 +30,11 @@ export const DEVICE_KINDS: readonly string[] = [
   'amplifier',
   'computer',
   'converter',
+  // The two ends of a radio path. Named separately rather than folded into `interface`
+  // because which end a box is decides where the signal is going, and a schedule that
+  // says "interface ×4" does not tell anyone what to pack.
+  'transmitter',
+  'receiver',
   'matrix',
   'patchbay',
   'router',
