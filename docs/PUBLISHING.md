@@ -19,8 +19,20 @@ expires on a date nobody remembers, and takes the pipeline down when it does.
 
 ## Entra ID over OIDC
 
+> **Entra ID** is Microsoft's identity service — the part that holds accounts and decides
+> who may do what. It was called Azure Active Directory until 2023, and it is separate from
+> the parts of Azure that cost money. You are already using it: the Microsoft account that
+> owns the publisher is an identity in it.
+>
+> What follows creates a _non-human_ identity, says that only runs of this workflow may
+> speak as it, and makes it a member of the publisher. There is no password and no token
+> anywhere — the fact that a run came from on **is** the key.
+
 GitHub mints a token for the run, Entra ID exchanges it for a short-lived one, and `vsce`
 picks that up through the signed-in Azure CLI. Nothing long-lived is stored anywhere.
+
+**No Azure subscription is needed.** Publishing touches no Azure resource, and the workflow
+signs in with `allow-no-subscriptions`.
 
 Requires `vsce >= 2.26.1`. This repository is on 3.9.2.
 
@@ -62,7 +74,7 @@ add the service principal and give it a role that can publish.
 > also the one that cannot be checked from here. If the run authenticates but the publish
 > is refused, this is where to look.
 
-### 4. Three repository variables
+### 4. Two repository variables
 
 **Variables**, not secrets. They are identifiers, and keeping them readable makes a failed
 run readable too.
@@ -70,12 +82,9 @@ run readable too.
 Settings → Secrets and variables → Actions → **Variables**:
 
 ```
-AZURE_CLIENT_ID        the Application (client) ID from step 1
-AZURE_TENANT_ID        the Directory (tenant) ID from step 1
-AZURE_SUBSCRIPTION_ID  any subscription in that tenant
+AZURE_CLIENT_ID  the Application (client) ID from step 1
+AZURE_TENANT_ID  the Directory (tenant) ID from step 1
 ```
-
-`azure/login` insists on a subscription even though publishing does not touch one.
 
 ### 5. Check it
 

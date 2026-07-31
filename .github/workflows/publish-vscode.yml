@@ -35,11 +35,10 @@ jobs:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
       # Identifiers, not credentials — a variable rather than a secret, so a failed run is
-      # readable. Set all three to publish over OIDC; leave them unset to fall back to the
-      # PAT, or to neither and get the .vsix on a GitHub release.
+      # readable. Set both to publish over OIDC; leave them unset to fall back to the PAT,
+      # or to neither and get the .vsix on a GitHub release.
       AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -149,7 +148,9 @@ jobs:
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          # Publishing touches no Azure resource, so there may be no subscription to name —
+          # and requiring one would mean asking for a billing account to upload a file.
+          allow-no-subscriptions: true
 
       - name: Publish to the Visual Studio Marketplace (Entra ID)
         if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID != ''
