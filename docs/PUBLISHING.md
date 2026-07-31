@@ -22,11 +22,15 @@ expires on a date nobody remembers, and takes the pipeline down when it does.
 > **Entra ID** is Microsoft's identity service — the part that holds accounts and decides
 > who may do what. It was called Azure Active Directory until 2023, and it is separate from
 > the parts of Azure that cost money. You are already using it: the Microsoft account that
-> owns the publisher is an identity in it.
+> owns the `love-rox` publisher is an identity in it.
+>
+> Creating an identity, giving it a federated credential and making it a publisher member
+> are all on the **Free** tier, which comes with any Microsoft account. The paid tiers (P1,
+> P2) buy conditional access and the like, and none of it is needed here.
 >
 > What follows creates a _non-human_ identity, says that only runs of this workflow may
 > speak as it, and makes it a member of the publisher. There is no password and no token
-> anywhere — the fact that a run came from on **is** the key.
+> anywhere — the fact that a run came from `Love-Rox/kumihimo` on `main` **is** the key.
 
 GitHub mints a token for the run, Entra ID exchanges it for a short-lived one, and `vsce`
 picks that up through the signed-in Azure CLI. Nothing long-lived is stored anywhere.
