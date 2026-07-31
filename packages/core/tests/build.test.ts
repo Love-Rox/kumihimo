@@ -297,3 +297,29 @@ describe('unconnected ports', () => {
     expect(diagnostics.map((d) => d.message)).toEqual(['Wired to nothing: a.Y']);
   });
 });
+
+describe('wireless endpoints', () => {
+  it('accepts the kinds the wireless diagnostic tells you to declare', () => {
+    // The message says "put the transmitter or receiver in as a device". Until these
+    // existed, following that advice produced `unknown-device-kind`.
+    const source = [
+      'device tx "送信機" as transmitter { in IN : xlr  out RF : uhf }',
+      'device rx "受信機" as receiver    { in RF : uhf  out OUT : xlr }',
+      'tx.RF -> rx.RF : uhf',
+    ].join('\n');
+    expect(codes(source)).toEqual([]);
+  });
+
+  it('draws a radio path through them without complaint', () => {
+    const source = [
+      'device mic "ワイヤレスマイク" as microphone { out OUT : xlr }',
+      'device tx  as transmitter { in IN : xlr  out RF : uhf }',
+      'device rx  as receiver    { in RF : uhf  out OUT : xlr }',
+      'device desk as mixer      { in CH1 : xlr }',
+      'mic.OUT -> tx.IN  : xlr 1m',
+      'tx.RF   -> rx.RF  : uhf [ch=38]',
+      'rx.OUT  -> desk.CH1 : xlr 3m',
+    ].join('\n');
+    expect(codes(source)).toEqual([]);
+  });
+});
