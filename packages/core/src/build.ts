@@ -681,6 +681,19 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         if (radio) {
           link.frequency = radio.key === 'ch' ? `ch ${radio.value.value}` : radio.value.value;
         }
+      } else {
+        // The mirror of the rule above, which was missing: a length on a radio path has
+        // always been reported, but a channel on a cable was read by nothing and said
+        // nothing. Both are the same mistake — a line copied from the other kind of run.
+        const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
+        if (radio) {
+          bag.report(
+            'invalid-value',
+            'link.cabled-channel',
+            { key: radio.key, value: radio.value.value },
+            radio.span,
+          );
+        }
       }
 
       const written = stmt.attrs.find((a) => a.key === 'color');

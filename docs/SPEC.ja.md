@@ -734,6 +734,32 @@ mixer.WIFI <-> ap.WIFI : wifi [freq="5GHz"]
 周波数は有線の「ケーブル長」に相当する。**現場でリンクを成立させるために必要な事実**であり、
 2系統が同じ値を使えば干渉するという点でも同じ役割を持つ。
 
+### 無線を通る NDI
+
+無線カメラは NDI を Wi-Fi に乗せて送る。これを `wifi` と書いてもコンパイルは通るが、
+図には「Wi-Fi」としか出ない。その区間が本線を運んでいるのか誰かのノート PC なのかが
+読み取れなくなる。`wireless-ndi` を独立した型にしているのはそのためである。
+
+```khm
+device cam "PTZ" as camera { out NDI : wireless-ndi }
+device ap  "AP"  as router {
+  io  WIFI : wireless-ndi
+  out LAN  : ndi
+}
+device pc  "PC"  as computer { in NDI : ndi }
+
+cam.NDI -> ap.WIFI : wireless-ndi [ch=36]
+ap.LAN  -> pc.NDI  : ndi 10m "N-01"
+```
+
+アクセスポイントは機器として置く。電源が要り、設置場所が要る箱だからである。
+無線区間はチャンネルを持ち巻くものが無く、有線区間は長さと番号を持つ。
+ケーブル表には両方が、それぞれ実際に持っているものと共に出る。
+
+無線区間が有線ポートに直結できないのは `wireless-ndi` でも同じである。
+
+---
+
 ### 描画
 
 無線区間には**電波マーク**が描かれ、線は長い破線になる。信号 family が実線でも

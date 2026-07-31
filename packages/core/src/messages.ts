@@ -154,6 +154,10 @@ export const MESSAGES = {
     en: 'A radio path has no cable length: {value}',
     ja: '無線区間にケーブル長は指定できません: {value}',
   },
+  'link.cabled-channel': {
+    en: 'A cable has no channel or frequency: {key}={value}',
+    ja: 'ケーブルにチャンネルや周波数は指定できません: {key}={value}',
+  },
 
   // Fallbacks, for a verdict that arrived without a reason of its own.
   'verdict.mismatch': { en: 'the signal types disagree', ja: '信号種別が一致しません' },

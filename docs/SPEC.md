@@ -715,6 +715,32 @@ mixer.WIFI <-> ap.WIFI : wifi [freq="5GHz"]
 Frequency is the wireless equivalent of a cable length: the fact needed on site to make the
 link work, and the one that causes a clash when two systems share it.
 
+### NDI over the air
+
+A wireless camera sends NDI over Wi-Fi. Written as `wifi` that compiles, and the drawing
+then says only "Wi-Fi" — which does not tell a reader whether the link carries the
+programme feed or somebody's laptop. `wireless-ndi` is its own type for that reason.
+
+```khm
+device cam "PTZ" as camera { out NDI : wireless-ndi }
+device ap  "AP"  as router {
+  io  WIFI : wireless-ndi
+  out LAN  : ndi
+}
+device pc  "PC"  as computer { in NDI : ndi }
+
+cam.NDI -> ap.WIFI : wireless-ndi [ch=36]
+ap.LAN  -> pc.NDI  : ndi 10m "N-01"
+```
+
+The access point is a device, because it is a box that has to be powered and placed. The
+air has a channel and nothing to coil; the cable has a length and a number. Both appear on
+the cable schedule, each with what it actually has.
+
+A radio path still cannot meet a cabled port directly, `wireless-ndi` included.
+
+---
+
 ### Drawing
 
 A radio path gets a **broadcast mark** and a long, airy dash. It stays dashed even when its

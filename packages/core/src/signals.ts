@@ -114,6 +114,16 @@ const SEEDS: Record<string, SignalSeed> = {
   hdbaset: { category: 'video', label: 'HDBaseT', connectors: ['RJ45'] },
   ndi: { category: 'video', label: 'NDI', connectors: ['RJ45'], bidirectional: true },
   st2110: { category: 'video', label: 'ST 2110', connectors: ['RJ45', 'SFP'], bidirectional: true },
+  // NDI over the air. Its own type rather than `wifi`, because a drawing that says only
+  // "Wi-Fi" has lost what is flying through it — and what is flying through it is the
+  // question a reader has about a wireless camera.
+  'wireless-ndi': {
+    category: 'video',
+    label: { en: 'Wireless NDI', ja: '無線 NDI' },
+    connectors: [],
+    bidirectional: true,
+    wireless: true,
+  },
   fiber: { category: 'video', label: 'Fiber', connectors: ['LC', 'SC', 'OpticalCON'] },
 
   // ── audio ───────────────────────────────────────────────────────────────
