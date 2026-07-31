@@ -5,7 +5,7 @@
 Documents the two things `via` was being asked to mean, which were being counted
 differently by accident.
 
-`via "HDMI-DVI cable"` on a 2 m run counts one object twice: the cable row *is* the
+`via "HDMI-DVI cable"` on a 2 m run counts one object twice: the cable row _is_ the
 HDMI-DVI cable, and the parts row is that same cable. Someone packing from both schedules
 brings two. The other reading — an ordinary cable with a small adapter on the end — really
 is two objects, and two rows are right.
