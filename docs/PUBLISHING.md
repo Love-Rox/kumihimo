@@ -82,6 +82,19 @@ add the service principal and give it a role that can publish.
 > also the one that cannot be checked from here. If the run authenticates but the publish
 > is refused, this is where to look.
 
+### 4. A second federated credential, for the environment
+
+The publish job runs in the `marketplace` environment, and GitHub names the environment
+rather than the branch in the subject of a token for such a job. One credential does not
+cover both, so add a second with the same organization and repository but:
+
+|             |                 |
+| ----------- | --------------- |
+| Entity type | **Environment** |
+| Environment | `marketplace`   |
+
+The branch credential is still needed by the one-off in step 6.
+
 ### 4. Two repository variables
 
 **Variables**, not secrets. They are identifiers, and keeping them readable makes a failed
@@ -93,6 +106,37 @@ Settings → Secrets and variables → Actions → **Variables**:
 AZURE_CLIENT_ID  the Application (client) ID from step 1
 AZURE_TENANT_ID  the Directory (tenant) ID from step 1
 ```
+
+### 5. Give the identity an Azure DevOps profile
+
+The Marketplace's member box wants an Azure DevOps _profile_ id — not the application id
+and not the service principal's object id. Both of those give
+`TF14045: The identity could not be found`.
+
+A service principal has no profile until it is a **user of an Azure DevOps organization**;
+it cannot sign in interactively, so it never materialises on its own. So:
+
+1. Create an organisation at <https://dev.azure.com> if there is none. It is free, and
+   needs no project.
+2. Connect it to the tenant: **Organization Settings → Microsoft Entra → Connect
+   directory**. A service principal can only be added to an organisation connected to the
+   tenant it lives in — without this, the Add users box reads the name as an email address
+   and rejects it.
+3. **Organization Settings → Users → Add users**, the identity's display name, access
+   level **Basic**.
+
+Then read its profile id with a workflow that signs in as the identity and asks Azure
+DevOps who it is:
+
+```sh
+az rest --url https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+  --resource 499b84ac-1321-427f-aa17-267ca6975798
+```
+
+The `id` in the response is what goes in the Marketplace member box, with the
+**Contributor** role. There is no secret to run this with locally, which is the point: the
+branch federated credential lets a run of this repository do it. `entra-profile-id.yml` in
+this repository's history is that workflow.
 
 ### 5. Check it
 
