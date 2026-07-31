@@ -27,8 +27,9 @@ exporter (`toDrawio`).
 Importing other files with `use` needs a resolver, which the caller supplies — that is how
 core stays free of I/O.
 
-See the [project README](https://github.com/Love-Rox/kumihimo#readme) for the language and
-the other packages.
+See [kumihimo.love-rox.cc](https://kumihimo.love-rox.cc/en) for the guide and an editor you
+can type into, or the [project README](https://github.com/Love-Rox/kumihimo#readme) for the
+other packages.
 
 ## License
 

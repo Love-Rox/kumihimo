@@ -25,8 +25,9 @@ import Kumihimo from '@love-rox/kumihimo-astro/Kumihimo.astro';
 Astro components are async and run at build time, so this awaits the compile directly: the
 page ships static SVG with no layout engine in the bundle and nothing to hydrate.
 
-See the [project README](https://github.com/Love-Rox/kumihimo#readme) for the language and
-the other packages.
+See [kumihimo.love-rox.cc](https://kumihimo.love-rox.cc/en) for the guide and an editor you
+can type into, or the [project README](https://github.com/Love-Rox/kumihimo#readme) for the
+other packages.
 
 ## License
 

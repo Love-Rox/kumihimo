@@ -20,8 +20,9 @@ underlined. Warnings do not fail the build unless you pass `--strict`.
 
 Installs as both `kumihimo` and `khm`.
 
-See the [project README](https://github.com/Love-Rox/kumihimo#readme) for the language and
-the other packages.
+See [kumihimo.love-rox.cc](https://kumihimo.love-rox.cc/en) for the guide and an editor you
+can type into, or the [project README](https://github.com/Love-Rox/kumihimo#readme) for the
+other packages.
 
 ## License
 

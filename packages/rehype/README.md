@@ -31,8 +31,9 @@ The SVG is parsed into HAST in the SVG namespace rather than emitted as a raw no
 Use `onDiagnostics` if you would rather not publish a nice-looking picture of faulty
 wiring.
 
-See the [project README](https://github.com/Love-Rox/kumihimo#readme) for the language and
-the other packages.
+See [kumihimo.love-rox.cc](https://kumihimo.love-rox.cc/en) for the guide and an editor you
+can type into, or the [project README](https://github.com/Love-Rox/kumihimo#readme) for the
+other packages.
 
 ## License
 
