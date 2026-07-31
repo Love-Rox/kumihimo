@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- The preview switches between the diagram and the three schedules — cables, equipment and
+  adapters — from the same functions the CLI exports and the site shows. Tabs are radio
+  inputs and sibling selectors, so the panel keeps running with scripts disabled.
+- Localised properly. Strings were bilingual-in-one-line before, which reads as noise in
+  either language; the manifest now uses `package.nls` keys and the runtime uses
+  `vscode.l10n`, with English as the source and Japanese alongside.
+
 ## 0.2.0
 
 - Completions, read from the compiler rather than from a list kept beside it. Signal types

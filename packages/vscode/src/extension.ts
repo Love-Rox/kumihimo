@@ -79,9 +79,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('kumihimo.showPreview', () => {
       const editor = vscode.window.activeTextEditor;
       if (editor?.document.languageId !== LANGUAGE) {
-        void vscode.window.showInformationMessage(
-          '.khm ファイルを開いてから実行してください / Open a .khm file first.',
-        );
+        void vscode.window.showInformationMessage(vscode.l10n.t('Open a .khm file first.'));
         return;
       }
       Preview.show(editor.document);
