@@ -153,21 +153,116 @@ function shapeOf(tokens: readonly Token[]): { shape: Shape; cells: string[]; res
   return { shape: 'other', cells: [], rest: join(tokens) };
 }
 
+/** A source line taken apart, before it is measured. */
+interface Fragment {
+  tokens: Token[];
+  comment?: string;
+  blank: boolean;
+  commentOnly: boolean;
+}
+
+/**
+ * Break each source line at the braces of blocks that span lines.
+ *
+ * A brace whose partner is on another line gets its own line; one whose partner is on the
+ * same line is left alone, so `device a as mixer { in X : xlr }` stays as written. That is
+ * the whole reflow: nothing is joined, and no statement is ever split.
+ *
+ * A trailing comment stays with the last fragment of the line it was written on. There is
+ * no better answer — it was written at the end, and the end is where it remains.
+ *
+ * @param source - The text to read.
+ * @returns One or more fragments per source line, in order.
+ */
+function fragments(source: string): Fragment[] {
+  const raw = source.split('\n').map((line) => splitComment(line));
+  const perLine = raw.map(({ code }) =>
+    code.trim() === ''
+      ? []
+      : tokenize(code.trim()).filter(
+          (t) => t.type !== 'eof' && t.type !== 'newline' && t.type !== 'semicolon',
+        ),
+  );
+
+  // Which line each brace's partner sits on. An unmatched brace — a half-typed file — is
+  // left as it is rather than guessed at.
+  const partnerLine = new Map<Token, number>();
+  const open: { token: Token; line: number }[] = [];
+  perLine.forEach((tokens, line) => {
+    for (const token of tokens) {
+      if (token.type === 'lbrace') open.push({ token, line });
+      else if (token.type === 'rbrace') {
+        const match = open.pop();
+        if (!match) continue;
+        partnerLine.set(match.token, line);
+        partnerLine.set(token, match.line);
+      }
+    }
+  });
+
+  const out: Fragment[] = [];
+
+  perLine.forEach((tokens, line) => {
+    const comment = raw[line]?.comment;
+
+    if (tokens.length === 0) {
+      out.push({
+        blank: comment === undefined,
+        commentOnly: comment !== undefined,
+        tokens: [],
+        ...(comment === undefined ? {} : { comment }),
+      });
+      return;
+    }
+
+    const spans = (token: Token) => {
+      const partner = partnerLine.get(token);
+      return partner !== undefined && partner !== line;
+    };
+
+    const pieces: Token[][] = [];
+    let current: Token[] = [];
+    for (const token of tokens) {
+      if (token.type === 'rbrace' && spans(token) && current.length > 0) {
+        pieces.push(current);
+        current = [];
+      }
+      current.push(token);
+      if (token.type === 'lbrace' && spans(token)) {
+        pieces.push(current);
+        current = [];
+      }
+    }
+    if (current.length > 0) pieces.push(current);
+
+    pieces.forEach((piece, i) => {
+      const last = i === pieces.length - 1;
+      out.push({
+        tokens: piece,
+        blank: false,
+        commentOnly: false,
+        ...(last && comment !== undefined ? { comment } : {}),
+      });
+    });
+  });
+
+  return out;
+}
+
 /** Read the file into lines that know their own depth and shape. */
 function read(source: string): Line[] {
   const lines: Line[] = [];
   let depth = 0;
 
-  for (const raw of source.split('\n')) {
-    const { code, comment } = splitComment(raw);
-    const trimmed = code.trim();
+  for (const fragment of fragments(source)) {
+    const { comment } = fragment;
 
-    if (trimmed === '') {
+    if (fragment.tokens.length === 0) {
       const line: Line = {
         depth,
         tokens: [],
-        blank: comment === undefined,
-        commentOnly: comment !== undefined,
+        blank: fragment.blank,
+        commentOnly: fragment.commentOnly,
         shape: 'other',
         cells: [],
         rest: '',
@@ -177,9 +272,7 @@ function read(source: string): Line[] {
       continue;
     }
 
-    const tokens = tokenize(trimmed).filter(
-      (t) => t.type !== 'eof' && t.type !== 'newline' && t.type !== 'semicolon',
-    );
+    const tokens = fragment.tokens;
 
     // A closing brace belongs at the level of the thing it closes, not its contents.
     const closesFirst = tokens[0]?.type === 'rbrace';

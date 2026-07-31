@@ -674,6 +674,19 @@ A run ends at a blank line, a comment on its own line, or a change of shape, bec
 are exactly where a reader stops scanning. Each block's columns are its own, so widening a
 name in one device does not reflow another.
 
+Lines are not otherwise rearranged: statements are never joined or split. The one exception
+is a block whose braces span lines, which gets them on their own lines — a block written
+entirely on one line is left exactly as it was.
+
+```khm
+# spans lines, so the braces get their own
+adapter hd "HDMI-DVI cable"{in IN:hdmi
+out OUT:dvi}
+
+# fits on one line, so it stays on one
+device a as mixer { in X : xlr }
+```
+
 Comments stay on the line they were written on, and a `#` inside a string stays inside the
 string. Formatting never changes what a file says; the tests assert that by comparing the
 compiled model before and after, not the text.
