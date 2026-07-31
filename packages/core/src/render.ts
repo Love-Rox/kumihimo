@@ -6,6 +6,8 @@
  */
 
 import type { DiagramLayout, EdgeLayout, Point } from './layout.js';
+import type { Locale } from './messages.js';
+import { DEFAULT_LOCALE, localise } from './messages.js';
 import { estimateTextWidth, layoutDiagram } from './layout.js';
 import type { LayoutOptions } from './layout.js';
 import type { Diagram, Link } from './model.js';
@@ -14,6 +16,8 @@ import { DEFAULT_THEME, lookupTheme, strokeFor } from './theme.js';
 
 /** How to draw the diagram. */
 export interface RenderOptions extends LayoutOptions {
+  /** Language for the legend's signal names. Defaults to English. */
+  locale?: Locale;
   /** Font stack used for every label. */
   fontFamily?: string;
   /** Draw a key of the signal types in use. Defaults to `true`. */
@@ -270,6 +274,7 @@ export function renderSvg(
     DEFAULT_THEME;
 
   const fontFamily = options.fontFamily ?? DEFAULT_FONT;
+  const locale = options.locale ?? DEFAULT_LOCALE;
   const showLegend = options.legend ?? true;
   const highlightProblems = options.highlightProblems ?? true;
   const fontSize = options.fontSize ?? 13;
@@ -360,9 +365,9 @@ export function renderSvg(
         `<path d="M ${n(cursor)} ${n(y)} h 22" stroke="${safeColor(key.color)}" ` +
           `stroke-width="${signal.width}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`,
         `<text x="${n(cursor + 27)}" y="${n(y + 4)}" font-size="11" fill="${theme.muted}" ` +
-          `font-family="${escape(fontFamily)}">${escape(signal.label || signal.name)}</text>`,
+          `font-family="${escape(fontFamily)}">${escape(localise(signal.label, locale) || signal.name)}</text>`,
       );
-      cursor += 27 + estimateTextWidth(signal.label || signal.name, 11) + 22;
+      cursor += 27 + estimateTextWidth(localise(signal.label, locale) || signal.name, 11) + 22;
     }
   }
 

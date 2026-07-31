@@ -106,10 +106,10 @@ export async function runExport(
       : format === 'drawio'
         ? await toDrawio(diagram, options)
         : format === 'cable'
-          ? toTsv(cableSchedule(diagram), CABLE_COLUMNS)
+          ? toTsv(cableSchedule(diagram, options.locale), CABLE_COLUMNS)
           : format === 'equipment'
             ? toTsv(equipmentSchedule(diagram), EQUIPMENT_COLUMNS)
-            : toTsv(adapterSchedule(diagram), ADAPTER_COLUMNS);
+            : toTsv(adapterSchedule(diagram, options.locale), ADAPTER_COLUMNS);
 
   const result: ExportCommandResult = { content, diagnostics };
 

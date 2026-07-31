@@ -5,6 +5,9 @@
  * SVG signal flow diagram (系統図).
  */
 
+export type { Locale, Localised, MessageKey, MessageParams } from './messages.js';
+export { DEFAULT_LOCALE, LOCALES, MESSAGES, formatMessage, localise } from './messages.js';
+
 export type { SignalCategory, LineStyle, SignalType, SignalRegistry } from './signals.js';
 export {
   BUILTIN_SIGNALS,
@@ -75,7 +78,7 @@ export type {
 export type { ResolvedModule, ModuleResolver, LoadOptions, LoadResult } from './loader.js';
 export { loadDocument } from './loader.js';
 
-export type { ParseResult } from './parser.js';
+export type { ParseOptions, ParseResult } from './parser.js';
 export { parse } from './parser.js';
 
 export type { Port, Device, Group, LinkEnd, Link, FlowDirection, Diagram } from './model.js';

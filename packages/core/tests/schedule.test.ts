@@ -55,8 +55,8 @@ describe('cableSchedule', () => {
   it('notes why a run was flagged', () => {
     const rows = cableSchedule(scheduleOf(SOURCE));
     const hdmiToDvi = rows.find((r) => r.to === 'mon.DVI');
-    expect(hdmiToDvi?.note).toContain('変換');
-    expect(hdmiToDvi?.adapter).toBe('HDMI-DVI 変換ケーブル');
+    expect(hdmiToDvi?.note).toContain('Needs HDMI-DVI cable');
+    expect(hdmiToDvi?.adapter).toBe('HDMI-DVI cable');
   });
 });
 
@@ -91,7 +91,7 @@ describe('adapterSchedule', () => {
       `),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ adapter: 'HDMI-DVI 変換ケーブル', count: 2 });
+    expect(rows[0]).toMatchObject({ adapter: 'HDMI-DVI cable', count: 2 });
     expect(rows[0]?.links).toEqual(['V-01', 'V-02']);
   });
 

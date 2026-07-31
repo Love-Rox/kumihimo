@@ -7,6 +7,8 @@
  * of a link rather than decoration on a picture.
  */
 
+import type { Locale } from './messages.js';
+import { DEFAULT_LOCALE, localise } from './messages.js';
 import type { Diagram, Link } from './model.js';
 
 /** Whether a link is a physical cable or a radio path. */
@@ -97,7 +99,7 @@ function describe(link: Link): string {
  * @param diagram - The resolved diagram.
  * @returns Rows in the order the links were written.
  */
-export function cableSchedule(diagram: Diagram): CableRow[] {
+export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE): CableRow[] {
   return diagram.links.map((link) => {
     const row: CableRow = {
       from: `${link.from.deviceId}.${link.from.portName}`,
@@ -105,7 +107,7 @@ export function cableSchedule(diagram: Diagram): CableRow[] {
       to: `${link.to.deviceId}.${link.to.portName}`,
       toDevice: endpointName(diagram, link.to.deviceId),
       signal: link.signal.name,
-      signalLabel: link.signal.label || link.signal.name,
+      signalLabel: localise(link.signal.label, locale) || link.signal.name,
       medium: link.signal.wireless ? 'wireless' : 'cable',
       connectors: link.signal.connectors,
     };
@@ -113,10 +115,12 @@ export function cableSchedule(diagram: Diagram): CableRow[] {
     if (link.length !== undefined) row.length = link.length;
     if (link.frequency !== undefined) row.frequency = link.frequency;
     if (link.color !== undefined) row.color = link.color;
-    if (link.compatibility.adapter !== undefined) row.adapter = link.compatibility.adapter;
+    if (link.compatibility.adapter !== undefined) {
+        row.adapter = localise(link.compatibility.adapter, locale);
+      }
     if (link.via !== undefined) row.adapter = link.via;
     if (link.compatibility.verdict !== 'ok' && link.compatibility.reason !== undefined) {
-      row.note = link.compatibility.reason;
+      row.note = localise(link.compatibility.reason, locale);
     }
     return row;
   });
@@ -154,12 +158,14 @@ export function equipmentSchedule(diagram: Diagram): EquipmentRow[] {
  * @param diagram - The resolved diagram.
  * @returns One row per distinct adapter, most needed first.
  */
-export function adapterSchedule(diagram: Diagram): AdapterRow[] {
+export function adapterSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE): AdapterRow[] {
   const rows = new Map<string, AdapterRow>();
 
   for (const link of diagram.links) {
-    const adapter = link.via ?? link.compatibility.adapter;
-    if (adapter === undefined) continue;
+    const source = link.via ?? link.compatibility.adapter;
+    if (source === undefined) continue;
+    // The part name is the key, so it has to be one language before it is counted.
+    const adapter = localise(source, locale);
     const existing = rows.get(adapter);
     if (existing) {
       existing.count += 1;

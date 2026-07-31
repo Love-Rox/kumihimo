@@ -9,6 +9,7 @@ import { basename, extname, join } from 'node:path';
 import { Command } from 'commander';
 
 import { runBuild, runCheck } from './commands.js';
+import { resolveLocale } from './locale.js';
 import type { ExportFormat } from './export.js';
 import { EXPORT_EXTENSIONS, EXPORT_FORMATS, runExport } from './export.js';
 
@@ -33,6 +34,7 @@ program
   .option('-d, --direction <dir>', 'レイアウト方向を上書きする (LR / TB)')
   .option('-t, --theme <name>', 'カラーテーマ (light / dark / mono / blueprint)')
   .option('--no-legend', '凡例を描かない')
+  .option('--lang <code>', '診断の言語 (en / ja)。省略時は環境変数から')
   .option('--strict', '警告も失敗として扱う')
   .option('--no-color', '色を付けない')
   .option('-w, --watch', 'ファイルを監視して変更のたびに再生成する')
@@ -40,6 +42,7 @@ program
     const out = (options['out'] as string | undefined) ?? defaultOutput(file);
     const direction = options['direction'] as string | undefined;
     const theme = options['theme'] as string | undefined;
+    const locale = resolveLocale(options['lang'] as string | undefined);
 
     const once = async (): Promise<number> => {
       try {
@@ -48,6 +51,7 @@ program
           legend: options['legend'] !== false,
           strict: options['strict'] === true,
           color: options['color'] !== false,
+          locale,
           ...(theme ? { theme } : {}),
           ...(direction ? { options: { direction } } : {}),
         });
@@ -89,6 +93,7 @@ program
   .argument('[format]', `形式: ${EXPORT_FORMATS.join(' / ')}`, 'drawio')
   .option('-o, --out <path>', '出力先。省略時は入力と同じ場所')
   .option('-t, --theme <name>', 'カラーテーマ')
+  .option('--lang <code>', '診断の言語 (en / ja)。省略時は環境変数から')
   .option('--stdout', 'ファイルに書かず標準出力に流す')
   .action(async (file: string, format: string, options: Record<string, unknown>) => {
     if (!EXPORT_FORMATS.includes(format as ExportFormat)) {
@@ -106,6 +111,7 @@ program
 
     try {
       const result = await runExport(file, kind, {
+        locale: resolveLocale(options['lang'] as string | undefined),
         ...(out === undefined ? {} : { out }),
         ...(theme ? { theme } : {}),
       });
@@ -124,6 +130,7 @@ program
   .command('check')
   .description('.khm を検証する。SVG は書き出さない')
   .argument('<file>', '検証する .khm ファイル')
+  .option('--lang <code>', '診断の言語 (en / ja)。省略時は環境変数から')
   .option('--strict', '警告も失敗として扱う')
   .option('--no-color', '色を付けない')
   .action(async (file: string, options: Record<string, unknown>) => {
@@ -131,6 +138,7 @@ program
       const result = await runCheck(file, {
         strict: options['strict'] === true,
         color: options['color'] !== false,
+        locale: resolveLocale(options['lang'] as string | undefined),
       });
       console.log(result.report);
       process.exitCode = result.exitCode;

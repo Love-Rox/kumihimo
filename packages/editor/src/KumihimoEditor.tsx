@@ -5,8 +5,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import type { CompileOptions, Diagnostic } from '@love-rox/kumihimo-core';
-import { THEMES } from '@love-rox/kumihimo-core';
+import type { CompileOptions, Diagnostic, Locale } from '@love-rox/kumihimo-core';
+import { DEFAULT_LOCALE, THEMES } from '@love-rox/kumihimo-core';
 import { useKumihimo } from '@love-rox/kumihimo-react';
 
 import { DiagnosticList } from './DiagnosticList.js';
@@ -14,17 +14,19 @@ import { ScheduleTable } from './ScheduleTable.js';
 import type { ScheduleKind } from './ScheduleTable.js';
 import { downloadPng, downloadSvg } from './download.js';
 import { sanitizeSvg } from './sanitize.js';
+import type { UiKey } from './messages.js';
+import { t } from './messages.js';
 import { buildShareUrl, readSharedSource } from './share.js';
 
 /** Panels the editor can show beside the source. */
 type Tab = 'diagram' | ScheduleKind;
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'diagram', label: '図' },
-  { id: 'cable', label: 'ケーブル表' },
-  { id: 'equipment', label: '機器表' },
-  { id: 'adapter', label: '変換部材' },
-];
+const TABS = [
+  { id: 'diagram', label: 'tabDiagram' },
+  { id: 'cable', label: 'tabCable' },
+  { id: 'equipment', label: 'tabEquipment' },
+  { id: 'adapter', label: 'tabAdapter' },
+] as const satisfies readonly { id: Tab; label: UiKey }[];
 
 /** Props accepted by {@link KumihimoEditor}. */
 export interface KumihimoEditorProps {
@@ -42,6 +44,14 @@ export interface KumihimoEditorProps {
   readUrl?: boolean;
   /** Base filename used by the download buttons, without extension. */
   filename?: string;
+  /**
+   * Language for the editor's own words and for the compiler's.
+   *
+   * One setting rather than two, because the diagnostics sit inside this component's own
+   * chrome; a panel labelled in one language listing faults in another is worse than
+   * either language alone.
+   */
+  locale?: Locale;
 }
 
 /**
@@ -61,6 +71,7 @@ export function KumihimoEditor({
   className,
   readUrl = true,
   filename = 'diagram',
+  locale = DEFAULT_LOCALE,
 }: KumihimoEditorProps): ReactNode {
   const [source, setSource] = useState(initialSource);
   const [theme, setTheme] = useState(initialTheme);
@@ -69,7 +80,10 @@ export function KumihimoEditor({
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
-  const compileOptions = useMemo<CompileOptions>(() => ({ ...options, theme }), [options, theme]);
+  const compileOptions = useMemo<CompileOptions>(
+    () => ({ ...options, theme, locale }),
+    [options, theme, locale],
+  );
   const { svg, diagram, diagnostics, pending } = useKumihimo(source, compileOptions);
 
   // The source may have arrived from someone else's link, which makes this the one place
@@ -113,20 +127,20 @@ export function KumihimoEditor({
       const url = await buildShareUrl(source);
       await navigator.clipboard?.writeText(url);
       globalThis.history?.replaceState(null, '', url);
-      setShared('URL をコピーしました');
+      setShared(t('shared', locale));
       setTimeout(() => setShared(undefined), 2000);
     } catch {
-      setProblem('URL を作成できませんでした');
+      setProblem(t('shareFailed', locale));
     }
-  }, [source]);
+  }, [source, locale]);
 
   const savePng = useCallback(async () => {
     try {
-      await downloadPng(svg, `${filename}.png`);
+      await downloadPng(svg, `${filename}.png`, 2, locale);
     } catch (cause) {
       setProblem(cause instanceof Error ? cause.message : String(cause));
     }
-  }, [svg, filename]);
+  }, [svg, filename, locale]);
 
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
   const warnings = diagnostics.filter((d) => d.severity === 'warning').length;
@@ -135,7 +149,7 @@ export function KumihimoEditor({
     <div className={['khm-editor', className].filter(Boolean).join(' ')}>
       <div className="khm-editor__toolbar">
         <label>
-          テーマ
+          {t('theme', locale)}
           <select value={theme} onChange={(event) => setTheme(event.target.value)}>
             {Object.keys(THEMES).map((name) => (
               <option key={name} value={name}>
@@ -149,10 +163,10 @@ export function KumihimoEditor({
 
         <span className="khm-editor__status" role="status">
           {pending
-            ? '描画中…'
+            ? t('rendering', locale)
             : errors > 0 || warnings > 0
               ? `${errors} error / ${warnings} warning`
-              : '問題なし'}
+              : t('clean', locale)}
         </span>
 
         <button type="button" onClick={() => downloadSvg(svg, `${filename}.svg`)} disabled={!svg}>
@@ -162,7 +176,7 @@ export function KumihimoEditor({
           PNG
         </button>
         <button type="button" onClick={() => void share()}>
-          URL 共有
+          {t('share', locale)}
         </button>
       </div>
 
@@ -184,7 +198,7 @@ export function KumihimoEditor({
           value={source}
           spellCheck={false}
           onChange={(event) => update(event.target.value)}
-          aria-label="kumihimo ソース"
+          aria-label={t('sourceLabel', locale)}
         />
 
         <div className="khm-editor__output">
@@ -198,7 +212,7 @@ export function KumihimoEditor({
                 className={tab === entry.id ? 'is-active' : undefined}
                 onClick={() => setTab(entry.id)}
               >
-                {entry.label}
+                {t(entry.label, locale)}
               </button>
             ))}
           </div>
@@ -209,13 +223,13 @@ export function KumihimoEditor({
               // value in it is escaped by the renderer before it reaches here.
               <div className="khm-editor__preview" dangerouslySetInnerHTML={{ __html: safeSvg }} />
             ) : (
-              <ScheduleTable diagram={diagram} kind={tab} />
+              <ScheduleTable diagram={diagram} kind={tab} locale={locale} />
             )}
           </div>
         </div>
       </div>
 
-      <DiagnosticList diagnostics={diagnostics} onSelect={jumpTo} />
+      <DiagnosticList diagnostics={diagnostics} onSelect={jumpTo} locale={locale} />
     </div>
   );
 }

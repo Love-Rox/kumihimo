@@ -545,6 +545,36 @@ written twice models two outlets rather than one over-booked one.
 faulty diagram still renders. A picture of a flawed system is exactly what an author needs
 in order to see the flaw.
 
+### Language
+
+Diagnostics are written in **English** by default. Every entry point takes a `locale`:
+
+```ts
+compile(source, { locale: 'ja' });
+parse(source, { locale: 'ja' });
+buildModel(document, { locale: 'ja' });
+loadDocument(source, { locale: 'ja' });
+```
+
+`en` and `ja` are carried; anything else falls back to English rather than to a blank. The
+same option picks the language of the legend's signal names, the part names in the adapter
+schedule, and the reason attached to a compatibility verdict.
+
+A diagnostic also carries the `key` and `params` it was rendered from, so a caller holding
+one compile can re-render it in another language without recompiling:
+
+```ts
+formatMessage(diagnostic.key, diagnostic.params, 'ja');
+```
+
+A reason written by an author in their own `compat` declaration is passed through as
+written. Translating what someone else typed is not this library's business.
+
+The command line is the exception to the English default: it reads `LC_ALL`, `LC_MESSAGES`
+and then `LANG`, and takes `--lang` to override them. It shipped speaking Japanese, and an
+upgrade that silently changed the language of an existing user's output would be a
+regression dressed as a feature.
+
 ---
 
 ## 12. Wireless

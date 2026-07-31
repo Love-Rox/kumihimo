@@ -9,6 +9,8 @@
 import type { Document, Statement } from './ast.js';
 import type { Diagnostic, SeverityConfig } from './diagnostics.js';
 import { DiagnosticBag } from './diagnostics.js';
+import type { Locale } from './messages.js';
+import { DEFAULT_LOCALE } from './messages.js';
 import { parse } from './parser.js';
 
 /** A file the resolver found. */
@@ -44,6 +46,8 @@ export interface LoadOptions {
   resolver?: ModuleResolver;
   /** Per-rule severity overrides. */
   severities?: SeverityConfig;
+  /** Language for diagnostic messages. Defaults to English. */
+  locale?: Locale;
 }
 
 /** What {@link loadDocument} returns. */
@@ -76,15 +80,16 @@ const IMPORTABLE = new Set<Statement['type']>(['model', 'signal', 'compat']);
  * @returns The merged document, diagnostics, and the files that were read.
  */
 export async function loadDocument(source: string, options: LoadOptions = {}): Promise<LoadResult> {
-  const bag = new DiagnosticBag(options.severities ?? {});
+  const locale = options.locale ?? DEFAULT_LOCALE;
+  const bag = new DiagnosticBag(options.severities ?? {}, locale);
   const entryPath = options.path ?? '<input>';
   const seen = new Set<string>([entryPath]);
   const loaded: string[] = [entryPath];
   const imported: Statement[] = [];
 
-  const entry = parse(source);
+  const entry = parse(source, { locale });
   for (const diagnostic of entry.diagnostics) {
-    bag.report(diagnostic.code, diagnostic.message, diagnostic.span);
+    bag.adopt(diagnostic);
   }
 
   const visit = async (document: Document, from: string): Promise<void> => {
@@ -94,7 +99,8 @@ export async function loadDocument(source: string, options: LoadOptions = {}): P
       if (!options.resolver) {
         bag.report(
           'unresolved-import',
-          `取り込みを解決できません (resolver が指定されていません): ${statement.path}`,
+          'load.no-resolver',
+          { path: statement.path },
           statement.span,
         );
         continue;
@@ -102,16 +108,21 @@ export async function loadDocument(source: string, options: LoadOptions = {}): P
 
       const module = await options.resolver(statement.path, from);
       if (!module) {
-        bag.report('unresolved-import', `取り込めません: ${statement.path}`, statement.span);
+        bag.report('unresolved-import', 'load.unresolved', { path: statement.path }, statement.span);
         continue;
       }
       if (seen.has(module.path)) continue;
       seen.add(module.path);
       loaded.push(module.path);
 
-      const parsed = parse(module.source);
+      const parsed = parse(module.source, { locale });
       for (const diagnostic of parsed.diagnostics) {
-        bag.report(diagnostic.code, `${module.path}: ${diagnostic.message}`, statement.span);
+        bag.report(
+          diagnostic.code,
+          'load.nested',
+          { path: module.path, message: diagnostic.message },
+          statement.span,
+        );
       }
 
       const dropped = parsed.document.statements.filter(
@@ -120,8 +131,8 @@ export async function loadDocument(source: string, options: LoadOptions = {}): P
       if (dropped.length > 0) {
         bag.report(
           'ignored-in-import',
-          `${module.path} の ${dropped.map((s) => s.type).join(', ')} は取り込まれません。` +
-            `use が取り込むのは model / signal / compat のみです`,
+          'load.ignored',
+          { path: module.path, kinds: dropped.map((s) => s.type).join(', ') },
           statement.span,
         );
       }

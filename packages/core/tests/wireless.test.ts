@@ -51,7 +51,7 @@ describe('wireless validation', () => {
       mic.RF -> mixer.CH1
     `);
     const hit = diagnostics.find((d) => d.code === 'signal-mismatch');
-    expect(hit?.message).toContain('送受信機を機器として配置');
+    expect(hit?.message).toContain('Put the transmitter or receiver in as a device');
   });
 
   it('rejects Wi-Fi patched into a network switch', async () => {

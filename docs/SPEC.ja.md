@@ -505,6 +505,44 @@ cam1.SDI -> sw.1 : sdi    # sw を device 宣言していない
 | `unknown-signal`       | 未定義の信号種別を指定した          | error   |
 | `unconnected-port`     | どこにも繋がっていないポート        | off     |
 | `duplicate-id`         | 機器 id の重複                      | error   |
+| `parse-error`          | 構文として読めなかった              | error   |
+| `invalid-port-spec`    | 展開できない範囲指定                | error   |
+| `unknown-device-kind`  | 描けない機器種別                    | warning |
+| `invalid-value`        | 形は正しいが値が使えない            | error   |
+| `unresolved-import`    | `use` の指すファイルが見つからない  | error   |
+| `unknown-model`        | どのライブラリにもないモデル名      | error   |
+| `ignored-in-import`    | 取り込んだファイルに機器・結線があった | warning |
+
+**例外は投げません。** 各段階は診断を集めて最善の結果を返すので、不備のある図もそのまま描かれます。
+不備を見つけるために必要なのは、まさにその「不備を含んだ絵」だからです。
+
+### 言語
+
+診断は既定で**英語**です。各入口が `locale` を受け取ります。
+
+```ts
+compile(source, { locale: 'ja' });
+parse(source, { locale: 'ja' });
+buildModel(document, { locale: 'ja' });
+loadDocument(source, { locale: 'ja' });
+```
+
+対応するのは `en` と `ja` で、それ以外は空文字ではなく英語に落ちる。凡例の信号名、
+変換部材表の部材名、互換性判定の理由も同じ `locale` に従う。
+
+診断は描画済みの文面に加えて `key` と `params` を持つので、コンパイルし直さずに
+別の言語で描き直せる。
+
+```ts
+formatMessage(diagnostic.key, diagnostic.params, 'ja');
+```
+
+作図者が自分の `compat` 宣言に書いた理由はそのまま通す。他人が書いた文面を翻訳するのは
+このライブラリの仕事ではない。
+
+コマンドラインだけは英語既定の例外で、`LC_ALL` → `LC_MESSAGES` → `LANG` の順に環境を見る
+（`--lang` で上書き）。もともと日本語で出ていたものが更新で黙って英語になるのは、
+機能ではなく後退だからである。
 
 ---
 

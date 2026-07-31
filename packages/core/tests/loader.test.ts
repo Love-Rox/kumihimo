@@ -89,7 +89,7 @@ describe('use', () => {
     });
     expect(diagram.devices).toHaveLength(0);
     const hit = diagnostics.find((d) => d.code === 'ignored-in-import');
-    expect(hit?.message).toContain('model / signal / compat');
+    expect(hit?.message).toContain('model, signal and compat');
   });
 
   it('surfaces a syntax error inside a library', async () => {

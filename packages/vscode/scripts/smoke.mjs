@@ -40,6 +40,9 @@ const Position = class {
 };
 
 const vscode = {
+  // The host's language. Mutated below, because the thing worth checking is not that the
+  // extension reads it once but that the compiler's own sentences follow it.
+  env: { language: 'en' },
   Position,
   Range: class {
     constructor(start, end) {
@@ -180,6 +183,29 @@ for (const listener of listeners.open) listener(clean);
 const after = published.at(-1);
 if (after.list.length !== 0) throw new Error(`正しい図に診断 ${after.list.length} 件`);
 console.log('\n正しい図: 診断 0 件');
+
+// The compiler's own sentences, in the editor's language. The extension's strings go
+// through vscode.l10n; the compiler's do not, and a panel that mixes the two is the thing
+// this checks against.
+console.log('\n診断の言語:');
+const wrong = doc('device a as camera { out SDI : sdi }\ndevice b as router { in 1 : lan }\na.SDI -> b.1');
+
+for (const [language, expected] of [
+  ['en', 'cannot be joined by a cable'],
+  ['ja', '変換ケーブルでは接続できない'],
+  // A region tag, which is what VS Code actually reports for most languages.
+  ['ja-jp', '変換ケーブルでは接続できない'],
+  // One the catalogue does not carry: English, rather than a blank or a crash.
+  ['pt-br', 'cannot be joined by a cable'],
+]) {
+  vscode.env.language = language;
+  for (const listener of listeners.open) listener(wrong);
+  const message = published.at(-1).list[0]?.message ?? '';
+  const ok = message.includes(expected);
+  console.log(`  ${ok ? '○' : '×'} ${language.padEnd(6)} ${message.slice(0, 60)}`);
+  if (!ok) throw new Error(`${language}: "${expected}" を含むはずが "${message}"`);
+}
+vscode.env.language = 'en';
 
 // Completions. Not "does a list come back" — whether the right list comes back for where
 // the cursor is, since a provider that offers signal types everywhere is worse than none.

@@ -2,6 +2,11 @@
  * Getting a diagram out of the browser and onto disk.
  */
 
+import type { Locale } from '@love-rox/kumihimo-core';
+import { DEFAULT_LOCALE } from '@love-rox/kumihimo-core';
+
+import { t } from './messages.js';
+
 /**
  * Prompt the browser to save some content as a file.
  *
@@ -48,7 +53,12 @@ function dimensionsOf(svg: string): { width: number; height: number } {
  * @param scale - Pixel ratio. Two gives a file that holds up when printed.
  * @returns Resolves once the file has been offered, rejects if the image cannot load.
  */
-export async function downloadPng(svg: string, filename = 'diagram.png', scale = 2): Promise<void> {
+export async function downloadPng(
+  svg: string,
+  filename = 'diagram.png',
+  scale = 2,
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<void> {
   const { width, height } = dimensionsOf(svg);
   const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 
@@ -59,7 +69,7 @@ export async function downloadPng(svg: string, filename = 'diagram.png', scale =
   await new Promise<void>((resolve, reject) => {
     image.addEventListener('load', () => resolve());
     image.addEventListener('error', () =>
-      reject(new Error('SVG を画像として読み込めませんでした')),
+      reject(new Error(t('svgLoadFailed', locale))),
     );
     image.src = encoded;
   });
@@ -69,7 +79,7 @@ export async function downloadPng(svg: string, filename = 'diagram.png', scale =
   canvas.height = Math.round(height * scale);
 
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('canvas を初期化できませんでした');
+  if (!context) throw new Error(t('canvasFailed', locale));
   // The SVG has its own opaque background, but a transparent gap around the edges would
   // otherwise come out black in some viewers.
   context.fillStyle = '#ffffff';
@@ -77,6 +87,6 @@ export async function downloadPng(svg: string, filename = 'diagram.png', scale =
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) throw new Error('PNG を生成できませんでした');
+  if (!blob) throw new Error(t('pngFailed', locale));
   download(blob, filename, 'image/png');
 }

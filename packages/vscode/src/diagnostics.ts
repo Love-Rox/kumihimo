@@ -2,6 +2,8 @@ import { buildModel, parse } from '@love-rox/kumihimo-core';
 import type { Diagnostic as KumihimoDiagnostic, Severity } from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
+import { editorLocale } from './locale.js';
+
 /**
  * Check a document and publish what the compiler found.
  *
@@ -12,8 +14,9 @@ export function checkDocument(
   document: vscode.TextDocument,
   collection: vscode.DiagnosticCollection,
 ): void {
-  const { document: ast, diagnostics: parsed } = parse(document.getText());
-  const { diagnostics: built } = buildModel(ast);
+  const locale = editorLocale();
+  const { document: ast, diagnostics: parsed } = parse(document.getText(), { locale });
+  const { diagnostics: built } = buildModel(ast, { locale });
 
   collection.set(
     document.uri,

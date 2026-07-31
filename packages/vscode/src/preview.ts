@@ -1,6 +1,7 @@
 import { compile } from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
+import { editorLocale } from './locale.js';
 import type { Table } from './tables.js';
 import { tablesOf } from './tables.js';
 
@@ -69,13 +70,15 @@ export class Preview {
     this.#panel.title = `${name} — kumihimo`;
 
     try {
+      const locale = editorLocale();
       const { svg, diagram, diagnostics } = await compile(document.getText(), {
         theme: resolveTheme(),
+        locale,
       });
       if (this.#disposed) return;
       this.#panel.webview.html = page(
         svg,
-        tablesOf(diagram),
+        tablesOf(diagram, locale),
         diagnostics.length,
         this.#panel.webview,
       );

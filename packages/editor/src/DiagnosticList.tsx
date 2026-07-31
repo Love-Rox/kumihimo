@@ -4,7 +4,9 @@
 
 import type { ReactNode } from 'react';
 
-import type { Diagnostic } from '@love-rox/kumihimo-core';
+import type { Diagnostic, Locale } from '@love-rox/kumihimo-core';
+
+import { t } from './messages.js';
 
 /** Props accepted by {@link DiagnosticList}. */
 export interface DiagnosticListProps {
@@ -12,6 +14,8 @@ export interface DiagnosticListProps {
   diagnostics: readonly Diagnostic[];
   /** Called when a row is activated, so the editor can move the caret to it. */
   onSelect?: (diagnostic: Diagnostic) => void;
+  /** Language for this panel's own words. The messages themselves come already rendered. */
+  locale?: Locale;
 }
 
 /**
@@ -24,17 +28,21 @@ export interface DiagnosticListProps {
  * @param props - Diagnostics and a selection callback.
  * @returns The panel.
  */
-export function DiagnosticList({ diagnostics, onSelect }: DiagnosticListProps): ReactNode {
+export function DiagnosticList({
+  diagnostics,
+  onSelect,
+  locale,
+}: DiagnosticListProps): ReactNode {
   if (diagnostics.length === 0) {
     return (
       <p className="khm-diagnostics khm-diagnostics--clean" role="status">
-        問題は見つかりませんでした
+        {t('noProblems', locale)}
       </p>
     );
   }
 
   return (
-    <ul className="khm-diagnostics" aria-label="診断">
+    <ul className="khm-diagnostics" aria-label={t('diagnostics', locale)}>
       {diagnostics.map((diagnostic, index) => (
         <li key={`${diagnostic.code}-${index}`}>
           <button

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { runBuild, runCheck } from '../src/commands.js';
 import { runExport } from '../src/export.js';
+import { resolveLocale } from '../src/locale.js';
 import { formatDiagnostic, formatReport, summarize } from '../src/format.js';
 
 const CLEAN = `
@@ -94,7 +95,7 @@ describe('formatting', () => {
     const { report } = await runCheck(path);
     expect(report).toContain('ext.CAT -> net.1');
     expect(report).toContain('~');
-    expect(report).toContain('Ethernet ではない');
+    expect(report).toContain('is not Ethernet');
   });
 
   it('includes file, line and column', async () => {
@@ -173,5 +174,26 @@ describe('runExport', () => {
   it('reports diagnostics alongside the export', async () => {
     const { path } = await withFile(BROKEN);
     expect((await runExport(path, 'drawio')).diagnostics.length).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveLocale', () => {
+  it('takes what was written on the command line', () => {
+    expect(resolveLocale('ja', {})).toBe('ja');
+    expect(resolveLocale('en', { LANG: 'ja_JP.UTF-8' })).toBe('en');
+  });
+
+  it('falls back to the shell, so an upgrade does not change anyone’s language', () => {
+    // This command shipped speaking Japanese. Defaulting to English on a Japanese machine
+    // would read as a regression, whatever the library default is.
+    expect(resolveLocale(undefined, { LANG: 'ja_JP.UTF-8' })).toBe('ja');
+    expect(resolveLocale(undefined, { LC_ALL: 'ja_JP.UTF-8', LANG: 'en_GB' })).toBe('ja');
+    expect(resolveLocale(undefined, { LC_MESSAGES: 'ja', LANG: 'en_GB' })).toBe('ja');
+  });
+
+  it('answers in English for anything the catalogue does not carry', () => {
+    expect(resolveLocale(undefined, { LANG: 'pt_BR.UTF-8' })).toBe('en');
+    expect(resolveLocale(undefined, { LANG: 'C' })).toBe('en');
+    expect(resolveLocale(undefined, {})).toBe('en');
   });
 });
