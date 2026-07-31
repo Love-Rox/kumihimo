@@ -70,9 +70,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: steps.version.outputs.publish == 'true'
 
+      # The trailing `...` builds this package's workspace dependencies first. Without it
+      # the bundler cannot resolve the compiler at all: a fresh checkout has no dist to
+      # import, and a machine that has built once already hides that.
+      #
       # `build` also writes THIRD-PARTY-NOTICES.txt, which the .vsix has to carry: the
       # bundle contains elkjs, and minification leaves no notice in it.
-      - run: pnpm --filter kumihimo-vscode build
+      - run: pnpm --filter "kumihimo-vscode..." build
         if: steps.version.outputs.publish == 'true'
 
       - run: pnpm --filter kumihimo-vscode exec vsce package --no-dependencies --out kumihimo.vsix
