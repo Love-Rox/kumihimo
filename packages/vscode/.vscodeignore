@@ -3,6 +3,7 @@ node_modules/**
 src/**
 scripts/**
 tsconfig.json
+.gitignore
 *.vsix
 
 # The bundle is the extension; nothing else in dist is needed at runtime.
