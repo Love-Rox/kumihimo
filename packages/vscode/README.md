@@ -38,6 +38,11 @@ told apart at the point of choosing.
 
 **Syntax highlighting** and the usual bracket and comment handling for `.khm`.
 
+**Format Document.** `⇧⌥F`, or format on save. Indents by nesting, normalises spacing, and
+lines the columns up down a run of ports or connections — a rack list is read by scanning a
+column, and columns drift the moment anybody edits a name. Turn the alignment off with
+`kumihimo.format.align` if you would rather have clean diffs.
+
 **In your language.** The extension follows VS Code's display language, and so do the
 compiler's own sentences — a panel labelled in one language listing faults in another is
 worse than either language alone. English and Japanese are carried; anything else gets

@@ -117,6 +117,11 @@
           "default": 250,
           "minimum": 0,
           "markdownDescription": "%config.diagnostics.delay%"
+        },
+        "kumihimo.format.align": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.format.align%"
         }
       }
     }

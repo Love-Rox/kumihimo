@@ -6,8 +6,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-import type { CompileOptions, Diagnostic } from '@love-rox/kumihimo-core';
-import { compile } from '@love-rox/kumihimo-core';
+import type { CompileOptions, Diagnostic, FormatOptions } from '@love-rox/kumihimo-core';
+import { compile, formatSource } from '@love-rox/kumihimo-core';
 
 import { formatReport, summarize } from './format.js';
 import { createFileResolver } from './resolver.js';
@@ -108,4 +108,47 @@ export async function runCheck(
   options: Omit<BuildCommandOptions, 'out'> = {},
 ): Promise<BuildCommandResult> {
   return runBuild(file, options);
+}
+
+/** How to lay a file out. */
+export interface FormatCommandOptions extends FormatOptions {
+  /** Write the result back to the file. Off to leave it alone and just report. */
+  write?: boolean;
+}
+
+/** What a format produced. */
+export interface FormatCommandResult {
+  /** The formatted text. */
+  content: string;
+  /** Whether the file was not already in this shape. */
+  changed: boolean;
+  /** Absolute path written to, when one was. */
+  written?: string;
+}
+
+/**
+ * Lay a `.khm` file out.
+ *
+ * Reads and writes as a unit rather than streaming, because a formatter that half-writes a
+ * file on failure costs more than one that is slow.
+ *
+ * @param file - Path to format.
+ * @param options - Indent width, alignment, and whether to write back.
+ * @returns The formatted text and whether it differed.
+ */
+export async function runFormat(
+  file: string,
+  options: FormatCommandOptions = {},
+): Promise<FormatCommandResult> {
+  const path = resolve(file);
+  const source = await readFile(path, 'utf8');
+  const content = formatSource(source, options);
+  const changed = content !== source;
+
+  const result: FormatCommandResult = { content, changed };
+  if (options.write !== false && changed) {
+    await writeFile(path, content, 'utf8');
+    result.written = path;
+  }
+  return result;
 }

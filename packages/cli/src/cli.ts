@@ -8,7 +8,7 @@ import { basename, extname, join } from 'node:path';
 
 import { Command } from 'commander';
 
-import { runBuild, runCheck } from './commands.js';
+import { runBuild, runCheck, runFormat } from './commands.js';
 import { resolveLocale } from './locale.js';
 import type { ExportFormat } from './export.js';
 import { EXPORT_EXTENSIONS, EXPORT_FORMATS, runExport } from './export.js';
@@ -120,6 +120,40 @@ program
       } else {
         console.log(`→ ${result.written}`);
       }
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+  });
+
+program
+  .command('fmt')
+  .description('.khm を整形する')
+  .argument('<file>', '整形する .khm ファイル')
+  .option('--check', '書き換えず、整形済みかどうかだけを見る')
+  .option('--stdout', 'ファイルを書き換えず標準出力に流す')
+  .option('--indent <n>', '字下げ幅', '2')
+  .option('--no-align', '桁を揃えない')
+  .action(async (file: string, options: Record<string, unknown>) => {
+    try {
+      const result = await runFormat(file, {
+        indent: Number.parseInt(String(options['indent'] ?? '2'), 10),
+        align: options['align'] !== false,
+        write: options['check'] !== true && options['stdout'] !== true,
+      });
+
+      if (options['stdout'] === true) {
+        process.stdout.write(result.content);
+        return;
+      }
+      if (options['check'] === true) {
+        if (result.changed) {
+          console.error(`整形されていません: ${file}`);
+          process.exitCode = 1;
+        }
+        return;
+      }
+      console.log(result.changed ? `→ ${file}` : `変更なし: ${file}`);
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;

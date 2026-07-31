@@ -135,3 +135,35 @@ describe('drawing', () => {
     expect(svg.split('rx="5"').length - 1).toBe(devices);
   });
 });
+
+describe('the two things `via` was being asked to mean', () => {
+  it('counts an adapter and its cable as two, because they are two', () => {
+    // A 30 m SDI cable with a small adapter on the end. Two objects, two rows.
+    const { diagram } = build([
+      'device cam as camera  { out SDI : sdi }',
+      'device mon as display { in SDI : sdi }',
+      'cam.SDI -> mon.SDI : sdi 30m "V-01" via "BNC-RCA 変換"',
+    ]);
+    expect(cableSchedule(diagram).map((r) => r.label)).toEqual(['V-01']);
+    expect(adapterSchedule(diagram).map((r) => r.adapter)).toEqual(['BNC-RCA 変換']);
+  });
+
+  it('counts a converting lead as one, because it is one', () => {
+    // The lead *is* the run. Written with `via` it landed on both schedules, and someone
+    // packing from both brings two cables for a job that needs one.
+    const { diagram } = build([
+      'device pc  as computer { out HDMI : hdmi }',
+      'device mon as display  { in DVI : dvi }',
+      'adapter hd "HDMI-DVI 変換ケーブル" {',
+      '  in  IN  : hdmi',
+      '  out OUT : dvi',
+      '}',
+      'pc.HDMI -> hd.IN   : hdmi',
+      'hd.OUT  -> mon.DVI : dvi',
+    ]);
+    expect(cableSchedule(diagram)).toEqual([]);
+    expect(adapterSchedule(diagram).map((r) => `${r.adapter} ×${r.count}`)).toEqual([
+      'HDMI-DVI 変換ケーブル ×1',
+    ]);
+  });
+});

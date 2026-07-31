@@ -9,7 +9,8 @@ export type { FormatOptions, DiagnosticSummary } from './format.js';
 export { formatDiagnostic, formatReport, summarize } from './format.js';
 
 export type { BuildCommandOptions, BuildCommandResult } from './commands.js';
-export { runBuild, runCheck } from './commands.js';
+export type { FormatCommandOptions, FormatCommandResult } from './commands.js';
+export { runBuild, runCheck, runFormat } from './commands.js';
 export { resolveLocale } from './locale.js';
 
 export type { ExportFormat, ExportCommandOptions, ExportCommandResult } from './export.js';

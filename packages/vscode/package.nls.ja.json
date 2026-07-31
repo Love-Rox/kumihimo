@@ -3,5 +3,6 @@
   "command.showPreview": "kumihimo: 図をプレビュー",
   "config.preview.theme": "プレビューのテーマ。`auto` は VS Code の配色に合わせます。ソース中の `diagram { theme: … }` があればそちらが優先されます。",
   "config.diagnostics.enabled": "編集中に診断を出します。",
-  "config.diagnostics.delay": "入力が止まってから診断するまでの待ち時間（ミリ秒）。"
+  "config.diagnostics.delay": "入力が止まってから診断するまでの待ち時間（ミリ秒）。",
+  "config.format.align": "似た行が続くところで桁を揃えます。ラックの一覧は列を目で追って読むためです。切ると要素の間が1スペースになり、差分は見やすくなります。"
 }
