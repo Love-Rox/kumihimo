@@ -1,5 +1,12 @@
 # kumihimo-playground
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [6c083f6]
+  - @love-rox/kumihimo-editor@0.2.0
+
 ## 0.0.2
 
 ### Patch Changes

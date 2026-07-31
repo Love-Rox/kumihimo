@@ -1,5 +1,19 @@
 # @love-rox/kumihimo-rehype
 
+## 0.2.0
+
+### Minor Changes
+
+- 6c083f6: Add `gap`, which leaves space above the port declaration that follows it, so a strip of
+  connectors reads as the blocks it actually is — four HDMI inputs, then a space, then four
+  SDI. One `gap` is half a port pitch; `gap <n>` is n of those. It is presentation only: the
+  same diagram with every `gap` removed describes the same system.
+
+### Patch Changes
+
+- Updated dependencies [6c083f6]
+  - @love-rox/kumihimo-core@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
