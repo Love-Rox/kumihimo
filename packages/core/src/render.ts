@@ -286,7 +286,22 @@ export function renderSvg(
 
   const titleHeight = diagram.title ? 34 : 0;
   const legendHeight = showLegend && usedSignals.length > 0 ? 30 : 0;
-  const width = Math.max(layout.width, 320);
+
+  // A key with no caption gets counted: five entries under seven drawn runs reads as
+  // "five cables" to anybody who has not been told what they are looking at.
+  const caption = locale === 'ja' ? '信号種別' : 'Signals';
+  const legendNames = usedSignals.map((s) => localise(s.label, locale) || s.name);
+  // The canvas has to be at least as wide as the key. It never was, so a drawing with a
+  // narrow layout and several signal types ran the key off the right-hand edge.
+  const legendWidth =
+    legendHeight === 0
+      ? 0
+      : 16 +
+        estimateTextWidth(caption, 11) +
+        18 +
+        legendNames.reduce((total, name) => total + 27 + estimateTextWidth(name, 11) + 22, 0);
+
+  const width = Math.max(layout.width, legendWidth, 320);
   const height = layout.height + titleHeight + legendHeight;
 
   const body: string[] = [];
@@ -371,17 +386,23 @@ export function renderSvg(
   if (legendHeight > 0) {
     const y = titleHeight + layout.height + 18;
     let cursor = 16;
-    for (const signal of usedSignals) {
+    body.push(
+      `<text x="${n(cursor)}" y="${n(y + 4)}" font-size="11" font-weight="600" ` +
+        `fill="${theme.muted}" font-family="${escape(fontFamily)}">${escape(caption)}</text>`,
+    );
+    cursor += estimateTextWidth(caption, 11) + 18;
+    usedSignals.forEach((signal, i) => {
       const key = strokeFor(signal, theme);
       const dash = dashArray(key, signal.width, signal.wireless);
+      const name = legendNames[i] ?? signal.name;
       body.push(
         `<path d="M ${n(cursor)} ${n(y)} h 22" stroke="${safeColor(key.color)}" ` +
           `stroke-width="${signal.width}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`,
         `<text x="${n(cursor + 27)}" y="${n(y + 4)}" font-size="11" fill="${theme.muted}" ` +
-          `font-family="${escape(fontFamily)}">${escape(localise(signal.label, locale) || signal.name)}</text>`,
+          `font-family="${escape(fontFamily)}">${escape(name)}</text>`,
       );
-      cursor += 27 + estimateTextWidth(localise(signal.label, locale) || signal.name, 11) + 22;
-    }
+      cursor += 27 + estimateTextWidth(name, 11) + 22;
+    });
   }
 
   return (

@@ -4,6 +4,7 @@ import { buildModel } from '../src/build.js';
 import { compile } from '../src/compile.js';
 import { layoutDiagram } from '../src/layout.js';
 import { parse } from '../src/parser.js';
+import { renderDiagram } from '../src/render.js';
 import { THEMES } from '../src/theme.js';
 
 const STUDIO = `
@@ -301,5 +302,62 @@ describe('adapter marks', () => {
       a.HDMI -> b.DVI via "HDMI-DVI 変換ケーブル"
     `);
     expect(svg).toContain('⇄');
+  });
+});
+
+describe('the key below the drawing', () => {
+  /** Every signal type used, on a layout narrow enough that the key is the wider thing. */
+  const MANY = (() => {
+    const signals = ['sdi', 'xlr', 'trs', 'hdmi', 'dvi', 'lan', 'usb', 'madi'];
+    const lines = ['device a as generic {'];
+    signals.forEach((s, i) => lines.push(`  out P${i} : ${s}`));
+    lines.push('}', 'device b as generic {');
+    signals.forEach((s, i) => lines.push(`  in Q${i} : ${s}`));
+    lines.push('}');
+    signals.forEach((s, i) => lines.push(`a.P${i} -> b.Q${i} : ${s}`));
+    return lines.join('\n');
+  })();
+
+  it('says what it is', async () => {
+    // Without a caption a reader counts the entries and takes them for the cables. Five
+    // types under seven drawn runs is a wrong number sitting beneath a drawing someone
+    // plans a job from.
+    const { diagram } = buildModel(
+      parse(
+        [
+          'device a as generic { out X : sdi }',
+          'device b as generic { in Y : sdi }',
+          'a.X -> b.Y : sdi',
+        ].join('\n'),
+      ).document,
+    );
+    expect(await renderDiagram(diagram, { locale: 'en' })).toContain('>Signals<');
+    expect(await renderDiagram(diagram, { locale: 'ja' })).toContain('>信号種別<');
+  });
+
+  it('fits inside the canvas', async () => {
+    // The width came from the layout alone, so a narrow drawing with several signal types
+    // ran its key off the right-hand edge — where it is not merely ugly but cropped.
+    const { diagram } = buildModel(parse(MANY).document);
+    const svg = await renderDiagram(diagram);
+
+    const width = Number(/width="([0-9.]+)"/.exec(svg)?.[1]);
+    const rightmost = Math.max(
+      ...[...svg.matchAll(/<text x="([0-9.]+)"[^>]*font-size="11"/g)].map((m) => Number(m[1])),
+    );
+    expect(rightmost).toBeLessThan(width);
+  });
+
+  it('is left out when there is nothing to key', async () => {
+    const { diagram } = buildModel(
+      parse(
+        [
+          'device a as generic { out X : sdi }',
+          'device b as generic { in Y : sdi }',
+          'a.X -> b.Y : sdi',
+        ].join('\n'),
+      ).document,
+    );
+    expect(await renderDiagram(diagram, { legend: false })).not.toContain('>Signals<');
   });
 });
