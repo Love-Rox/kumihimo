@@ -18,6 +18,9 @@ permissions:
   # write, to attach the .vsix to a GitHub release. That release is where the extension is
   # actually obtainable while Marketplace publishing is unconfigured, so it is not optional.
   contents: write
+  # The OIDC token `azure/login` exchanges for a short-lived Entra ID one. This is what
+  # makes publishing possible with no stored secret at all.
+  id-token: write
 
 jobs:
   publish:
@@ -31,6 +34,12 @@ jobs:
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      # Identifiers, not credentials — a variable rather than a secret, so a failed run is
+      # readable. Set all three to publish over OIDC; leave them unset to fall back to the
+      # PAT, or to neither and get the .vsix on a GitHub release.
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -130,18 +139,35 @@ jobs:
             echo "::notice::リリース $tag を作成しました"
           fi
 
-      # Skipped rather than failed when no token is configured, the same way Open VSX is.
+      # Nothing long-lived is stored: GitHub mints an OIDC token for this run, Entra ID
+      # exchanges it for one that expires in an hour, and `vsce` picks that up through the
+      # signed-in Azure CLI. Preferred over the PAT, which expires on a date nobody
+      # remembers and takes an Azure DevOps organisation to mint in the first place.
+      - name: Sign in to Entra ID
+        if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Publish to the Visual Studio Marketplace (Entra ID)
+        if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID != ''
+        run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath kumihimo.vsix --azure-credential
+
+      # Skipped rather than failed when nothing is configured, the same way Open VSX is.
       # A pipeline that has not been given credentials has nothing to report as broken.
-      - name: Publish to the Visual Studio Marketplace
-        if: steps.version.outputs.publish == 'true' && env.VSCE_PAT != ''
+      - name: Publish to the Visual Studio Marketplace (token)
+        if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID == '' && env.VSCE_PAT != ''
         run: pnpm --filter kumihimo-vscode exec vsce publish --packagePath kumihimo.vsix
 
       - name: Say where the .vsix is, when nothing was published
-        if: steps.version.outputs.publish == 'true' && env.VSCE_PAT == ''
+        if: steps.version.outputs.publish == 'true' && env.AZURE_CLIENT_ID == '' && env.VSCE_PAT == ''
         run: |
-          echo "::notice::VSCE_PAT が未設定のため公開していません。" \
-               "この実行の artifact から kumihimo.vsix を取得し、" \
-               "https://marketplace.visualstudio.com/manage/publishers/love-rox で手動アップロードしてください。"
+          echo "::notice::Marketplace への公開設定がありません。" \
+               "この実行の GitHub リリースから .vsix を取得し、" \
+               "https://marketplace.visualstudio.com/manage/publishers/love-rox で手動アップロードしてください。" \
+               "自動化するには AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID を variables に設定してください。"
 
       # VSCodium, Cursor and the rest install from Open VSX rather than the Marketplace.
       # Skipped rather than failed when no token is configured: the Marketplace is the
