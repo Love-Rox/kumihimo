@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies [45a0ff3]
+  - @love-rox/kumihimo-core@0.5.0
+
 ## 0.4.3
 
 ### Patch Changes
