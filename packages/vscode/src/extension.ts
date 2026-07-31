@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { checkDocument } from './diagnostics.js';
 import { Preview } from './preview.js';
+import { registerCompletion } from './completion.js';
 
 const LANGUAGE = 'kumihimo';
 
@@ -15,6 +16,8 @@ const LANGUAGE = 'kumihimo';
 export function activate(context: vscode.ExtensionContext): void {
   const collection = vscode.languages.createDiagnosticCollection(LANGUAGE);
   context.subscriptions.push(collection);
+
+  registerCompletion(context);
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 

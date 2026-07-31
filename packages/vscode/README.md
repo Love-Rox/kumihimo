@@ -30,6 +30,12 @@ cannot see.
 **Live preview.** `⌘K V` / `Ctrl+K V`, or the button in the editor title bar. It redraws
 as you type and follows your colour theme, unless the source names a theme itself.
 
+**Completions**, read from the compiler itself. Signal types after `:` and `|`, device kinds
+after `as`, jacket colours inside `[color=`, themes and directions in a `diagram` block.
+Every name offered is one the compiler accepts, because both read the same list — and the
+connectors are shown beside each type, which is how `trs` (1/4") and `trs35` (3.5mm) are
+told apart at the point of choosing.
+
 **Syntax highlighting** and the usual bracket and comment handling for `.khm`.
 
 ## Settings

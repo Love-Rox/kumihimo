@@ -24,6 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 const published = [];
 const commands = new Map();
+const completion = { provider: undefined };
 const listeners = { open: [], change: [], save: [], close: [], config: [], theme: [] };
 
 const Position = class {
@@ -55,12 +56,34 @@ const vscode = {
   ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3 },
   ViewColumn: { Beside: -2 },
   Uri: { parse: (s) => ({ toString: () => s }) },
+  CompletionItem: class {
+    constructor(label, kind) {
+      this.label = label;
+      this.kind = kind;
+    }
+  },
+  CompletionItemKind: {
+    Keyword: 13,
+    EnumMember: 19,
+    Class: 6,
+    Color: 15,
+    Unit: 10,
+  },
+  MarkdownString: class {
+    constructor(value) {
+      this.value = value;
+    }
+  },
   languages: {
     createDiagnosticCollection: () => ({
       set: (uri, list) => published.push({ uri: uri.toString(), list }),
       delete: () => {},
       dispose: () => {},
     }),
+    registerCompletionItemProvider: (_selector, provider) => {
+      completion.provider = provider;
+      return { dispose() {} };
+    },
   },
   workspace: {
     textDocuments: [],
@@ -147,6 +170,42 @@ for (const listener of listeners.open) listener(clean);
 const after = published.at(-1);
 if (after.list.length !== 0) throw new Error(`正しい図に診断 ${after.list.length} 件`);
 console.log('\n正しい図: 診断 0 件');
+
+// Completions. Not "does a list come back" — whether the right list comes back for where
+// the cursor is, since a provider that offers signal types everywhere is worse than none.
+const suggest = (text) => {
+  const lines = text.split('\n');
+  const stub = { lineAt: (n) => ({ text: lines[n] ?? '' }) };
+  const position = { line: lines.length - 1, character: lines.at(-1).length };
+  return completion.provider.provideCompletionItems(stub, position).map((c) => c.label);
+};
+
+const cases = [
+  ['device d { in A : ', 'trs35', '型の候補'],
+  ['device d { in A : xlr | ', 'trs', 'パイプの後も型'],
+  ['device d "x" as ', 'mixer', 'as の後は機材種別'],
+  ['a.OUT -> b.IN : sdi [color=', '青', '色の候補'],
+  ['diagram { theme: ', 'blueprint', 'テーマ'],
+  ['diagram { direction: ', 'TB', '方向'],
+  ['device d {\n  ', 'gap', '本体の中はポート宣言'],
+  ['', 'device', 'トップレベルは宣言'],
+];
+
+console.log('\n補完:');
+for (const [text, expected, what] of cases) {
+  const labels = suggest(text);
+  const ok = labels.includes(expected);
+  console.log(`  ${ok ? '○' : '×'} ${what.padEnd(18)} ${labels.length} 件 / ${expected}`);
+  if (!ok) throw new Error(`${what}: ${expected} が候補にありません (${labels.slice(0, 8)})`);
+}
+
+// The point of driving it off the compiler's own exports: a type added to the language is
+// offered without a second list to remember. trs35 landed this session and is here.
+const afterColon = suggest('device d { in A : ');
+for (const added of ['trs35', 'trrs', 'trrs35', 'usbpd']) {
+  if (!afterColon.includes(added)) throw new Error(`${added} が候補にありません`);
+}
+console.log(`  ○ 今回追加した型も自動で出る  trs35 trrs trrs35 usbpd`);
 
 console.log('\nスモークテスト成功');
 Module._load = original;

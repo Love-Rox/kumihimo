@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Completions, read from the compiler rather than from a list kept beside it. Signal types
+  after `:` and `|`, device kinds after `as`, jacket colours inside `[color=`, themes and
+  directions in a `diagram` block, port keywords inside a body, declarations at the top
+  level. A type added to the language is offered with nothing to update here.
+- Signal types show their connectors, which is how `trs` and `trs35` are told apart.
+
 ## 0.1.0
 
 First release. Built against kumihimo 0.2.0.
