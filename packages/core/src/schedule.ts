@@ -198,7 +198,16 @@ export function adapterSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCAL
       (l) => l.from.deviceId === device.id || l.to.deviceId === device.id,
     );
     const existing = rows.get(device.label);
-    const where = touching.map((l) => describe(l));
+    // What it plugs into, not the runs it takes part in. A splitter is one part with
+    // three plugs on it; listing three runs reads as three cables, which is the thing
+    // this schedule exists to stop.
+    const where = [
+      ...new Set(
+        touching.map((l) =>
+          endpointName(diagram, l.from.deviceId === device.id ? l.to.deviceId : l.from.deviceId),
+        ),
+      ),
+    ];
     if (existing) {
       existing.count += 1;
       existing.links.push(...where);
@@ -208,7 +217,16 @@ export function adapterSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCAL
   }
 
   for (const link of diagram.links) {
-    const source = link.via ?? link.compatibility.adapter;
+    // A lead that converts *is* the cable, and the cable schedule already has a row for
+    // it with the part named in its adapter column. Counting it here as well would send
+    // someone to site with two objects for a job that needs one.
+    //
+    // The compatibility check is what tells them apart: it names a lead only when the two
+    // ends disagree. Where they agree, a `via` is a separate part beside an ordinary
+    // cable, and belongs on this list.
+    if (link.compatibility.adapter !== undefined) continue;
+
+    const source = link.via;
     if (source === undefined) continue;
     // The part name is the key, so it has to be one language before it is counted.
     const adapter = localise(source, locale);

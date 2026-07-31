@@ -553,6 +553,13 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       }
     }
 
+    // An `adapter` makes a node in the drawing, which is right for a junction and wrong
+    // for a lead: two ends mean one unbroken cable, and putting a node in the middle of it
+    // invents a stop that is not there and splits one object into three.
+    if (device.passive && device.ports.length === 2) {
+      bag.report('invalid-value', 'adapter.two-ended', { id: device.id }, decl.span);
+    }
+
     if (groupId !== undefined) {
       const group = collector.groups.find((g) => g.id === groupId);
       if (group && !group.deviceIds.includes(device.id)) group.deviceIds.push(device.id);

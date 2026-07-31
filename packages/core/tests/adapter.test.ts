@@ -167,3 +167,64 @@ describe('the two things `via` was being asked to mean', () => {
     ]);
   });
 });
+
+describe('two ends is a cable, not a junction', () => {
+  const LEAD = [
+    'device pc  as computer { out HDMI : hdmi }',
+    'device mon as display  { in DVI : dvi }',
+  ];
+
+  it('reports an adapter with two ends', () => {
+    // A converting lead is one unbroken cable. Declaring it as a node puts a stop in the
+    // middle of it that is not there, and draws one object as three.
+    const { diagnostics } = build([
+      ...LEAD,
+      'adapter hd "HDMI-DVI 変換ケーブル" { in IN : hdmi  out OUT : dvi }',
+      'pc.HDMI -> hd.IN   : hdmi',
+      'hd.OUT  -> mon.DVI : dvi',
+    ]);
+    const hit = diagnostics.find((d) => d.code === 'invalid-value');
+    expect(hit?.message).toContain('hd');
+  });
+
+  it('says nothing about a junction with three', () => {
+    const { diagnostics } = build([...SPLITTER, 'phone.HS -> split.HS : trrs35']);
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('counts a converting lead once, on the cable schedule', () => {
+    // The run *is* the lead. A row on the parts list as well would send someone to site
+    // with two objects for a job that needs one.
+    const { diagram } = build([
+      ...LEAD,
+      'pc.HDMI -> mon.DVI : hdmi 2m "V-02" via "HDMI-DVI cable"',
+    ]);
+
+    const cables = cableSchedule(diagram);
+    expect(cables).toHaveLength(1);
+    expect(cables[0]?.adapter).toBe('HDMI-DVI cable');
+    expect(adapterSchedule(diagram)).toEqual([]);
+  });
+
+  it('counts a part beside a cable twice, because it is two things', () => {
+    const { diagram } = build([
+      'device cam as camera  { out SDI : sdi }',
+      'device m   as display { in SDI : sdi }',
+      'cam.SDI -> m.SDI : sdi 30m "V-01" via "BNC-RCA adapter"',
+    ]);
+    expect(cableSchedule(diagram)).toHaveLength(1);
+    expect(adapterSchedule(diagram).map((r) => r.adapter)).toEqual(['BNC-RCA adapter']);
+  });
+
+  it('lists what a junction plugs into, not the runs it takes part in', () => {
+    // Three runs for one part reads as three cables, which is what this schedule exists
+    // to stop saying.
+    const { diagram } = build([
+      ...SPLITTER,
+      'phone.HS -> split.HS  : trrs35',
+      'split.HP -> hp.IN     : trs35',
+      'mic.OUT  -> split.MIC : trs35',
+    ]);
+    expect(adapterSchedule(diagram)[0]?.links).toEqual(['スマホ', 'ヘッドホン', 'マイク']);
+  });
+});

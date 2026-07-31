@@ -130,7 +130,13 @@
           "description": "%config.format.align%"
         }
       }
-    }
+    },
+    "snippets": [
+      {
+        "language": "kumihimo",
+        "path": "./snippets/kumihimo.json"
+      }
+    ]
   },
   "activationEvents": [],
   "icon": "icon.png",

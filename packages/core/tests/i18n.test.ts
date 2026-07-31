@@ -157,9 +157,17 @@ describe('schedules', () => {
 
   it('counts a part under one name, whichever language that is', () => {
     // The part name is the grouping key, so a schedule that mixed languages would count
-    // the same adapter twice under two spellings.
-    const rows = adapterSchedule(diagramOf('ja'), 'ja');
+    // the same adapter twice under two spellings. A run whose ends agree, because a
+    // converting lead is the cable itself and belongs on the other schedule.
+    const source = [
+      'device cam as camera  { out SDI : sdi }',
+      'device mon as display { in SDI : sdi }',
+      'cam.SDI -> mon.SDI : sdi 30m "V-01" via "BNC-RCA 変換"',
+    ].join('\n');
+    const diagram = buildModel(parse(source).document, { locale: 'ja' }).diagram;
+
+    const rows = adapterSchedule(diagram, 'ja');
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.adapter).toBe('HDMI-DVI 変換ケーブル');
+    expect(rows[0]?.adapter).toBe('BNC-RCA 変換');
   });
 });

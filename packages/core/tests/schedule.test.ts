@@ -79,26 +79,43 @@ describe('equipmentSchedule', () => {
 });
 
 describe('adapterSchedule', () => {
-  it('counts adapters across the whole system', () => {
+  it('counts a part that sits beside a cable', () => {
+    // Both ends are SDI, so the run needs an ordinary cable *and* the adapter named on
+    // it. Two objects, and the second one is what this schedule is for.
     const rows = adapterSchedule(
       scheduleOf(`
-        device pc1 as computer { out HDMI : hdmi }
-        device pc2 as computer { out HDMI : hdmi }
-        device m1 as display { in DVI : dvi }
-        device m2 as display { in DVI : dvi }
-        pc1.HDMI -> m1.DVI : hdmi "V-01"
-        pc2.HDMI -> m2.DVI : hdmi "V-02"
+        device c1 as camera { out SDI : sdi }
+        device c2 as camera { out SDI : sdi }
+        device m1 as display { in SDI : sdi }
+        device m2 as display { in SDI : sdi }
+        c1.SDI -> m1.SDI : sdi 30m "V-01" via "BNC-RCA adapter"
+        c2.SDI -> m2.SDI : sdi 30m "V-02" via "BNC-RCA adapter"
       `),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ adapter: 'HDMI-DVI cable', count: 2 });
+    expect(rows[0]).toMatchObject({ adapter: 'BNC-RCA adapter', count: 2 });
     expect(rows[0]?.links).toEqual(['V-01', 'V-02']);
   });
 
-  it('includes adapters the author never declared', () => {
-    // An adapter nobody wrote down is an adapter nobody brings.
-    const rows = adapterSchedule(scheduleOf(SOURCE));
-    expect(rows.some((r) => r.adapter.includes('HDMI-DVI'))).toBe(true);
+  it('leaves a converting lead off, because the cable is the lead', () => {
+    // HDMI into DVI needs a converting lead, and that lead *is* the run. A row here as
+    // well would send someone to site with two objects for a job that needs one.
+    const rows = adapterSchedule(
+      scheduleOf(`
+        device pc as computer { out HDMI : hdmi }
+        device m  as display  { in DVI : dvi }
+        pc.HDMI -> m.DVI : hdmi 2m "V-01" via "HDMI-DVI cable"
+      `),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it('still names the part on the cable, declared or not', () => {
+    // The intent that matters: a lead nobody wrote down is a lead nobody brings. It
+    // reaches the reader on the run's own row, which is where the ordering happens.
+    const rows = cableSchedule(scheduleOf(SOURCE));
+    const converting = rows.find((r) => r.label === 'V-11');
+    expect(converting?.adapter).toContain('HDMI-DVI');
   });
 
   it('is empty when nothing needs one', () => {

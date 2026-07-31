@@ -359,13 +359,10 @@ Hex such as `#0af` or `#00aaff` also works. Anything else is a diagnostic
 The legend keeps showing the **signal type's** colour. An individual cable's colour is a
 separate fact and the two are not mixed.
 
-### `adapter` — a part, not a box
+### `adapter` — a junction, not a lead
 
-A converter is a powered box. It needs racking **and** a cable on each side, so it is a
-`device`. A conversion lead **is** the cable, and needs only itself.
-
-Declaring both as devices puts a headset splitter on the equipment list, where nobody will
-ever rack it, and invents a cable run on each side of a thing that is one line item.
+An `adapter` is a **node**: a place a drawing stops at and several runs meet. That is what
+a splitter is, and it is why it needs one.
 
 ```khm
 adapter split "TRRS splitter" {
@@ -379,19 +376,9 @@ split.HP -> hp.IN     : trs35
 mic.OUT  -> split.MIC : trs35
 ```
 
-The body is a device's: connectors, in the order they are drawn. There is no `as` — an
-adapter is drawn as what it is, and there is nothing to choose.
-
-What differs is where it lands:
-
-|                         | equipment schedule | cable schedule  | adapter schedule |
-| ----------------------- | ------------------ | --------------- | ---------------- |
-| `device … as converter` | the box            | a run each side | —                |
-| `adapter`               | —                  | —               | one line         |
-
-**A run touching an adapter is a plug going into a socket, not a cable to bring** — so it
-produces no cable row. The exception is written rather than guessed: give the run a length
-or a cable number and it becomes a cable.
+It lands on the parts list, not the equipment list — nobody racks a headset splitter — and
+the runs touching it are plugs going into sockets rather than cables to bring, so they
+produce no cable rows. Give one a length or a cable number and it becomes a cable:
 
 ```khm
 split.HP -> hp.IN : trs35            # plugged straight in
@@ -399,62 +386,51 @@ split.HP -> hp.IN : trs35 5m "A-02"  # a 5 m cable, on the schedule
 split.HP -> hp.IN : trs35 "A-02"     # a cable whose length nobody has measured yet
 ```
 
-Either alone is enough, because a length is often unknown when the drawing is made and a
-number is often assigned before anyone measures.
+**A part with two ends is not a junction.** A converting lead is one unbroken cable, and
+declaring it as an `adapter` puts a stop in the middle of it that is not there — one object
+drawn as three. Two ends are reported, and belong on the run itself:
 
-Use `via` instead when the part has exactly two ends and sits inside one run — `via` is
-the shorthand for exactly that case, and needs no declaration.
+```khm
+# Wrong: invents a node in the middle of one cable
+adapter hd "HDMI-DVI cable" { in IN : hdmi  out OUT : dvi }
+pc.HDMI -> hd.IN   : hdmi
+hd.OUT  -> mon.DVI : dvi
+
+# Right
+pc.HDMI -> mon.DVI : hdmi 2m "V-02" via "HDMI-DVI cable"
+```
 
 ---
 
-### `via` — an adapter used with an ordinary cable
-
-Declares that a small passive part sits at one end of a run, **in addition to the cable**.
+### `via` — a part that sits in a run
 
 ```khm
-cam.SDI -> mon.SDI : sdi 30m "V-01" via "BNC-RCA adapter"
+pc.HDMI -> mon.DVI : hdmi 2m  "V-02" via "HDMI-DVI cable"
+cam.SDI -> mon.SDI : sdi  30m "V-01" via "BNC-RCA adapter"
 ```
 
-That is two objects to bring: a 30 m SDI cable, and an adapter. So it is two rows — the
-cable on the cable schedule, the adapter on the parts list.
+Those two look alike and are not. **The first names one object: the lead is the run.** The
+second names two: an ordinary 30 m SDI cable, and an adapter on the end of it.
 
-A **converting lead** is one object, not two. The lead is the run. Declare it with
-[`adapter`](#adapter--a-part-not-a-box) instead, or it gets counted twice:
+Nothing has to be written to tell them apart — the compatibility check already knows,
+because it names the lead a pairing needs. Where the ends disagree, the part is the cable
+and appears only on the cable schedule, in its adapter column. Where the ends agree, it is
+a separate thing to bring and appears on the parts list as well.
 
-```khm
-# Two objects: a cable, and an adapter on the end of it
-cam.SDI -> mon.SDI : sdi 30m "V-01" via "BNC-RCA adapter"
-
-# One object: the lead is the run
-adapter hd "HDMI-DVI cable" {
-  in  IN  : hdmi
-  out OUT : dvi
-}
-pc.HDMI -> hd.IN   : hdmi
-hd.OUT  -> mon.DVI : dvi
-```
+|                                       | cable schedule              | parts list  |
+| ------------------------------------- | --------------------------- | ----------- |
+| `hdmi` → `dvi` `via "HDMI-DVI cable"` | the run, naming the lead    | —           |
+| `sdi` → `sdi` `via "BNC-RCA adapter"` | the run, naming the adapter | the adapter |
 
 `via` is not a way to silence a warning. It is **a declaration that puts a part on the
-schedule**. The link gets a conversion mark, and the adapter appears as a line item.
+schedule**.
 
 - **Pairings a cable can genuinely bridge** (HDMI↔DVI, DP→HDMI …) — declaring `via` clears
-  the diagnostic. Leaving it undeclared is still reported, and the required part is named.
+  the diagnostic. Leaving it undeclared is still reported, and the required part is named
+  on the run.
 - **Pairings no cable can bridge** (SDI→HDMI …) — `via` does **not** clear the diagnostic.
   These need a converter, which is a powered box, and therefore belongs in the diagram as a
-  **device** rather than as a property of a cable.
-
-```khm
-# Wrong: no cable turns SDI into HDMI
-cam.SDI -> mon.HDMI : sdi via "SDI-HDMI converter"
-
-# Right: the converter is a device
-device conv "BMD Mini Converter SDI-HDMI" as converter {
-  in  SDI  : sdi
-  out HDMI : hdmi
-}
-cam.SDI   -> conv.SDI  : sdi
-conv.HDMI -> mon.HDMI  : hdmi
-```
+  **device**.
 
 ### Parallel runs
 
