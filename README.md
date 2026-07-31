@@ -6,6 +6,9 @@
 [![CI](https://github.com/Love-Rox/kumihimo/actions/workflows/ci.yml/badge.svg)](https://github.com/Love-Rox/kumihimo/actions/workflows/ci.yml)
 [![license](https://img.shields.io/npm/l/@love-rox/kumihimo-core)](LICENSE)
 
+[**kumihimo.love-rox.cc**](https://kumihimo.love-rox.cc/en) — the guide, and an editor you can
+type into without installing anything.
+
 Write AV signal flow diagrams (系統図) as text, the way Mermaid does for flowcharts — except that the unit of connection is a **port**, not a node, and the **signal type** on a cable is information the tool understands rather than decoration.
 
 ```khm
