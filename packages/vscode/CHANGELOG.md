@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [11156bf]
+- Updated dependencies [c0aad3d]
+- Updated dependencies [bc376de]
+  - @love-rox/kumihimo-core@0.3.0
+
 ## 0.3.0
 
 - The preview switches between the diagram and the three schedules — cables, equipment and
