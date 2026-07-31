@@ -175,6 +175,26 @@ This is about a connector accepting two things, not about two things being equiv
 `xlr` and `trs` are already interchangeable (§9); writing `xlr | trs` says something else —
 that this particular hole physically takes either plug.
 
+### Jack sizes
+
+Jack types carry their barrel size, because size is what decides whether the plug goes in.
+The rule is uniform: **a bare name is 1/4", a `35` suffix is 3.5mm.**
+
+| Type     | Connector  |
+| -------- | ---------- |
+| `trs`    | TRS 1/4"   |
+| `trs35`  | TRS 3.5mm  |
+| `trrs`   | TRRS 1/4"  |
+| `trrs35` | TRRS 3.5mm |
+
+TRRS is far more often met as 3.5mm, so `trrs` meaning the 1/4" one is the less expected
+reading. A rule that holds everywhere is easier to carry than one with an exception in it.
+
+Same signal, different barrel is an **adapter** (§9): the run needs a 3.5mm-to-6.3mm plug,
+which `via` puts on the parts list. Same barrel, different pole count is **lossy**: the plug
+seats and one conductor lands on the wrong contact, so a four-pole plug in a three-pole jack
+passes audio and drops the microphone.
+
 ### `gap` — space between blocks of ports
 
 A bare `gap` line leaves blank space above whatever is declared next, so a strip of
@@ -379,7 +399,7 @@ in progress is not a wall of warnings.
 
 #### Audio
 
-`xlr` `trs` `rca` `speakon` `aes` `dante` `madi` `adat` `spdif` `optical`
+`xlr` `trs` `trs35` `trrs` `trrs35` `rca` `speakon` `aes` `dante` `madi` `adat` `spdif` `optical`
 
 #### Control
 

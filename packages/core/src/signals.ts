@@ -116,7 +116,18 @@ const SEEDS: Record<string, SignalSeed> = {
 
   // ── audio ───────────────────────────────────────────────────────────────
   xlr: { category: 'audio', label: 'XLR', connectors: ['XLR-M', 'XLR-F'] },
-  trs: { category: 'audio', label: 'TRS', connectors: ['TRS 1/4"', 'TRS 3.5mm'] },
+  // Jack types are split by barrel size, because size is what decides whether the plug
+  // goes in at all. One type listing both could never answer the question a drawing is for.
+  //
+  // The rule is uniform: a bare name is 1/4", a `35` suffix is 3.5mm. TRRS is far more
+  // often seen as 3.5mm, so `trrs` meaning the 1/4" one is the less expected reading — but
+  // a rule that holds everywhere is easier to carry than one with an exception in it, and
+  // `trs` already means 1/4".
+  trs: { category: 'audio', label: 'TRS 1/4"', connectors: ['TRS 1/4"'] },
+  trs35: { category: 'audio', label: 'TRS 3.5mm', connectors: ['TRS 3.5mm'] },
+  // Four conductors — left, right, microphone, ground. The headset connector.
+  trrs: { category: 'audio', label: 'TRRS 1/4"', connectors: ['TRRS 1/4"'] },
+  trrs35: { category: 'audio', label: 'TRRS 3.5mm', connectors: ['TRRS 3.5mm'] },
   rca: { category: 'audio', label: 'RCA', connectors: ['RCA'] },
   speakon: { category: 'audio', label: 'Speakon', connectors: ['NL4', 'NL8'] },
   aes: { category: 'audio', label: 'AES/EBU', connectors: ['XLR', 'BNC'] },

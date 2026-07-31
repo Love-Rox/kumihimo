@@ -217,6 +217,19 @@ export const PASSIVE_ADAPTERS: readonly PassiveAdapter[] = [
     cable: 'AES/EBU-S/PDIF 変換トランス',
     caveat: '110Ω↔75Ω のインピーダンス変換が要る。直結は不可',
   },
+  // Barrel size. Electrically the same thing; the plug simply does not fit the hole, which
+  // is the most ordinary adapter on any cart and the easiest one to leave in the workshop.
+  {
+    from: 'trs',
+    to: 'trs35',
+    cable: '3.5mm-6.3mm 変換プラグ',
+  },
+  {
+    from: 'trrs',
+    to: 'trrs35',
+    cable: '3.5mm-6.3mm 変換プラグ（4極）',
+    caveat: '3極用の変換プラグではマイクの極が繋がらない。4極対応品を指定すること',
+  },
 ];
 
 const groupIndex: ReadonlyMap<string, ReadonlySet<number>> = (() => {
@@ -263,6 +276,29 @@ export interface LossyPair {
  * unbalanced-to-balanced, so these are directional unless marked `symmetric`.
  */
 export const LOSSY_PAIRS: readonly LossyPair[] = [
+  // Pole count at the same barrel size: the plug seats, and one conductor lands on the
+  // wrong contact. Directional — a 3-pole plug in a 4-pole jack is not the same fault as
+  // a 4-pole plug in a 3-pole jack, and only the second one silently loses the microphone.
+  {
+    from: 'trrs35',
+    to: 'trs35',
+    reason: '4極を3極ジャックへ。音声は通るがマイクは通らず、スリーブがリングに当たる',
+  },
+  {
+    from: 'trs35',
+    to: 'trrs35',
+    reason: '3極を4極ジャックへ。マイクの極が繋がらない',
+  },
+  {
+    from: 'trrs',
+    to: 'trs',
+    reason: '4極を3極ジャックへ。音声は通るがマイクは通らず、スリーブがリングに当たる',
+  },
+  {
+    from: 'trs',
+    to: 'trrs',
+    reason: '3極を4極ジャックへ。マイクの極が繋がらない',
+  },
   {
     from: 'xlr',
     to: 'rca',
