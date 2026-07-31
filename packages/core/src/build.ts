@@ -69,11 +69,7 @@ export interface BuildOptions {
  * @param locale - Language to render in.
  * @returns The sentence to put in the diagnostic.
  */
-function reasonOf(
-  result: { reason?: Localised },
-  fallback: MessageKey,
-  locale: Locale,
-): string {
+function reasonOf(result: { reason?: Localised }, fallback: MessageKey, locale: Locale): string {
   return result.reason === undefined
     ? formatMessage(fallback, {}, locale)
     : localise(result.reason, locale);
@@ -149,7 +145,8 @@ class Collector {
               } else {
                 this.bag.report(
                   'invalid-value',
-                  'value.direction', { value: option.value.value },
+                  'value.direction',
+                  { value: option.value.value },
                   option.span,
                 );
               }
@@ -254,11 +251,7 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
           if (LINE_STYLES.includes(value)) {
             signal.style = value as LineStyle;
           } else {
-            bag.report(
-              'invalid-value',
-              'value.style', { value },
-              option.span,
-            );
+            bag.report('invalid-value', 'value.style', { value }, option.span);
           }
           break;
         case 'bidirectional':
@@ -284,11 +277,7 @@ function buildCompatRules(decls: readonly CompatDecl[], bag: DiagnosticBag): Com
 
   for (const decl of decls) {
     if (!VERDICTS.includes(decl.verdict)) {
-      bag.report(
-        'invalid-value',
-        'value.verdict', { value: decl.verdict },
-        decl.span,
-      );
+      bag.report('invalid-value', 'value.verdict', { value: decl.verdict }, decl.span);
       continue;
     }
 
@@ -357,7 +346,12 @@ class DeviceTable {
       if (DEVICE_KINDS.includes(decl.kind)) {
         device.kind = decl.kind;
       } else {
-        this.bag.report('unknown-device-kind', 'device.unknown-kind', { kind: decl.kind }, decl.span);
+        this.bag.report(
+          'unknown-device-kind',
+          'device.unknown-kind',
+          { kind: decl.kind },
+          decl.span,
+        );
       }
     }
 
@@ -411,11 +405,7 @@ class DeviceTable {
       let n = 1;
       while (device.ports.some((p) => p.name === `${prefix}${n}`)) n += 1;
       const generated = `${prefix}${n}`;
-      this.bag.report(
-        'implicit-port',
-        'port.generated', { id: `${device.id}.${generated}` },
-        span,
-      );
+      this.bag.report('implicit-port', 'port.generated', { id: `${device.id}.${generated}` }, span);
       return this.addPort(device, {
         id: `${device.id}.${generated}`,
         name: generated,
@@ -428,11 +418,7 @@ class DeviceTable {
     const existing = device.ports.find((p) => p.name === name);
     if (existing) return existing;
 
-    this.bag.report(
-      'implicit-port',
-      'port.implicit', { id: `${device.id}.${name}` },
-      span,
-    );
+    this.bag.report('implicit-port', 'port.implicit', { id: `${device.id}.${name}` }, span);
     return this.addPort(device, {
       id: `${device.id}.${name}`,
       name,
@@ -456,7 +442,8 @@ function pairEnds(
   if (left.length !== right.length) {
     bag.report(
       'invalid-port-spec',
-      'ports.count-mismatch', { left: left.length, right: right.length },
+      'ports.count-mismatch',
+      { left: left.length, right: right.length },
       span,
     );
     return [];
@@ -588,18 +575,10 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       // Direction. Implicit ports have no declared direction, so they never conflict.
       if (stmt.arrow === '->' && !fromPort.implicit && !toPort.implicit) {
         if (fromPort.direction === 'in') {
-          bag.report(
-            'direction-mismatch',
-            'link.direction-out', { id: fromPort.id },
-            stmt.span,
-          );
+          bag.report('direction-mismatch', 'link.direction-out', { id: fromPort.id }, stmt.span);
         }
         if (toPort.direction === 'out') {
-          bag.report(
-            'direction-mismatch',
-            'link.direction-in', { id: toPort.id },
-            stmt.span,
-          );
+          bag.report('direction-mismatch', 'link.direction-in', { id: toPort.id }, stmt.span);
         }
       }
 
@@ -671,11 +650,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       const wireless = fromSignal.wireless || toSignal.wireless;
       if (wireless) {
         if (stmt.length !== undefined) {
-          bag.report(
-            'invalid-value',
-            'link.wireless-length', { value: stmt.length },
-            stmt.span,
-          );
+          bag.report('invalid-value', 'link.wireless-length', { value: stmt.length }, stmt.span);
           delete link.length;
         }
         if (stmt.via !== undefined) {
@@ -694,11 +669,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         if (color) {
           link.color = color;
         } else {
-          bag.report(
-            'invalid-value',
-            'value.colour', { value: written.value.value },
-            written.span,
-          );
+          bag.report('invalid-value', 'value.colour', { value: written.value.value }, written.span);
         }
       }
 

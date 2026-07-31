@@ -164,7 +164,9 @@ export class DiagnosticBag {
 
     const message = formatMessage(key, params, this.#locale);
     this.#diagnostics.push(
-      span ? { code, severity, message, key, params, span } : { code, severity, message, key, params },
+      span
+        ? { code, severity, message, key, params, span }
+        : { code, severity, message, key, params },
     );
   }
 

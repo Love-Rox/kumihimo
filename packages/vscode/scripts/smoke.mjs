@@ -188,7 +188,9 @@ console.log('\n正しい図: 診断 0 件');
 // through vscode.l10n; the compiler's do not, and a panel that mixes the two is the thing
 // this checks against.
 console.log('\n診断の言語:');
-const wrong = doc('device a as camera { out SDI : sdi }\ndevice b as router { in 1 : lan }\na.SDI -> b.1');
+const wrong = doc(
+  'device a as camera { out SDI : sdi }\ndevice b as router { in 1 : lan }\na.SDI -> b.1',
+);
 
 for (const [language, expected] of [
   ['en', 'cannot be joined by a cable'],

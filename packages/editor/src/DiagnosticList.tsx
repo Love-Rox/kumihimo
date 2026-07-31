@@ -28,11 +28,7 @@ export interface DiagnosticListProps {
  * @param props - Diagnostics and a selection callback.
  * @returns The panel.
  */
-export function DiagnosticList({
-  diagnostics,
-  onSelect,
-  locale,
-}: DiagnosticListProps): ReactNode {
+export function DiagnosticList({ diagnostics, onSelect, locale }: DiagnosticListProps): ReactNode {
   if (diagnostics.length === 0) {
     return (
       <p className="khm-diagnostics khm-diagnostics--clean" role="status">

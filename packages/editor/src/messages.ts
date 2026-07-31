@@ -56,7 +56,10 @@ const UI = {
     en: 'The SVG could not be loaded as an image',
     ja: 'SVG を画像として読み込めませんでした',
   },
-  canvasFailed: { en: 'The canvas could not be initialised', ja: 'canvas を初期化できませんでした' },
+  canvasFailed: {
+    en: 'The canvas could not be initialised',
+    ja: 'canvas を初期化できませんでした',
+  },
   pngFailed: { en: 'The PNG could not be produced', ja: 'PNG を生成できませんでした' },
 } as const satisfies Record<string, Record<Locale, string>>;
 

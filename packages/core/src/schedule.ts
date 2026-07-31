@@ -116,8 +116,8 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
     if (link.frequency !== undefined) row.frequency = link.frequency;
     if (link.color !== undefined) row.color = link.color;
     if (link.compatibility.adapter !== undefined) {
-        row.adapter = localise(link.compatibility.adapter, locale);
-      }
+      row.adapter = localise(link.compatibility.adapter, locale);
+    }
     if (link.via !== undefined) row.adapter = link.via;
     if (link.compatibility.verdict !== 'ok' && link.compatibility.reason !== undefined) {
       row.note = localise(link.compatibility.reason, locale);

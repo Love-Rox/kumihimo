@@ -130,7 +130,8 @@ describe('every stage answers in the locale it was given', () => {
   });
 
   it('names signals in Japanese in the legend', async () => {
-    const source = 'device a as generic { out RF : uhf }\ndevice b as generic { in RF : uhf }\na.RF -> b.RF';
+    const source =
+      'device a as generic { out RF : uhf }\ndevice b as generic { in RF : uhf }\na.RF -> b.RF';
     const en = await compile(source);
     const ja = await compile(source, { locale: 'ja' });
     expect(en.svg).toContain('Wireless (UHF)');

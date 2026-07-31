@@ -68,9 +68,7 @@ export async function downloadPng(
 
   await new Promise<void>((resolve, reject) => {
     image.addEventListener('load', () => resolve());
-    image.addEventListener('error', () =>
-      reject(new Error(t('svgLoadFailed', locale))),
-    );
+    image.addEventListener('error', () => reject(new Error(t('svgLoadFailed', locale))));
     image.src = encoded;
   });
 

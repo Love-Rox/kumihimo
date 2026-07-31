@@ -175,10 +175,25 @@ const SEEDS: Record<string, SignalSeed> = {
     bidirectional: true,
     wireless: true,
   },
-  uhf: { category: 'audio', label: { en: 'Wireless (UHF)', ja: 'ワイヤレス (UHF)' }, connectors: [], wireless: true },
+  uhf: {
+    category: 'audio',
+    label: { en: 'Wireless (UHF)', ja: 'ワイヤレス (UHF)' },
+    connectors: [],
+    wireless: true,
+  },
   iem: { category: 'audio', label: 'IEM', connectors: [], wireless: true },
-  'wireless-video': { category: 'video', label: { en: 'Wireless video', ja: '無線映像' }, connectors: [], wireless: true },
-  'wireless-dmx': { category: 'control', label: { en: 'Wireless DMX', ja: '無線 DMX' }, connectors: [], wireless: true },
+  'wireless-video': {
+    category: 'video',
+    label: { en: 'Wireless video', ja: '無線映像' },
+    connectors: [],
+    wireless: true,
+  },
+  'wireless-dmx': {
+    category: 'control',
+    label: { en: 'Wireless DMX', ja: '無線 DMX' },
+    connectors: [],
+    wireless: true,
+  },
 
   // ── power ───────────────────────────────────────────────────────────────
   ac: { category: 'power', label: 'AC', connectors: ['IEC C13', 'IEC C14', 'NEMA'] },

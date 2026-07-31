@@ -108,7 +108,12 @@ export async function loadDocument(source: string, options: LoadOptions = {}): P
 
       const module = await options.resolver(statement.path, from);
       if (!module) {
-        bag.report('unresolved-import', 'load.unresolved', { path: statement.path }, statement.span);
+        bag.report(
+          'unresolved-import',
+          'load.unresolved',
+          { path: statement.path },
+          statement.span,
+        );
         continue;
       }
       if (seen.has(module.path)) continue;

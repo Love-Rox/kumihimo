@@ -190,7 +190,8 @@ class Parser {
     const start = this.#next(); // `signal`
     const name = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' });
     let category: string | undefined;
-    if (this.#accept('colon')) category = this.#expect('ident', { en: 'A category name', ja: 'カテゴリ名' }).value;
+    if (this.#accept('colon'))
+      category = this.#expect('ident', { en: 'A category name', ja: 'カテゴリ名' }).value;
     const options = this.#optionBlock();
     const node: SignalDecl = { type: 'signal', name: name.value, options, span: this.#span(start) };
     if (category !== undefined) node.category = category;
@@ -203,7 +204,10 @@ class Parser {
     if (!this.#accept('arrow')) this.#fail('parse.arrow');
     const to = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' });
     this.#expect('colon', '`:`');
-    const verdict = this.#expect('ident', { en: 'A verdict (ok / lossy / incompatible)', ja: '判定 (ok / lossy / incompatible)' });
+    const verdict = this.#expect('ident', {
+      en: 'A verdict (ok / lossy / incompatible)',
+      ja: '判定 (ok / lossy / incompatible)',
+    });
     const reason = this.#accept('string');
     const attrs = this.#attrList();
     const node: CompatDecl = {
@@ -310,7 +314,12 @@ class Parser {
   /** Shared body parser for `device` and `model`, which declare the same things. */
   #equipment(keyword: 'device' | 'model'): DeviceDecl | ModelDecl {
     const start = this.#next(); // `device` or `model`
-    const id = this.#expect('ident', keyword === 'device' ? { en: 'A device id', ja: '機器 id' } : { en: 'A model id', ja: 'モデル id' });
+    const id = this.#expect(
+      'ident',
+      keyword === 'device'
+        ? { en: 'A device id', ja: '機器 id' }
+        : { en: 'A model id', ja: 'モデル id' },
+    );
 
     let model: string | undefined;
     if (keyword === 'device' && this.#at('ident', 'from')) {
@@ -373,7 +382,10 @@ class Parser {
 
   #use(): UseDecl {
     const start = this.#next(); // `use`
-    const path = this.#expect('string', { en: 'The path of the file to import', ja: '取り込むファイルのパス' });
+    const path = this.#expect('string', {
+      en: 'The path of the file to import',
+      ja: '取り込むファイルのパス',
+    });
     return { type: 'use', path: path.value, span: this.#span(start) };
   }
 
@@ -437,7 +449,8 @@ class Parser {
     let via: string | undefined;
     let attrs: AttrEntry[] = [];
 
-    if (this.#accept('colon')) signal = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' }).value;
+    if (this.#accept('colon'))
+      signal = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' }).value;
 
     // Modifiers are order-independent, so loop until nothing more applies.
     for (;;) {

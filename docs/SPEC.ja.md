@@ -492,25 +492,25 @@ cam1.SDI -> sw.1 : sdi    # sw を device 宣言していない
 
 ## 11. 診断
 
-| コード                 | 内容                                | 既定    |
-| ---------------------- | ----------------------------------- | ------- |
-| `implicit-device`      | 未宣言の機器を参照した              | warning |
-| `implicit-port`        | 未宣言のポートを参照した            | warning |
-| `signal-mismatch`      | 両端のポートの信号種別が違う        | warning |
-| `adapter-required`     | 変換ケーブルが要るが未宣言          | warning |
-| `adapter-insufficient` | `via` を書いたがパッシブでは不可    | error   |
-| `direction-mismatch`   | 出力→出力 / 入力→入力 を結線した    | error   |
-| `duplicate-connection` | 同一ポート対を二重に結線した        | warning |
-| `port-overbooked`      | 1つの入力ポートに複数の出力が入った | error   |
-| `unknown-signal`       | 未定義の信号種別を指定した          | error   |
-| `unconnected-port`     | どこにも繋がっていないポート        | off     |
-| `duplicate-id`         | 機器 id の重複                      | error   |
-| `parse-error`          | 構文として読めなかった              | error   |
-| `invalid-port-spec`    | 展開できない範囲指定                | error   |
-| `unknown-device-kind`  | 描けない機器種別                    | warning |
-| `invalid-value`        | 形は正しいが値が使えない            | error   |
-| `unresolved-import`    | `use` の指すファイルが見つからない  | error   |
-| `unknown-model`        | どのライブラリにもないモデル名      | error   |
+| コード                 | 内容                                   | 既定    |
+| ---------------------- | -------------------------------------- | ------- |
+| `implicit-device`      | 未宣言の機器を参照した                 | warning |
+| `implicit-port`        | 未宣言のポートを参照した               | warning |
+| `signal-mismatch`      | 両端のポートの信号種別が違う           | warning |
+| `adapter-required`     | 変換ケーブルが要るが未宣言             | warning |
+| `adapter-insufficient` | `via` を書いたがパッシブでは不可       | error   |
+| `direction-mismatch`   | 出力→出力 / 入力→入力 を結線した       | error   |
+| `duplicate-connection` | 同一ポート対を二重に結線した           | warning |
+| `port-overbooked`      | 1つの入力ポートに複数の出力が入った    | error   |
+| `unknown-signal`       | 未定義の信号種別を指定した             | error   |
+| `unconnected-port`     | どこにも繋がっていないポート           | off     |
+| `duplicate-id`         | 機器 id の重複                         | error   |
+| `parse-error`          | 構文として読めなかった                 | error   |
+| `invalid-port-spec`    | 展開できない範囲指定                   | error   |
+| `unknown-device-kind`  | 描けない機器種別                       | warning |
+| `invalid-value`        | 形は正しいが値が使えない               | error   |
+| `unresolved-import`    | `use` の指すファイルが見つからない     | error   |
+| `unknown-model`        | どのライブラリにもないモデル名         | error   |
 | `ignored-in-import`    | 取り込んだファイルに機器・結線があった | warning |
 
 **例外は投げません。** 各段階は診断を集めて最善の結果を返すので、不備のある図もそのまま描かれます。

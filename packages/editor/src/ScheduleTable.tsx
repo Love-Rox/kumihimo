@@ -5,7 +5,12 @@
 import type { ReactNode } from 'react';
 
 import type { Diagram, Locale } from '@love-rox/kumihimo-core';
-import { DEFAULT_LOCALE, adapterSchedule, cableSchedule, equipmentSchedule } from '@love-rox/kumihimo-core';
+import {
+  DEFAULT_LOCALE,
+  adapterSchedule,
+  cableSchedule,
+  equipmentSchedule,
+} from '@love-rox/kumihimo-core';
 
 import type { UiKey } from './messages.js';
 import { t } from './messages.js';
