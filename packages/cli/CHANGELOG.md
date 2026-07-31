@@ -1,5 +1,15 @@
 # @love-rox/kumihimo-cli
 
+## 0.1.1
+
+### Patch Changes
+
+- 16cd85f: Point each package README at kumihimo.love-rox.cc, where the guide and the editor are. npm
+  shows a package's own README, so the site was reachable from the repository but not from any
+  of the seven pages people actually land on.
+- Updated dependencies [16cd85f]
+  - @love-rox/kumihimo-core@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
