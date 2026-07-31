@@ -153,6 +153,11 @@ function topLevel(): vscode.CompletionItem[] {
     described('use', vscode.l10n.t('import a library'), vscode.CompletionItemKind.Keyword),
     described('via', vscode.l10n.t('adapter in the run'), vscode.CompletionItemKind.Keyword),
     described(
+      'over',
+      vscode.l10n.t('what this signal is riding on'),
+      vscode.CompletionItemKind.Keyword,
+    ),
+    described(
       'm',
       vscode.l10n.t('Length units: {0}', LENGTH_UNITS.join(' ')),
       vscode.CompletionItemKind.Unit,

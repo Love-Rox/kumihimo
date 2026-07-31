@@ -239,6 +239,14 @@ export interface ConnectionStmt extends Node {
   arrow: ArrowKind;
   /** Signal type, when the author named one. Otherwise inferred from the ports. */
   signal?: string;
+  /**
+   * What {@link ConnectionStmt.signal} is riding on, written `ndi over lan`.
+   *
+   * The carrier is the physical run: it decides the connector, whether there is a cable to
+   * coil or a channel to pick, and whether the two ends can meet at all. The signal is the
+   * payload, and is what the drawing is about.
+   */
+  carrier?: string;
   /** Cable length as written, e.g. `10m`. */
   length?: string;
   /** Cable number or name. */

@@ -146,6 +146,14 @@ export interface Link {
   /** Resolved signal type travelling along this cable. */
   signal: SignalType;
   /**
+   * What the signal is riding on, when the author said so with `over`.
+   *
+   * Absent on an ordinary run, where the signal is its own carrier. When present it is the
+   * carrier that decides the physics — the connector, cable or air, and whether the ends
+   * can meet — while {@link Link.signal} stays what the drawing is about.
+   */
+  carrier?: SignalType;
+  /**
    * Stroke colour overriding the signal's, resolved from `[color=…]`.
    *
    * This is the jacket colour of the actual cable, not a styling whim: it is how a run

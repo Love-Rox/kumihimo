@@ -578,13 +578,24 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         signalName = undefined;
       }
 
+      let carrierName = stmt.carrier;
+      if (carrierName !== undefined && !signals[carrierName]) {
+        bag.report('unknown-signal', 'signal.unknown', { name: carrierName }, stmt.span);
+        carrierName = undefined;
+      }
+
       // Each end is judged by what its own port declares. The signal named on the link
       // describes the cable, and only fills in for an end that declares nothing — if it
       // spoke for both ends it would compare a type against itself and never catch a
       // mismatch, which is precisely the case worth catching.
       const generic = signals['generic']!;
-      const fromSignal = signals[resolveEnd(fromPort, signalName)] ?? generic;
-      const toSignal = signals[resolveEnd(toPort, signalName)] ?? generic;
+      // The ends are judged by the carrier when one was named, because the carrier is what
+      // the ports physically are: an RJ45 socket is an RJ45 socket whether the run carries
+      // NDI or Dante. Without a carrier the signal speaks for the run, as before.
+      const endName = carrierName ?? signalName;
+      const fromSignal = signals[resolveEnd(fromPort, endName)] ?? generic;
+      const toSignal = signals[resolveEnd(toPort, endName)] ?? generic;
+      const carrier = carrierName === undefined ? undefined : signals[carrierName];
 
       const compatibility = checkCompatibility(fromSignal, toSignal, {
         overrides: compatRules,
@@ -661,13 +672,20 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         compatibility,
         span: stmt.span,
       };
+      if (carrier !== undefined) link.carrier = carrier;
       if (stmt.length !== undefined) link.length = stmt.length;
       if (stmt.label !== undefined) link.label = stmt.label;
       if (stmt.via !== undefined) link.via = stmt.via;
 
       // A wireless link has nothing to measure and nothing to adapt. Carrying either
       // over from a copy-pasted cable line is a mistake worth naming.
-      const wireless = fromSignal.wireless || toSignal.wireless;
+      //
+      // The carrier decides this when there is one: NDI over Wi-Fi has a channel and
+      // nothing to coil, and the same NDI over Cat has a length and nothing to tune.
+      const wireless =
+        carrier !== undefined
+          ? carrier.wireless === true
+          : fromSignal.wireless || toSignal.wireless;
       if (wireless) {
         if (stmt.length !== undefined) {
           bag.report('invalid-value', 'link.wireless-length', { value: stmt.length }, stmt.span);
@@ -680,6 +698,19 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
         if (radio) {
           link.frequency = radio.key === 'ch' ? `ch ${radio.value.value}` : radio.value.value;
+        }
+      } else {
+        // The mirror of the rule above, which was missing: a length on a radio path has
+        // always been reported, but a channel on a cable was read by nothing and said
+        // nothing. Both are the same mistake — a line copied from the other kind of run.
+        const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
+        if (radio) {
+          bag.report(
+            'invalid-value',
+            'link.cabled-channel',
+            { key: radio.key, value: radio.value.value },
+            radio.span,
+          );
         }
       }
 

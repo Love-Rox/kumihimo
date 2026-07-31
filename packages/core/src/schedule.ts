@@ -132,8 +132,10 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
         toDevice: endpointName(diagram, link.to.deviceId),
         signal: link.signal.name,
         signalLabel: localise(link.signal.label, locale) || link.signal.name,
-        medium: link.signal.wireless ? 'wireless' : 'cable',
-        connectors: link.signal.connectors,
+        // The physics belongs to the carrier when the author named one: an NDI hop over
+        // Wi-Fi has no connector, however many RJ45s `ndi` itself lists.
+        medium: (link.carrier ?? link.signal).wireless ? 'wireless' : 'cable',
+        connectors: (link.carrier ?? link.signal).connectors,
       };
       if (link.label !== undefined) row.label = link.label;
       if (link.length !== undefined) row.length = link.length;

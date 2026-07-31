@@ -270,6 +270,41 @@ pdu.1       -- rack1.AC    : ac
 pc.HDMI     -> mon.DVI     : hdmi  via "HDMI-DVI 変換ケーブル"
 ```
 
+### `over` — 何が何に乗っているか
+
+ポートは物理である。RJ45 の口であり、無線機である。そこを何が通るかは結線ごとの選択で、
+今日は NDI、明日は Dante かもしれない。`over` はその両方を書く。
+
+```khm
+device cam "PTZ" as camera   { out WIFI : wifi }
+device ap  "AP"  as router   { io WIFI : wifi  out LAN : lan }
+device pc  "PC"  as computer { in LAN : lan }
+device dsk "卓"  as mixer    { in DANTE : lan }
+
+cam.WIFI -> ap.WIFI   : ndi   over wifi [ch=36]
+ap.LAN   -> pc.LAN    : ndi   over lan 10m "N-01"
+ap.LAN   -> dsk.DANTE : dante over lan 15m "N-02"
+```
+
+**物理は搬送が決める。** コネクタ、巻くケーブルがあるのか選ぶチャンネルがあるのか、
+そして両端が繋がるかどうか。**積荷は図が語る対象**であり、凡例に出るのはこちらである。
+
+同じ NDI が2度、それぞれ正しい姿で現れる。
+
+| 番号 | 送出 | 受け | 信号  | 長さ  | コネクタ |
+| ---- | ---- | ---- | ----- | ----- | -------- |
+| —    | PTZ  | AP   | NDI   | ch 36 | —        |
+| N-01 | AP   | PC   | NDI   | 10m   | RJ45     |
+| N-02 | AP   | 卓   | Dante | 15m   | RJ45     |
+
+`over` を書かなければ、信号は自分自身の搬送であり、これまでどおりに振る舞う。
+`: sdi 30m` は変わらないし、これからも変わらない。
+
+無線区間に長さを書けば指摘され、有線区間にチャンネルを書いても指摘される。
+どちらも同じ誤りで、別種の行から写してきたものである。
+
+---
+
 ### ケーブルの色
 
 `[color=…]` でケーブルの外被色を指定できる。指定した線はその色で描かれ、
