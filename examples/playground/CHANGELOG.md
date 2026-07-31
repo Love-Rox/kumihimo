@@ -1,5 +1,11 @@
 # kumihimo-playground
 
+## 0.0.5
+
+### Patch Changes
+
+- @love-rox/kumihimo-editor@0.4.0
+
 ## 0.0.4
 
 ### Patch Changes
