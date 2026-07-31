@@ -228,3 +228,141 @@ describe('two ends is a cable, not a junction', () => {
     expect(adapterSchedule(diagram)[0]?.links).toEqual(['スマホ', 'ヘッドホン', 'マイク']);
   });
 });
+
+describe('what makes an end a socket', () => {
+  it('is not the number of ends', () => {
+    // A USB-HDMI dongle has two and is a junction: the USB tail is moulded on, the HDMI
+    // side is a socket, and the cable reaching it is one somebody has to bring.
+    const { diagnostics, diagram } = build([
+      'device pc  "ノートPC" as computer { out USB : usb }',
+      'device mon "モニタ" as display    { in HDMI : hdmi }',
+      'adapter dg "USB-HDMI 変換アダプタ" {',
+      '  in  USB  : usb',
+      '  out HDMI : hdmi',
+      '}',
+      'pc.USB  -> dg.USB   : usb',
+      'dg.HDMI -> mon.HDMI : hdmi 2m "V-01"',
+    ]);
+    expect(diagnostics).toEqual([]);
+    expect(cableSchedule(diagram).map((r) => r.label)).toEqual(['V-01']);
+    expect(adapterSchedule(diagram).map((r) => r.adapter)).toEqual(['USB-HDMI 変換アダプタ']);
+  });
+
+  it('holds for a part with four ends too', () => {
+    const moulded = [
+      'device sw as mixer { out M : xlr }',
+      'adapter fan "XLR 4分岐ケーブル" { in IN : xlr  out A : xlr  out B : xlr }',
+      'device s1 as speaker { in IN : xlr }',
+      'device s2 as speaker { in IN : xlr }',
+      'sw.M   -> fan.IN : xlr',
+      'fan.A  -> s1.IN  : xlr',
+      'fan.B  -> s2.IN  : xlr',
+    ];
+    const panelled = [
+      'device sw as mixer { out M : xlr }',
+      'adapter br "分配パネル" { in IN : xlr  out A : xlr  out B : xlr }',
+      'device s1 as speaker { in IN : xlr }',
+      'device s2 as speaker { in IN : xlr }',
+      'sw.M  -> br.IN : xlr',
+      'br.A  -> s1.IN : xlr 10m "A-01"',
+      'br.B  -> s2.IN : xlr 12m "A-02"',
+    ];
+    expect(cableSchedule(build(moulded).diagram)).toEqual([]);
+    expect(cableSchedule(build(panelled).diagram).map((r) => r.label)).toEqual(['A-01', 'A-02']);
+  });
+});
+
+describe('a length nobody has measured yet', () => {
+  it('is written with the unit and no number', () => {
+    // Leaving the length off already worked, and the blank it produced meant two things:
+    // "not measured" and "nobody thought about it". Only one of those is a job to do.
+    const { diagram, diagnostics } = build([
+      'device a as mixer   { out L : xlr  out R : xlr }',
+      'device b as speaker { in  L : xlr  in  R : xlr }',
+      'a.L -> b.L : xlr ?m "A-01"',
+      'a.R -> b.R : xlr    "A-02"',
+    ]);
+    expect(diagnostics).toEqual([]);
+
+    const rows = cableSchedule(diagram);
+    expect(rows[0]?.length).toBe('?m');
+    expect(rows[1]?.length).toBeUndefined();
+  });
+
+  it('is still a length, so a radio path refuses it', () => {
+    const { diagnostics } = build([
+      'device a as transmitter { out RF : uhf }',
+      'device b as receiver    { in  RF : uhf }',
+      'a.RF -> b.RF : uhf ?m',
+    ]);
+    expect(diagnostics.map((d) => d.code)).toContain('invalid-value');
+  });
+
+  it('makes an adapter end a socket, the same as a measured one', () => {
+    const { diagram } = build([
+      'device pc  as computer { out USB : usb }',
+      'device mon as display  { in HDMI : hdmi }',
+      'adapter dg "USB-HDMI" { in USB : usb  out HDMI : hdmi }',
+      'pc.USB  -> dg.USB   : usb',
+      'dg.HDMI -> mon.HDMI : hdmi ?m',
+    ]);
+    expect(cableSchedule(diagram)).toHaveLength(1);
+  });
+
+  it('takes any unit the language knows', () => {
+    const { diagnostics } = build([
+      'device a as mixer   { out L : xlr }',
+      'device b as speaker { in  L : xlr }',
+      'a.L -> b.L : xlr ?ft',
+    ]);
+    expect(diagnostics).toEqual([]);
+  });
+});
+
+describe('a moulded lead that belongs on the cable schedule', () => {
+  const FAN = [
+    'device sw "卓" as mixer { out M : xlr }',
+    'adapter fan "XLR 4分岐ケーブル" as cable 5m "C-01" {',
+    '  in  IN : xlr',
+    '  out A  : xlr',
+    '  out B  : xlr',
+    '}',
+    'device s1 "SP1" as speaker { in IN : xlr }',
+    'device s2 "SP2" as speaker { in IN : xlr }',
+    'sw.M  -> fan.IN : xlr',
+    'fan.A -> s1.IN  : xlr',
+    'fan.B -> s2.IN  : xlr',
+  ];
+
+  it('gets one row, not one per plug', () => {
+    // It is one object. Three rows would say three cables, which is the thing these
+    // schedules exist to stop saying.
+    const { diagram, diagnostics } = build(FAN);
+    expect(diagnostics).toEqual([]);
+
+    const rows = cableSchedule(diagram);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ label: 'C-01', length: '5m', fromDevice: 'XLR 4分岐ケーブル' });
+  });
+
+  it('says where it reaches, which is several places at once', () => {
+    const rows = cableSchedule(build(FAN).diagram);
+    expect(rows[0]?.toDevice).toBe('卓 / SP1 / SP2');
+  });
+
+  it('takes its connectors from the signals its ports carry', () => {
+    expect(cableSchedule(build(FAN).diagram)[0]?.connectors).toEqual(['XLR-M', 'XLR-F']);
+  });
+
+  it('leaves the parts list, rather than appearing on both', () => {
+    expect(adapterSchedule(build(FAN).diagram)).toEqual([]);
+  });
+
+  it('stays on the parts list without `as cable`', () => {
+    const plain = FAN.map((l) => l.replace(' as cable 5m "C-01"', ''));
+    expect(cableSchedule(build(plain).diagram)).toEqual([]);
+    expect(adapterSchedule(build(plain).diagram).map((r) => r.adapter)).toEqual([
+      'XLR 4分岐ケーブル',
+    ]);
+  });
+});

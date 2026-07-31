@@ -123,6 +123,8 @@ class Collector {
   readonly devices: { decl: DeviceDecl; groupId?: string }[] = [];
   /** Ids declared with `adapter`, so the built device can be marked as a part. */
   readonly adapters = new Set<string>();
+  /** Adapters written `as cable`, with the number and length they carry. */
+  readonly cables = new Map<string, { length?: string; label?: string }>();
   readonly groups: Group[] = [];
   readonly links: ConnectionStmt[] = [];
   readonly models = new Map<string, ModelDecl>();
@@ -189,6 +191,12 @@ class Collector {
             span: statement.span,
           };
           if (statement.label !== undefined) decl.label = statement.label;
+          if (statement.asCable) {
+            this.cables.set(statement.id, {
+              ...(statement.length === undefined ? {} : { length: statement.length }),
+              ...(statement.cableLabel === undefined ? {} : { label: statement.cableLabel }),
+            });
+          }
           this.devices.push(groupId === undefined ? { decl } : { decl, groupId });
           break;
         }
@@ -516,6 +524,9 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
 
     const device = table.declare(effective, groupId, collector.adapters.has(decl.id));
 
+    const asCable = collector.cables.get(decl.id);
+    if (asCable !== undefined) device.cable = asCable;
+
     for (const meta of effective.meta) device.meta[meta.key] = meta.value.value;
 
     for (const portDecl of effective.ports) {
@@ -551,13 +562,6 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
           table.addPort(device, port);
         }
       }
-    }
-
-    // An `adapter` makes a node in the drawing, which is right for a junction and wrong
-    // for a lead: two ends mean one unbroken cable, and putting a node in the middle of it
-    // invents a stop that is not there and splits one object into three.
-    if (device.passive && device.ports.length === 2) {
-      bag.report('invalid-value', 'adapter.two-ended', { id: device.id }, decl.span);
     }
 
     if (groupId !== undefined) {
@@ -732,6 +736,31 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       }
 
       links.push(link);
+    }
+  }
+
+  // ── adapters that are really cables ─────────────────────────────────────
+  //
+  // An `adapter` makes a node, which is right for a part with sockets on it and wrong for
+  // a lead: a node in the middle of one unbroken cable is a stop that is not there.
+  //
+  // Not decided by the number of ends. A USB-HDMI dongle has two and is a junction — the
+  // USB tail is moulded on, the HDMI side is a socket, and the cable that reaches it is
+  // one somebody has to bring. What separates them is whether any end is a socket at all,
+  // and that is already written down: a run touching an adapter is captive unless it
+  // carries a length or a cable number.
+  for (const id of table.order) {
+    const device = table.byId.get(id)!;
+    if (!device.passive) continue;
+
+    const touching = links.filter(
+      (l) => l.from.deviceId === device.id || l.to.deviceId === device.id,
+    );
+    if (touching.length === 0) continue;
+
+    const everyEndCaptive = touching.every((l) => l.length === undefined && l.label === undefined);
+    if (everyEndCaptive && device.ports.length <= 2) {
+      bag.report('invalid-value', 'adapter.two-ended', { id: device.id }, device.span);
     }
   }
 

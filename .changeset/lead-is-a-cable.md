@@ -15,9 +15,9 @@ agree it is a separate thing to bring, and two rows are right. Nothing new has t
 written to tell them apart — the compatibility check already names the lead a pairing
 needs, so it knows.
 
-| | cable schedule | parts list |
-| --- | --- | --- |
-| `hdmi` → `dvi` `via "HDMI-DVI cable"` | the run, naming the lead | — |
+|                                       | cable schedule              | parts list  |
+| ------------------------------------- | --------------------------- | ----------- |
+| `hdmi` → `dvi` `via "HDMI-DVI cable"` | the run, naming the lead    | —           |
 | `sdi` → `sdi` `via "BNC-RCA adapter"` | the run, naming the adapter | the adapter |
 
 And a junction's row lists **what it plugs into** rather than the runs it takes part in.

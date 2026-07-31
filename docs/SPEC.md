@@ -402,6 +402,52 @@ pc.HDMI -> mon.DVI : hdmi 2m "V-02" via "HDMI-DVI cable"
 
 ---
 
+#### Which ends are sockets
+
+Not the number of ends. A USB-HDMI dongle has two and is a junction — the USB tail is
+moulded on, the HDMI side is a socket, and the cable reaching it is one somebody has to
+bring. An HDMI-DVI lead also has two, and is one unbroken run.
+
+> **A run touching an adapter is captive unless it carries a length or a cable number.**
+
+That one rule decides the schedules, and it decides everything below:
+
+```khm
+adapter dg "USB-HDMI adapter" {
+  in  USB  : usb
+  out HDMI : hdmi
+}
+
+pc.USB  -> dg.USB   : usb              # moulded on — no cable row
+dg.HDMI -> mon.HDMI : hdmi 2m "V-01"   # a socket — one cable to bring
+```
+
+It holds at any number of ends. A four-way XLR lead whose tails are all moulded produces no
+cable rows; a distribution panel with four sockets produces four.
+
+An adapter whose every end is captive **is** the run. With two ends that is a lead, and it
+is reported, pointing at `via`. With three or more there is nothing to point at — one run
+cannot have three ends — so it stays as it is.
+
+#### A length nobody has measured yet
+
+```khm
+a.L -> b.L : xlr 10m "A-01"   # measured
+a.R -> b.R : xlr ?m  "A-02"   # a cable, length to come
+a.C -> b.C : xlr     "A-03"   # nothing said about length
+```
+
+Leaving the length off already worked, and the blank it produced meant two things at once:
+"not measured" and "nobody thought about it". On a list somebody packs a van from, only one
+of those is a job still to do.
+
+The unit is still written, because which unit it will be measured in is not the open
+question. `?m`, `?ft`, and any other unit the language knows.
+
+It is still a length, so a radio path refuses it and an adapter's end becomes a socket.
+
+---
+
 ### `via` — a part that sits in a run
 
 ```khm

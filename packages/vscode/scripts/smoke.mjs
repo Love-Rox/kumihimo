@@ -435,6 +435,7 @@ const known = new Set([
   ...Object.keys(core.BUILTIN_SIGNALS),
   ...core.DEVICE_KINDS,
   ...Object.keys(core.THEMES),
+  ...core.LENGTH_UNITS,
   'LR',
   'TB',
   'in',

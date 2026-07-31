@@ -147,8 +147,8 @@ export const MESSAGES = {
   },
   'link.verdict': { en: '{from} → {to}: {reason}', ja: '{from} → {to}: {reason}' },
   'adapter.two-ended': {
-    en: '{id} has two ends, so it is a cable rather than a junction. Write it as `via` on the run it sits in',
-    ja: '{id} は端が2つなので、分岐ではなく1本のケーブルです。その結線に `via` で書いてください',
+    en: 'Every end of {id} is moulded on, so it is one cable rather than a junction. Write it as `via` on the run it sits in — or give a run a length or a cable number, if something plugs into it',
+    ja: '{id} はすべての端が一体なので、分岐ではなく1本のケーブルです。その結線に `via` で書いてください。差し込む口があるなら、その結線に長さかケーブル番号を書いてください',
   },
   'link.wireless-via': {
     en: 'A radio path cannot have an adapter in it',

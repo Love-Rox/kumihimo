@@ -286,6 +286,18 @@ export interface AdapterDecl extends Node {
   id: string;
   /** Name that goes on the parts list. Defaults to {@link AdapterDecl.id}. */
   label?: string;
+  /**
+   * Whether the part belongs on the cable schedule, written `as cable`.
+   *
+   * A moulded lead is one object *and* a cable: it is packed, it gets a number, and the
+   * person loading the van reads the cable schedule. It is then left off the parts list,
+   * which would otherwise count it twice.
+   */
+  asCable?: boolean;
+  /** Length as written, for a part that is a cable. */
+  length?: string;
+  /** Cable number, for a part that is a cable. */
+  cableLabel?: string;
   /** Connectors declared in the body. */
   ports: PortDecl[];
   /** `@key` metadata declared in the body. */

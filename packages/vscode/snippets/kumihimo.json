@@ -121,5 +121,22 @@
     "prefix": "gap",
     "body": ["gap ${1:1}"],
     "description": "Space above the next port block. Appearance only; the wiring is unchanged."
+  },
+  "adapter with a socket on one side": {
+    "prefix": "adapter2",
+    "body": [
+      "adapter ${1:id} \"${2:USB-HDMI adapter}\" {",
+      "\tin  ${3:USB}  : ${4:usb}",
+      "\tout ${5:HDMI} : ${6:hdmi}",
+      "}",
+      "${7:pc}.${8:USB} -> ${1:id}.${3:USB} : ${4:usb}",
+      "${1:id}.${5:HDMI} -> ${9:mon}.${10:HDMI} : ${6:hdmi} ${11:2m} \"${12:V-01}\""
+    ],
+    "description": "A part with one end moulded on and one that needs a cable."
+  },
+  "connection with an unmeasured length": {
+    "prefix": "tbd",
+    "body": ["${1:from}.${2:OUT} -> ${3:to}.${4:IN} : ${5:xlr} ?${6|m,cm,mm,ft,in|} \"${7:A-01}\""],
+    "description": "A cable that exists and has not been measured yet."
   }
 }

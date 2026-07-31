@@ -109,6 +109,13 @@ export interface Device {
    * the equipment list, and the connectors either side of it are plugs, not cable runs.
    */
   passive: boolean;
+  /**
+   * How a passive part is scheduled, when it is one.
+   *
+   * Present only for an `adapter … as cable`: the part is a cable as well as a part, so it
+   * is listed among the cables and left off the parts list rather than counted on both.
+   */
+  cable?: { length?: string; label?: string };
   /** Where the device was declared, when it was. */
   span?: SourceSpan;
 }
