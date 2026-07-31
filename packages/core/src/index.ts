@@ -62,6 +62,7 @@ export type {
   PortDirection,
   PortDecl,
   DeviceDecl,
+  AdapterDecl,
   GroupDecl,
   DiagramDecl,
   SignalDecl,

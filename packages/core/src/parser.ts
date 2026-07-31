@@ -8,6 +8,7 @@
  */
 
 import type {
+  AdapterDecl,
   ArrowKind,
   AttrEntry,
   CompatDecl,
@@ -311,29 +312,12 @@ class Parser {
     return { key: key.value, value, span: this.#span(start) };
   }
 
-  /** Shared body parser for `device` and `model`, which declare the same things. */
-  #equipment(keyword: 'device' | 'model'): DeviceDecl | ModelDecl {
-    const start = this.#next(); // `device` or `model`
-    const id = this.#expect(
-      'ident',
-      keyword === 'device'
-        ? { en: 'A device id', ja: '機器 id' }
-        : { en: 'A model id', ja: 'モデル id' },
-    );
-
-    let model: string | undefined;
-    if (keyword === 'device' && this.#at('ident', 'from')) {
-      this.#next();
-      model = this.#expect('ident', { en: 'A model id', ja: 'モデル id' }).value;
-    }
-
-    const label = this.#accept('string');
-    let kind: string | undefined;
-    if (this.#at('ident', 'as')) {
-      this.#next();
-      kind = this.#expect('ident', { en: 'A device kind', ja: '機器種別' }).value;
-    }
-
+  /**
+   * The `{ … }` of anything that declares connectors: a device, a model, an adapter.
+   *
+   * @returns The ports in declaration order, and the metadata.
+   */
+  #body(): { ports: PortDecl[]; meta: MetaEntry[] } {
     const ports: PortDecl[] = [];
     const meta: MetaEntry[] = [];
     // `gap` describes the space above whatever is declared next, so it is held here until
@@ -366,6 +350,58 @@ class Parser {
       }
       this.#expect('rbrace', '`}`');
     }
+    return { ports, meta };
+  }
+
+  /**
+   * A passive part with named ends.
+   *
+   * The body is the same as a device's, because the thing being described is the same —
+   * connectors, in an order. What differs is everything downstream: which schedule it
+   * lands on, and how it is drawn.
+   */
+  #adapter(): AdapterDecl {
+    const start = this.#next(); // `adapter`
+    const id = this.#expect('ident', { en: 'An adapter id', ja: '変換部材 id' });
+    const label = this.#accept('string');
+
+    const { ports, meta } = this.#body();
+
+    const node: AdapterDecl = {
+      type: 'adapter',
+      id: id.value,
+      ports,
+      meta,
+      span: this.#span(start),
+    };
+    if (label) node.label = label.value;
+    return node;
+  }
+
+  /** Shared body parser for `device` and `model`, which declare the same things. */
+  #equipment(keyword: 'device' | 'model'): DeviceDecl | ModelDecl {
+    const start = this.#next(); // `device` or `model`
+    const id = this.#expect(
+      'ident',
+      keyword === 'device'
+        ? { en: 'A device id', ja: '機器 id' }
+        : { en: 'A model id', ja: 'モデル id' },
+    );
+
+    let model: string | undefined;
+    if (keyword === 'device' && this.#at('ident', 'from')) {
+      this.#next();
+      model = this.#expect('ident', { en: 'A model id', ja: 'モデル id' }).value;
+    }
+
+    const label = this.#accept('string');
+    let kind: string | undefined;
+    if (this.#at('ident', 'as')) {
+      this.#next();
+      kind = this.#expect('ident', { en: 'A device kind', ja: '機器種別' }).value;
+    }
+
+    const { ports, meta } = this.#body();
 
     const node = {
       type: keyword,
@@ -497,6 +533,7 @@ class Parser {
       if (this.#at('ident', 'signal')) return this.#signal();
       if (this.#at('ident', 'compat')) return this.#compat();
       if (this.#at('ident', 'device')) return this.#equipment('device');
+      if (this.#at('ident', 'adapter')) return this.#adapter();
       if (this.#at('ident', 'model')) return this.#equipment('model');
       if (this.#at('ident', 'use')) return this.#use();
       if (this.#at('ident', 'group')) return this.#group();

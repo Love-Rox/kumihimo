@@ -255,10 +255,34 @@ export type Statement =
   | SignalDecl
   | CompatDecl
   | DeviceDecl
+  | AdapterDecl
   | ModelDecl
   | GroupDecl
   | UseDecl
   | ConnectionStmt;
+
+/**
+ * A passive part with named ends: a splitter, a Y-lead, a breakout, a converting cable.
+ *
+ * Not a {@link DeviceDecl} with a different word on it. A converter is a powered box, so
+ * it needs racking *and* a cable on each side; a conversion lead **is** the cable, and
+ * needs only itself. Declaring the two the same way is what puts a headset splitter on
+ * the equipment list, where nobody will ever rack it.
+ *
+ * It has no `kind`: an adapter is drawn as what it is, and there is nothing to choose.
+ */
+export interface AdapterDecl extends Node {
+  /** Discriminant. */
+  type: 'adapter';
+  /** Identifier connections refer to. */
+  id: string;
+  /** Name that goes on the parts list. Defaults to {@link AdapterDecl.id}. */
+  label?: string;
+  /** Connectors declared in the body. */
+  ports: PortDecl[];
+  /** `@key` metadata declared in the body. */
+  meta: MetaEntry[];
+}
 
 /** A parsed `.khm` file. */
 export interface Document extends Node {

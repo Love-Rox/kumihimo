@@ -96,6 +96,14 @@ export interface Device {
   groupId?: string;
   /** Whether the device was invented because a connection referred to it. */
   implicit: boolean;
+  /**
+   * Whether this is a passive part rather than equipment.
+   *
+   * Declared with `adapter` instead of `device`. It carries ports and links like anything
+   * else — that is what makes it reachable — but it belongs on the parts list rather than
+   * the equipment list, and the connectors either side of it are plugs, not cable runs.
+   */
+  passive: boolean;
   /** Where the device was declared, when it was. */
   span?: SourceSpan;
 }

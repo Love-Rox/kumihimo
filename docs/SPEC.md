@@ -323,6 +323,54 @@ Hex such as `#0af` or `#00aaff` also works. Anything else is a diagnostic
 The legend keeps showing the **signal type's** colour. An individual cable's colour is a
 separate fact and the two are not mixed.
 
+### `adapter` — a part, not a box
+
+A converter is a powered box. It needs racking **and** a cable on each side, so it is a
+`device`. A conversion lead **is** the cable, and needs only itself.
+
+Declaring both as devices puts a headset splitter on the equipment list, where nobody will
+ever rack it, and invents a cable run on each side of a thing that is one line item.
+
+```khm
+adapter split "TRRS splitter" {
+  io  HS  : trrs35
+  out HP  : trs35
+  in  MIC : trs35
+}
+
+phone.HS -> split.HS  : trrs35
+split.HP -> hp.IN     : trs35
+mic.OUT  -> split.MIC : trs35
+```
+
+The body is a device's: connectors, in the order they are drawn. There is no `as` — an
+adapter is drawn as what it is, and there is nothing to choose.
+
+What differs is where it lands:
+
+|                         | equipment schedule | cable schedule  | adapter schedule |
+| ----------------------- | ------------------ | --------------- | ---------------- |
+| `device … as converter` | the box            | a run each side | —                |
+| `adapter`               | —                  | —               | one line         |
+
+**A run touching an adapter is a plug going into a socket, not a cable to bring** — so it
+produces no cable row. The exception is written rather than guessed: give the run a length
+or a cable number and it becomes a cable.
+
+```khm
+split.HP -> hp.IN : trs35            # plugged straight in
+split.HP -> hp.IN : trs35 5m "A-02"  # a 5 m cable, on the schedule
+split.HP -> hp.IN : trs35 "A-02"     # a cable whose length nobody has measured yet
+```
+
+Either alone is enough, because a length is often unknown when the drawing is made and a
+number is often assigned before anyone measures.
+
+Use `via` instead when the part has exactly two ends and sits inside one run — `via` is
+the shorthand for exactly that case, and needs no declaration.
+
+---
+
 ### `via` — adapters and converting leads
 
 Declares that a passive adapter or converting cable sits in the run.

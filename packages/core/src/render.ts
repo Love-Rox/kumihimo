@@ -325,17 +325,30 @@ export function renderSvg(
     const { x, y, width: w, height: h } = placed.bounds;
     const stroke = device.implicit ? theme.muted : theme.boxStroke;
 
-    body.push(
-      `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6" ` +
-        `fill="${theme.boxFill}" stroke="${stroke}" stroke-width="1.5"` +
-        `${device.implicit ? ' stroke-dasharray="5 3"' : ''}/>`,
-      `<path d="M ${n(x)} ${n(y + headerHeight)} h ${n(w)}" stroke="${stroke}" stroke-width="1"/>`,
-      `<rect x="${n(x + 1)}" y="${n(y + 1)}" width="${n(w - 2)}" height="${n(headerHeight - 1)}" ` +
-        `rx="5" fill="${theme.header}"/>`,
-      `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize}" ` +
-        `font-weight="600" fill="${theme.text}" text-anchor="middle" ` +
-        `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
-    );
+    if (device.passive) {
+      // A part, not a box in a rack. Drawn as a pill with no header band, because the
+      // header band is what makes the other boxes read as equipment — and a reader who
+      // cannot tell the splitter from the switcher will look for the splitter in the rack.
+      body.push(
+        `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${n(Math.min(14, h / 2))}" ` +
+          `fill="${theme.background}" stroke="${stroke}" stroke-width="1.2" stroke-dasharray="1 3"/>`,
+        `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize - 1}" ` +
+          `fill="${theme.muted}" text-anchor="middle" ` +
+          `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
+      );
+    } else {
+      body.push(
+        `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6" ` +
+          `fill="${theme.boxFill}" stroke="${stroke}" stroke-width="1.5"` +
+          `${device.implicit ? ' stroke-dasharray="5 3"' : ''}/>`,
+        `<path d="M ${n(x)} ${n(y + headerHeight)} h ${n(w)}" stroke="${stroke}" stroke-width="1"/>`,
+        `<rect x="${n(x + 1)}" y="${n(y + 1)}" width="${n(w - 2)}" height="${n(headerHeight - 1)}" ` +
+          `rx="5" fill="${theme.header}"/>`,
+        `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize}" ` +
+          `font-weight="600" fill="${theme.text}" text-anchor="middle" ` +
+          `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
+      );
+    }
 
     for (const port of placed.ports) {
       const inward = port.side === 'WEST' || port.side === 'NORTH';
