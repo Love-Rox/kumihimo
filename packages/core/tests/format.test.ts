@@ -168,3 +168,69 @@ describe('what it does', () => {
     expect(formatSource(source, { indent: 4 })).toContain('    in X : xlr');
   });
 });
+
+describe('blocks that span lines', () => {
+  it('gives the braces their own lines', () => {
+    // A block opened mid-line and closed on another came out half-tidied, because the
+    // formatter never split a line:
+    //   adapter hd "HDMI-DVI cable" { in IN: hdmi
+    //     out OUT : dvi }
+    const source = ['adapter hd "HDMI-DVI cable"{in IN:hdmi', 'out OUT:dvi}'].join('\n');
+    expect(formatSource(source)).toBe(
+      ['adapter hd "HDMI-DVI cable" {', '  in  IN  : hdmi', '  out OUT : dvi', '}', ''].join('\n'),
+    );
+  });
+
+  it('leaves a block that fits on one line exactly where it was', () => {
+    // The reflow is the smallest one that fixes the defect. Splitting every block would
+    // be a different formatter, and a worse one for a file full of one-port devices.
+    expect(formatSource('device a as mixer { in X : xlr }')).toBe(
+      'device a as mixer { in X: xlr }\n',
+    );
+  });
+
+  it('handles a block inside a block', () => {
+    const source = [
+      'group g "G"{device a as mixer{in X:xlr',
+      'in Y:xlr}',
+      'device b as mixer { in Z : xlr }}',
+    ].join('\n');
+    expect(formatSource(source)).toBe(
+      [
+        'group g "G" {',
+        '  device a as mixer {',
+        '    in X : xlr',
+        '    in Y : xlr',
+        '  }',
+        '  device b as mixer { in Z: xlr }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('keeps a trailing comment on the last piece of the line it was written on', () => {
+    // There is no better answer: it was written at the end, so the end is where it stays.
+    const source = ['device a as mixer{in X:xlr  # ここ', 'out Y:xlr}  # 末尾'].join('\n');
+    const out = formatSource(source);
+    expect(out).toContain('in  X : xlr  # ここ');
+    expect(out).toContain('}  # 末尾');
+  });
+
+  it('leaves an unmatched brace alone rather than guessing', () => {
+    // Someone formatting mid-keystroke. Inventing a partner would move their text.
+    const source = 'device a as mixer {\n  in X :';
+    expect(() => formatSource(source)).not.toThrow();
+    expect(formatSource(source)).toContain('device a as mixer {');
+  });
+
+  it('still says the same thing after reflowing', () => {
+    const source = [
+      'group g "G"{device a as mixer{in X:xlr',
+      'in Y:xlr}',
+      'device b as mixer { in Z : xlr }}',
+      'a.X -> b.Z : xlr',
+    ].join('\n');
+    expect(meaning(formatSource(source))).toEqual(meaning(source));
+  });
+});
