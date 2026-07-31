@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0
+
+- Follows VS Code's display language. The extension's own words already did; the compiler's
+  sentences did not, and a panel labelled in one language listing faults in another is worse
+  than either language alone. English and Japanese are carried; anything else gets English.
+- The schedule tables name their parts in the same language as the diagnostics above them.
+
+### Patch Changes
+
+- Updated dependencies [11156bf]
+- Updated dependencies [c0aad3d]
+- Updated dependencies [bc376de]
+  - @love-rox/kumihimo-core@0.3.0
+
 ## 0.3.0
 
 - The preview switches between the diagram and the three schedules — cables, equipment and
