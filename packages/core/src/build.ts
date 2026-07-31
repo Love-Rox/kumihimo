@@ -278,6 +278,23 @@ function buildCompatRules(decls: readonly CompatDecl[], bag: DiagnosticBag): Com
   return rules;
 }
 
+/**
+ * Which of a connector's accepted types this particular cable is using.
+ *
+ * A combo jack takes XLR or a 1/4" plug, and the cable is the thing that says which. So
+ * when the link names a type the connector accepts, that is the one judged; the alternative
+ * is not in play for this run. Without a named type the first declared wins, which is also
+ * what the port is drawn as.
+ *
+ * @param port - The end being resolved.
+ * @param linkSignal - Signal named on the connection, if the author named one.
+ * @returns Name of the signal type to judge this end by.
+ */
+function resolveEnd(port: Port, linkSignal: string | undefined): string {
+  if (linkSignal !== undefined && port.accepts?.includes(linkSignal)) return linkSignal;
+  return port.signal ?? linkSignal ?? 'generic';
+}
+
 /** Mutable device state during the build. */
 class DeviceTable {
   readonly order: string[] = [];
@@ -482,13 +499,17 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
             port.gapBefore = gapPending;
             gapPending = undefined;
           }
-          if (portDecl.signal !== undefined) {
-            if (signals[portDecl.signal]) {
-              port.signal = portDecl.signal;
-            } else {
-              bag.report('unknown-signal', `未定義の信号種別: ${portDecl.signal}`, portDecl.span);
-            }
-          }
+          // Every name is checked, so `xlr | tsr` reports the typo rather than quietly
+          // accepting the half of the declaration that happened to be spelled right.
+          const accepted = (portDecl.signals ?? []).filter((declared) => {
+            if (signals[declared]) return true;
+            bag.report('unknown-signal', `未定義の信号種別: ${declared}`, portDecl.span);
+            return false;
+          });
+
+          if (accepted[0] !== undefined) port.signal = accepted[0];
+          if (accepted.length > 1) port.accepts = accepted;
+
           table.addPort(device, port);
         }
       }
@@ -524,8 +545,8 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       // spoke for both ends it would compare a type against itself and never catch a
       // mismatch, which is precisely the case worth catching.
       const generic = signals['generic']!;
-      const fromSignal = signals[fromPort.signal ?? signalName ?? 'generic'] ?? generic;
-      const toSignal = signals[toPort.signal ?? signalName ?? 'generic'] ?? generic;
+      const fromSignal = signals[resolveEnd(fromPort, signalName)] ?? generic;
+      const toSignal = signals[resolveEnd(toPort, signalName)] ?? generic;
 
       const compatibility = checkCompatibility(fromSignal, toSignal, {
         overrides: compatRules,

@@ -171,6 +171,9 @@ const SEEDS: Record<string, SignalSeed> = {
   ac: { category: 'power', label: 'AC', connectors: ['IEC C13', 'IEC C14', 'NEMA'] },
   dc: { category: 'power', label: 'DC', connectors: ['Barrel', 'XLR-4'] },
   poe: { category: 'power', label: 'PoE', connectors: ['RJ45'] },
+  // Power over the USB-C connector, and its own type for the same reason PoE is one: the
+  // cable is shared with the data, but what the drawing records is that this device is fed.
+  usbpd: { category: 'power', label: 'USB PD', connectors: ['USB-C'] },
 
   // ── sync ────────────────────────────────────────────────────────────────
   genlock: { category: 'sync', label: 'Genlock', connectors: ['BNC'] },
