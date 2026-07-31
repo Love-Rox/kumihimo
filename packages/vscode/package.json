@@ -1,0 +1,131 @@
+{
+  "name": "kumihimo-vscode",
+  "displayName": "kumihimo — AV signal flow diagrams",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Write AV signal flow diagrams (系統図) as text. Live preview, and the wiring that plugs in but carries nothing gets flagged as you type.",
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Visualization"
+  ],
+  "keywords": [
+    "av",
+    "diagram",
+    "signal-flow",
+    "wiring",
+    "系統図"
+  ],
+  "homepage": "https://kumihimo.love-rox.cc",
+  "bugs": {
+    "url": "https://github.com/Love-Rox/kumihimo/issues"
+  },
+  "license": "MIT",
+  "author": "SASAGAWA Kiyoshi <dev@love-rox.cc>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Love-Rox/kumihimo.git",
+    "directory": "packages/vscode"
+  },
+  "publisher": "love-rox",
+  "type": "module",
+  "main": "./dist/extension.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "notices": "node scripts/build-notices.mjs",
+    "package": "pnpm build && pnpm exec vsce package --no-dependencies",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@love-rox/kumihimo-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.28.1"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "kumihimo",
+        "aliases": [
+          "kumihimo",
+          "系統図"
+        ],
+        "extensions": [
+          ".khm"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kumihimo",
+        "scopeName": "source.kumihimo",
+        "path": "./syntaxes/kumihimo.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "kumihimo.showPreview",
+        "title": "kumihimo: 図をプレビュー / Open Diagram Preview",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "kumihimo.showPreview",
+          "when": "editorLangId == kumihimo",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "kumihimo.showPreview",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "editorLangId == kumihimo"
+      }
+    ],
+    "configuration": {
+      "title": "kumihimo",
+      "properties": {
+        "kumihimo.preview.theme": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "light",
+            "dark",
+            "mono",
+            "blueprint"
+          ],
+          "default": "auto",
+          "markdownDescription": "プレビューのテーマ。`auto` は VS Code の配色に合わせます。ソース中の `diagram { theme: … }` があればそちらが優先されます。\n\nPreview theme. `auto` follows the editor's colour theme. A `diagram { theme: … }` in the source wins over both."
+        },
+        "kumihimo.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "編集中に診断を出します。\n\nReport diagnostics while editing."
+        },
+        "kumihimo.diagnostics.delay": {
+          "type": "number",
+          "default": 250,
+          "minimum": 0,
+          "markdownDescription": "入力が止まってから診断するまでの待ち時間（ミリ秒）。\n\nHow long to wait after typing stops before checking, in milliseconds."
+        }
+      }
+    }
+  },
+  "activationEvents": [],
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#161b22",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  }
+}

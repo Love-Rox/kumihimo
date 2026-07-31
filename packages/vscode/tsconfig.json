@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["node", "vscode"]
+  },
+  "include": ["src", "scripts"]
+}
