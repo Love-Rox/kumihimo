@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { checkDocument } from './diagnostics.js';
 import { Preview } from './preview.js';
 import { registerCompletion } from './completion.js';
+import { registerFormatting } from './formatting.js';
 
 const LANGUAGE = 'kumihimo';
 
@@ -18,6 +19,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(collection);
 
   registerCompletion(context);
+  registerFormatting(context);
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
   const previewTimers = new Map<string, ReturnType<typeof setTimeout>>();

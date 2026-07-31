@@ -26,6 +26,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const published = [];
 const commands = new Map();
 const completion = { provider: undefined };
+const formatting = { provider: undefined };
 const asked = new Set();
 const listeners = {
   open: [],
@@ -69,6 +70,7 @@ const vscode = {
   ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3 },
   ViewColumn: { Beside: -2 },
   Uri: { parse: (s) => ({ toString: () => s }) },
+  TextEdit: { replace: (range, newText) => ({ range, newText }) },
   CompletionItem: class {
     constructor(label, kind) {
       this.label = label;
@@ -95,6 +97,10 @@ const vscode = {
     }),
     registerCompletionItemProvider: (_selector, provider) => {
       completion.provider = provider;
+      return { dispose() {} };
+    },
+    registerDocumentFormattingEditProvider: (_selector, provider) => {
+      formatting.provider = provider;
       return { dispose() {} };
     },
   },
@@ -374,6 +380,34 @@ for (const listener of listeners.viewState) listener();
 await settled();
 console.log(`  ${htmlWrites >= 1 ? '○' : '×'} 戻ってきたら追いつく → 書き込み ${htmlWrites} 回`);
 if (htmlWrites < 1) throw new Error('タブに戻っても描き直していません');
+// The formatter. Before it existed, `.khm` was a language the editor offered to format and
+// then could not — which sends someone to the Marketplace to look for one that is not there.
+console.log('\n整形:');
+
+const messy = 'device sw "ATEM" as switcher {\nin 1..4:sdi\nout PGM:sdi\n}';
+const formatDoc = {
+  ...doc(messy),
+  positionAt: (offset) => new Position(0, offset),
+};
+
+const edits = formatting.provider.provideDocumentFormattingEdits(formatDoc, { tabSize: 2 });
+const text = edits[0]?.newText ?? '';
+const lines = text.split('\n');
+
+console.log(`  ${edits.length === 1 ? '○' : '×'} 編集を1件返す`);
+if (edits.length !== 1) throw new Error(`編集が1件のはずが ${edits.length} 件`);
+
+const ports = lines.filter((l) => /^ {2}(in|out) /.test(l));
+const aligned = new Set(ports.map((l) => l.indexOf(':'))).size === 1;
+console.log(`  ${aligned ? '○' : '×'} 桁が揃う  ${JSON.stringify(ports)}`);
+if (!aligned) throw new Error('桁が揃っていません');
+
+// Formatting something already formatted must produce no edit at all: an edit that
+// replaces the document with itself still moves the cursor and dirties the file.
+const tidy = { ...doc(text), positionAt: (offset) => new Position(0, offset) };
+const again = formatting.provider.provideDocumentFormattingEdits(tidy, { tabSize: 2 });
+console.log(`  ${again.length === 0 ? '○' : '×'} 整形済みなら編集を返さない`);
+if (again.length !== 0) throw new Error('整形済みの文書に編集を返しています');
 
 // Every source string the code asked for must have a Japanese entry. A half-translated UI
 // is the failure this replaced: strings that fall back to English do so silently.

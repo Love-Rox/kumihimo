@@ -121,6 +121,8 @@ function expandPortSpec(item: PortSpecItem, bag: DiagnosticBag): string[] {
 /** Collects declarations and connections, flattening groups as it goes. */
 class Collector {
   readonly devices: { decl: DeviceDecl; groupId?: string }[] = [];
+  /** Ids declared with `adapter`, so the built device can be marked as a part. */
+  readonly adapters = new Set<string>();
   readonly groups: Group[] = [];
   readonly links: ConnectionStmt[] = [];
   readonly models = new Map<string, ModelDecl>();
@@ -175,6 +177,21 @@ class Collector {
             groupId === undefined ? { decl: statement } : { decl: statement, groupId },
           );
           break;
+        case 'adapter': {
+          // Carried as a device from here on: it has ports, links reach it, and it takes
+          // part in the layout. Everything that differs is downstream of the model.
+          this.adapters.add(statement.id);
+          const decl: DeviceDecl = {
+            type: 'device',
+            id: statement.id,
+            ports: statement.ports,
+            meta: statement.meta,
+            span: statement.span,
+          };
+          if (statement.label !== undefined) decl.label = statement.label;
+          this.devices.push(groupId === undefined ? { decl } : { decl, groupId });
+          break;
+        }
         case 'group': {
           const group: Group = {
             id: statement.id,
@@ -321,7 +338,7 @@ class DeviceTable {
 
   constructor(private readonly bag: DiagnosticBag) {}
 
-  declare(decl: DeviceDecl, groupId: string | undefined): Device {
+  declare(decl: DeviceDecl, groupId: string | undefined, passive = false): Device {
     const existing = this.byId.get(decl.id);
     if (existing && !existing.implicit) {
       this.bag.report('duplicate-id', 'device.duplicate-id', { id: decl.id }, decl.span);
@@ -335,9 +352,11 @@ class DeviceTable {
       ports: [],
       meta: {},
       implicit: false,
+      passive: false,
     };
 
     device.implicit = false;
+    device.passive = passive;
     device.label = decl.label ?? decl.id;
     device.span = decl.span;
     if (groupId !== undefined) device.groupId = groupId;
@@ -375,6 +394,7 @@ class DeviceTable {
       ports: [],
       meta: {},
       implicit: true,
+      passive: false,
     };
     this.byId.set(id, device);
     this.order.push(id);
@@ -494,7 +514,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
     if (decl.label === undefined && base?.label !== undefined) effective.label = base.label;
     if (decl.kind === undefined && base?.kind !== undefined) effective.kind = base.kind;
 
-    const device = table.declare(effective, groupId);
+    const device = table.declare(effective, groupId, collector.adapters.has(decl.id));
 
     for (const meta of effective.meta) device.meta[meta.key] = meta.value.value;
 

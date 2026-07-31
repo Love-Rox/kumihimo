@@ -323,12 +323,79 @@ Hex such as `#0af` or `#00aaff` also works. Anything else is a diagnostic
 The legend keeps showing the **signal type's** colour. An individual cable's colour is a
 separate fact and the two are not mixed.
 
-### `via` — adapters and converting leads
+### `adapter` — a part, not a box
 
-Declares that a passive adapter or converting cable sits in the run.
+A converter is a powered box. It needs racking **and** a cable on each side, so it is a
+`device`. A conversion lead **is** the cable, and needs only itself.
+
+Declaring both as devices puts a headset splitter on the equipment list, where nobody will
+ever rack it, and invents a cable run on each side of a thing that is one line item.
 
 ```khm
-pc.HDMI -> mon.DVI : hdmi via "HDMI-DVI cable"
+adapter split "TRRS splitter" {
+  io  HS  : trrs35
+  out HP  : trs35
+  in  MIC : trs35
+}
+
+phone.HS -> split.HS  : trrs35
+split.HP -> hp.IN     : trs35
+mic.OUT  -> split.MIC : trs35
+```
+
+The body is a device's: connectors, in the order they are drawn. There is no `as` — an
+adapter is drawn as what it is, and there is nothing to choose.
+
+What differs is where it lands:
+
+|                         | equipment schedule | cable schedule  | adapter schedule |
+| ----------------------- | ------------------ | --------------- | ---------------- |
+| `device … as converter` | the box            | a run each side | —                |
+| `adapter`               | —                  | —               | one line         |
+
+**A run touching an adapter is a plug going into a socket, not a cable to bring** — so it
+produces no cable row. The exception is written rather than guessed: give the run a length
+or a cable number and it becomes a cable.
+
+```khm
+split.HP -> hp.IN : trs35            # plugged straight in
+split.HP -> hp.IN : trs35 5m "A-02"  # a 5 m cable, on the schedule
+split.HP -> hp.IN : trs35 "A-02"     # a cable whose length nobody has measured yet
+```
+
+Either alone is enough, because a length is often unknown when the drawing is made and a
+number is often assigned before anyone measures.
+
+Use `via` instead when the part has exactly two ends and sits inside one run — `via` is
+the shorthand for exactly that case, and needs no declaration.
+
+---
+
+### `via` — an adapter used with an ordinary cable
+
+Declares that a small passive part sits at one end of a run, **in addition to the cable**.
+
+```khm
+cam.SDI -> mon.SDI : sdi 30m "V-01" via "BNC-RCA adapter"
+```
+
+That is two objects to bring: a 30 m SDI cable, and an adapter. So it is two rows — the
+cable on the cable schedule, the adapter on the parts list.
+
+A **converting lead** is one object, not two. The lead is the run. Declare it with
+[`adapter`](#adapter--a-part-not-a-box) instead, or it gets counted twice:
+
+```khm
+# Two objects: a cable, and an adapter on the end of it
+cam.SDI -> mon.SDI : sdi 30m "V-01" via "BNC-RCA adapter"
+
+# One object: the lead is the run
+adapter hd "HDMI-DVI cable" {
+  in  IN  : hdmi
+  out OUT : dvi
+}
+pc.HDMI -> hd.IN   : hdmi
+hd.OUT  -> mon.DVI : dvi
 ```
 
 `via` is not a way to silence a warning. It is **a declaration that puts a part on the
@@ -574,6 +641,44 @@ The command line is the exception to the English default: it reads `LC_ALL`, `LC
 and then `LANG`, and takes `--lang` to override them. It shipped speaking Japanese, and an
 upgrade that silently changed the language of an existing user's output would be a
 regression dressed as a feature.
+
+---
+
+## Formatting
+
+```sh
+kumihimo fmt studio.khm            # lay it out in place
+kumihimo fmt studio.khm --check    # fail if it is not already laid out
+kumihimo fmt studio.khm --stdout   # write to stdout instead
+```
+
+In VS Code it is the editor's own Format Document, so format-on-save works.
+
+The layout is: indent by nesting, one space between things, and **columns lined up down a
+run of similar lines**. That last one is the point — a rack list is read by scanning a
+column, and columns drift the moment anybody edits a name.
+
+```khm
+device sw "ATEM Mini Extreme" as switcher {
+  in  1..8             : sdi
+  in  AUDIO_L, AUDIO_R : trs
+  out PGM              : sdi  # main
+  out STREAM           : lan
+}
+
+cam1.SDI -> sw.1       : sdi 30m "V-01"
+mic1.OUT -> sw.AUDIO_L : xlr 20m "A-01"
+```
+
+A run ends at a blank line, a comment on its own line, or a change of shape, because those
+are exactly where a reader stops scanning. Each block's columns are its own, so widening a
+name in one device does not reflow another.
+
+Comments stay on the line they were written on, and a `#` inside a string stays inside the
+string. Formatting never changes what a file says; the tests assert that by comparing the
+compiled model before and after, not the text.
+
+`--no-align` gives one space between everything, which diffs more cleanly and reads worse.
 
 ---
 

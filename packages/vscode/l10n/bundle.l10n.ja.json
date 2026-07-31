@@ -3,7 +3,6 @@
   "Cables": "ケーブル表",
   "Equipment": "機器表",
   "Adapters": "変換部材",
-
   "No.": "番号",
   "From": "送り",
   "To": "受け",
@@ -11,24 +10,20 @@
   "Length": "長さ",
   "Connectors": "コネクタ",
   "Note": "備考",
-
   "Name": "名称",
   "Kind": "種別",
   "Group": "まとまり",
   "Ports": "ポート数",
   "Metadata": "メタ情報",
   "(undeclared)": "（未宣言）",
-
   "Part": "部材",
   "Qty": "数量",
   "Runs": "対象の線",
-
   "Nothing here yet.": "まだ何もありません。",
   "clean": "問題なし",
   "{0} diagnostic(s)": "診断 {0} 件",
   "Could not render.": "描画できませんでした。",
   "Open a .khm file first.": ".khm ファイルを開いてから実行してください。",
-
   "left to right": "左から右",
   "top to bottom": "上から下",
   "input port": "入力ポート",
@@ -45,5 +40,6 @@
   "override a compatibility rule": "互換規則の上書き",
   "import a library": "ライブラリの読み込み",
   "adapter in the run": "変換部材",
-  "Length units: {0}": "ケーブル長の単位: {0}"
+  "Length units: {0}": "ケーブル長の単位: {0}",
+  "a passive part: a splitter, a converting lead": "変換部材（分岐ケーブル・変換ケーブルなど）"
 }

@@ -13,6 +13,8 @@ cam.SDI -> sw.1    : sdi 30m "V-01" [color=blue]
 sw.PGM  -> rec.SDI : sdi 2m  "V-10"
 ```
 
+![The preview: the diagram beside the source](https://raw.githubusercontent.com/Love-Rox/kumihimo/main/packages/vscode/media/preview.png)
+
 ## What it does
 
 **Diagnostics as you type.** Not only syntax. The connections are judged on whether they
@@ -30,6 +32,12 @@ cannot see.
 **Live preview.** `⌘K V` / `Ctrl+K V`, or the button in the editor title bar. It redraws
 as you type and follows your colour theme, unless the source names a theme itself.
 
+The same panel carries the schedules the job actually travels with — cables, equipment and
+adapters — from the same functions the CLI exports, so the drawing and the packing list
+cannot disagree.
+
+![The cable schedule in the same panel](https://raw.githubusercontent.com/Love-Rox/kumihimo/main/packages/vscode/media/tables.png)
+
 **Completions**, read from the compiler itself. Signal types after `:` and `|`, device kinds
 after `as`, jacket colours inside `[color=`, themes and directions in a `diagram` block.
 Every name offered is one the compiler accepts, because both read the same list — and the
@@ -37,6 +45,11 @@ connectors are shown beside each type, which is how `trs` (1/4") and `trs35` (3.
 told apart at the point of choosing.
 
 **Syntax highlighting** and the usual bracket and comment handling for `.khm`.
+
+**Format Document.** `⇧⌥F`, or format on save. Indents by nesting, normalises spacing, and
+lines the columns up down a run of ports or connections — a rack list is read by scanning a
+column, and columns drift the moment anybody edits a name. Turn the alignment off with
+`kumihimo.format.align` if you would rather have clean diffs.
 
 **In your language.** The extension follows VS Code's display language, and so do the
 compiler's own sentences — a panel labelled in one language listing faults in another is

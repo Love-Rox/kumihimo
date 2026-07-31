@@ -286,7 +286,22 @@ export function renderSvg(
 
   const titleHeight = diagram.title ? 34 : 0;
   const legendHeight = showLegend && usedSignals.length > 0 ? 30 : 0;
-  const width = Math.max(layout.width, 320);
+
+  // A key with no caption gets counted: five entries under seven drawn runs reads as
+  // "five cables" to anybody who has not been told what they are looking at.
+  const caption = locale === 'ja' ? '信号種別' : 'Signals';
+  const legendNames = usedSignals.map((s) => localise(s.label, locale) || s.name);
+  // The canvas has to be at least as wide as the key. It never was, so a drawing with a
+  // narrow layout and several signal types ran the key off the right-hand edge.
+  const legendWidth =
+    legendHeight === 0
+      ? 0
+      : 16 +
+        estimateTextWidth(caption, 11) +
+        18 +
+        legendNames.reduce((total, name) => total + 27 + estimateTextWidth(name, 11) + 22, 0);
+
+  const width = Math.max(layout.width, legendWidth, 320);
   const height = layout.height + titleHeight + legendHeight;
 
   const body: string[] = [];
@@ -325,17 +340,30 @@ export function renderSvg(
     const { x, y, width: w, height: h } = placed.bounds;
     const stroke = device.implicit ? theme.muted : theme.boxStroke;
 
-    body.push(
-      `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6" ` +
-        `fill="${theme.boxFill}" stroke="${stroke}" stroke-width="1.5"` +
-        `${device.implicit ? ' stroke-dasharray="5 3"' : ''}/>`,
-      `<path d="M ${n(x)} ${n(y + headerHeight)} h ${n(w)}" stroke="${stroke}" stroke-width="1"/>`,
-      `<rect x="${n(x + 1)}" y="${n(y + 1)}" width="${n(w - 2)}" height="${n(headerHeight - 1)}" ` +
-        `rx="5" fill="${theme.header}"/>`,
-      `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize}" ` +
-        `font-weight="600" fill="${theme.text}" text-anchor="middle" ` +
-        `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
-    );
+    if (device.passive) {
+      // A part, not a box in a rack. Drawn as a pill with no header band, because the
+      // header band is what makes the other boxes read as equipment — and a reader who
+      // cannot tell the splitter from the switcher will look for the splitter in the rack.
+      body.push(
+        `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${n(Math.min(14, h / 2))}" ` +
+          `fill="${theme.background}" stroke="${stroke}" stroke-width="1.2" stroke-dasharray="1 3"/>`,
+        `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize - 1}" ` +
+          `fill="${theme.muted}" text-anchor="middle" ` +
+          `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
+      );
+    } else {
+      body.push(
+        `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6" ` +
+          `fill="${theme.boxFill}" stroke="${stroke}" stroke-width="1.5"` +
+          `${device.implicit ? ' stroke-dasharray="5 3"' : ''}/>`,
+        `<path d="M ${n(x)} ${n(y + headerHeight)} h ${n(w)}" stroke="${stroke}" stroke-width="1"/>`,
+        `<rect x="${n(x + 1)}" y="${n(y + 1)}" width="${n(w - 2)}" height="${n(headerHeight - 1)}" ` +
+          `rx="5" fill="${theme.header}"/>`,
+        `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize}" ` +
+          `font-weight="600" fill="${theme.text}" text-anchor="middle" ` +
+          `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
+      );
+    }
 
     for (const port of placed.ports) {
       const inward = port.side === 'WEST' || port.side === 'NORTH';
@@ -358,17 +386,23 @@ export function renderSvg(
   if (legendHeight > 0) {
     const y = titleHeight + layout.height + 18;
     let cursor = 16;
-    for (const signal of usedSignals) {
+    body.push(
+      `<text x="${n(cursor)}" y="${n(y + 4)}" font-size="11" font-weight="600" ` +
+        `fill="${theme.muted}" font-family="${escape(fontFamily)}">${escape(caption)}</text>`,
+    );
+    cursor += estimateTextWidth(caption, 11) + 18;
+    usedSignals.forEach((signal, i) => {
       const key = strokeFor(signal, theme);
       const dash = dashArray(key, signal.width, signal.wireless);
+      const name = legendNames[i] ?? signal.name;
       body.push(
         `<path d="M ${n(cursor)} ${n(y)} h 22" stroke="${safeColor(key.color)}" ` +
           `stroke-width="${signal.width}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`,
         `<text x="${n(cursor + 27)}" y="${n(y + 4)}" font-size="11" fill="${theme.muted}" ` +
-          `font-family="${escape(fontFamily)}">${escape(localise(signal.label, locale) || signal.name)}</text>`,
+          `font-family="${escape(fontFamily)}">${escape(name)}</text>`,
       );
-      cursor += 27 + estimateTextWidth(localise(signal.label, locale) || signal.name, 11) + 22;
-    }
+      cursor += 27 + estimateTextWidth(name, 11) + 22;
+    });
   }
 
   return (

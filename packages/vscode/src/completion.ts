@@ -133,6 +133,11 @@ function topLevel(): vscode.CompletionItem[] {
   return [
     described('diagram', vscode.l10n.t('document settings'), vscode.CompletionItemKind.Keyword),
     described('device', vscode.l10n.t('a piece of equipment'), vscode.CompletionItemKind.Keyword),
+    described(
+      'adapter',
+      vscode.l10n.t('a passive part: a splitter, a converting lead'),
+      vscode.CompletionItemKind.Keyword,
+    ),
     described('group', vscode.l10n.t('a frame around devices'), vscode.CompletionItemKind.Keyword),
     described('model', vscode.l10n.t('reusable equipment'), vscode.CompletionItemKind.Keyword),
     described(

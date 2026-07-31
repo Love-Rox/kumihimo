@@ -62,6 +62,7 @@ export type {
   PortDirection,
   PortDecl,
   DeviceDecl,
+  AdapterDecl,
   GroupDecl,
   DiagramDecl,
   SignalDecl,
@@ -111,6 +112,9 @@ export { cableSchedule, equipmentSchedule, adapterSchedule, toTsv } from './sche
 
 export type { DrawioOptions } from './export/drawio.js';
 export { exportDrawio, toDrawio } from './export/drawio.js';
+
+export type { FormatOptions } from './format.js';
+export { formatSource } from './format.js';
 
 export type { CompileOptions, CompileResult } from './compile.js';
 export { compile } from './compile.js';
