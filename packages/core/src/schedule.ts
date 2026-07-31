@@ -175,6 +175,23 @@ export function adapterSchedule(diagram: Diagram): AdapterRow[] {
 }
 
 /**
+ * One value as it appears in a cell.
+ *
+ * Tabs and newlines are flattened to spaces: a value carrying either would split the row
+ * it belongs to, and a label with a line break in it is worth less than an intact table.
+ */
+function cell(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (Array.isArray(value)) return value.join(' / ');
+  if (typeof value === 'object') {
+    return Object.entries(value)
+      .map(([k, v]) => `${k}=${String(v)}`)
+      .join(' ');
+  }
+  return String(value).replace(/[\t\n]/g, ' ');
+}
+
+/**
  * Render a schedule as tab-separated values.
  *
  * TSV rather than CSV because these get pasted into a spreadsheet, and a cable label
@@ -185,17 +202,6 @@ export function adapterSchedule(diagram: Diagram): AdapterRow[] {
  * @returns A TSV document with a header row.
  */
 export function toTsv<T extends object>(rows: readonly T[], columns: readonly (keyof T)[]): string {
-  const cell = (value: unknown): string => {
-    if (value === undefined || value === null) return '';
-    if (Array.isArray(value)) return value.join(' / ');
-    if (typeof value === 'object') {
-      return Object.entries(value)
-        .map(([k, v]) => `${k}=${String(v)}`)
-        .join(' ');
-    }
-    return String(value).replace(/[\t\n]/g, ' ');
-  };
-
   return [
     columns.map(String).join('\t'),
     ...rows.map((row) => columns.map((column) => cell(row[column])).join('\t')),

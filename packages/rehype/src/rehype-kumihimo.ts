@@ -102,7 +102,9 @@ export function rehypeKumihimo(options: RehypeKumihimoOptions = {}) {
     });
 
     // Replace back to front so earlier indices stay valid as the tree changes under us.
-    for (const target of targets.reverse()) {
+    // A copy rather than `reverse()`: the order this was collected in is not this loop's
+    // to spend, and nothing downstream should have to know that it was.
+    for (const target of targets.toReversed()) {
       const { svg, diagnostics } = await compile(target.source, options);
       options.onDiagnostics?.(diagnostics, target.source);
 
