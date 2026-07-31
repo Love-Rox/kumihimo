@@ -159,8 +159,7 @@ describe('what it does', () => {
 
   it('can be told not to align', () => {
     const source = ['in A : xlr', 'in LONGER : xlr'].join('\n');
-    const out = formatSource(source, { align: false });
-    expect(out).toBe('in A : xlr\nin LONGER : xlr\n');
+    expect(formatSource(source, { align: false })).toBe('in A : xlr\nin LONGER : xlr\n');
   });
 
   it('honours the indent width', () => {

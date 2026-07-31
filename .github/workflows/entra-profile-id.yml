@@ -1,0 +1,71 @@
+name: Entra ID のプロファイル ID を調べる
+
+# One-off, run by hand.
+#
+# The Marketplace's "add a member" box wants an Azure DevOps *profile* id, which is neither
+# the application (client) id nor the service principal's object id — entering those gives
+# `TF14045: The identity could not be found`. The profile does not exist until the identity
+# has authenticated to Azure DevOps at least once, and that first authentication is what
+# this workflow is for.
+#
+# There is no secret to do it with, which is the point of the whole arrangement: the
+# federated credential lets a run of this repository speak as the identity, so the identity
+# signs in here rather than on somebody's laptop.
+#
+# Delete this file once the member has been added. It is a step in a setup, not a part of
+# the pipeline.
+on:
+  workflow_dispatch:
+
+permissions:
+  # The OIDC token exchanged for an Entra ID one. Nothing else is needed: this workflow
+  # reads an identifier and writes nothing.
+  id-token: write
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Sign in as the identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      # 499b84ac-1321-427f-aa17-267ca6975798 is Azure DevOps itself. Asking it for "my
+      # profile" as this identity both creates the profile and returns its id.
+      #
+      # The id is an identifier, not a credential, so printing it into the log is fine —
+      # and it has to be readable, since the whole point is to paste it into a web form.
+      - name: Ask Azure DevOps who this identity is
+        run: |
+          set -euo pipefail
+
+          profile=$(az rest \
+            --url https://app.vssps.visualstudio.com/_apis/profile/profiles/me \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798)
+
+          id=$(node -e "process.stdout.write(JSON.parse(process.argv[1]).id ?? '')" "$profile")
+
+          if [ -z "$id" ]; then
+            echo "::error::プロファイル ID を取得できませんでした。応答: $profile"
+            exit 1
+          fi
+
+          {
+            echo '## Marketplace の User Id'
+            echo
+            echo '次の値を publisher の Members に追加してください。ロールは Contributor です。'
+            echo
+            echo '```'
+            echo "$id"
+            echo '```'
+            echo
+            echo 'この身元は Azure DevOps に登録されました。追加が済んだら、このワークフローの'
+            echo 'ファイルは消して構いません。'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::notice::Marketplace に入れる User Id: $id"
