@@ -3,5 +3,6 @@
   "command.showPreview": "kumihimo: 図をプレビュー",
   "config.preview.theme": "プレビューのテーマ。`auto` は VS Code の配色に合わせます。ソース中の `diagram { theme: … }` があればそちらが優先されます。",
   "config.diagnostics.enabled": "編集中に診断を出します。",
-  "config.diagnostics.delay": "入力が止まってから診断するまでの待ち時間（ミリ秒）。"
+  "config.diagnostics.delay": "入力が止まってから診断するまでの待ち時間（ミリ秒）。",
+  "config.preview.delay": "入力が止まってからプレビューを描き直すまでの待ち時間（ミリ秒）。図全体の描き直しは1行の検査より重いので、診断の待ち時間より長めです。"
 }

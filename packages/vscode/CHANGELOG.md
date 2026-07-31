@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.1
+
+- The preview no longer rebuilds itself on every keystroke. Assigning a webview's `html`
+  reloads it — the document torn down, the markup parsed again, a base64 data URI of the
+  whole drawing decoded again — and that was happening four times a second while typing,
+  at around 130 kB for a job-sized diagram. It now waits for typing to settle
+  (`kumihimo.preview.delay`, 600 ms), skips the write entirely when the drawing has not
+  changed, and does not draw into a tab nobody is looking at.
+- `retainContextWhenHidden` is gone. The editor's own documentation warns it is
+  memory-expensive, and it bought nothing here.
+- Renders no longer overlap, so a slow one can no longer finish last and leave stale
+  wiring on screen.
+
 ## 0.4.0
 
 - Follows VS Code's display language. The extension's own words already did; the compiler's
