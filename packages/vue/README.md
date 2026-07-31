@@ -28,8 +28,9 @@ const { svg, diagram, diagnostics, pending, error } = useKumihimo(() => src.valu
 Accepts values, refs or getters, and keeps the previous diagram on screen through a
 recompile.
 
-See the [project README](https://github.com/Love-Rox/kumihimo#readme) for the language and
-the other packages.
+See [kumihimo.love-rox.cc](https://kumihimo.love-rox.cc/en) for the guide and an editor you
+can type into, or the [project README](https://github.com/Love-Rox/kumihimo#readme) for the
+other packages.
 
 ## License
 
