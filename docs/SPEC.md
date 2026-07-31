@@ -149,6 +149,38 @@ device mixer "Yamaha DM3" as mixer {
 
 **Declaration order is preserved and drawn.** `IN 1` sits above `IN 2` in every render.
 
+### `gap` — space between blocks of ports
+
+A bare `gap` line leaves blank space above whatever is declared next, so a strip of
+connectors reads as the blocks it actually is.
+
+```khm
+device sw "ATEM Mini Extreme" as switcher {
+  in  1..4 : hdmi
+  gap
+  in  5..8 : sdi
+  gap 2
+  in  AUDIO_L, AUDIO_R : trs
+  out PGM    : sdi
+  gap
+  out STREAM : lan
+}
+```
+
+- One `gap` is one step — half the spacing between ports. `gap <n>` is n steps, and
+  consecutive `gap` lines add up.
+- The space goes **above** the declaration that follows, never below the one before, so it
+  reads the way it is written.
+- A declaration that expands into many ports gets the space **once**, before the first of
+  them: `gap` above `in CH[1..16]` is one space before `CH1`, not sixteen down the strip.
+- A `gap` with nothing after it is dropped. In a `model` it may well stop being last, once
+  a `device … from` adds ports below it.
+- `gap 0` and negative counts are rejected. They read as an intention the drawing cannot
+  carry out.
+
+This is presentation only. It changes no port, no connection and no schedule — the same
+diagram with every `gap` removed describes the same system.
+
 ### Metadata
 
 ```khm

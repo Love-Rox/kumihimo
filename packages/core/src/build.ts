@@ -464,6 +464,10 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
     for (const meta of effective.meta) device.meta[meta.key] = meta.value.value;
 
     for (const portDecl of effective.ports) {
+      // Only the first port a declaration expands into begins the new block; `gap` above
+      // `in CH[1..16]` means one space before CH1, not sixteen spaces down the strip.
+      let gapPending = portDecl.gapBefore;
+
       for (const item of portDecl.spec) {
         for (const name of expandPortSpec(item, bag)) {
           const port: Port = {
@@ -474,6 +478,10 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
             implicit: false,
             span: portDecl.span,
           };
+          if (gapPending !== undefined) {
+            port.gapBefore = gapPending;
+            gapPending = undefined;
+          }
           if (portDecl.signal !== undefined) {
             if (signals[portDecl.signal]) {
               port.signal = portDecl.signal;

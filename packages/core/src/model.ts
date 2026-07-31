@@ -55,6 +55,14 @@ export interface Port {
    * Implicit ports carry no declared direction, so direction checking skips them.
    */
   implicit: boolean;
+  /**
+   * Blank space to leave above this port, in gap steps, from `gap` lines in the source.
+   *
+   * Carried on the port rather than the declaration because a declaration expands into
+   * many ports and only the first of them starts a new block. Layout is the only thing
+   * that reads it; nothing about the system it describes changes.
+   */
+  gapBefore?: number;
   /** Where the port was declared, when it was. */
   span?: SourceSpan;
 }
