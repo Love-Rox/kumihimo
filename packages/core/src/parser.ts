@@ -256,6 +256,24 @@ class Parser {
     return node;
   }
 
+  /**
+   * `gap`, or `gap <n>` for n steps at once.
+   *
+   * A bare `gap` is one step. `gap 0` and a negative count are rejected rather than
+   * quietly ignored: they read as an intention the drawing cannot carry out.
+   */
+  #gap(): number {
+    this.#next(); // `gap`
+    if (!this.#at('number')) return 1;
+
+    const token = this.#next();
+    const count = Number(token.value);
+    if (!Number.isFinite(count) || count < 1) {
+      this.#fail('`gap` の数は 1 以上が必要です', token.span);
+    }
+    return count;
+  }
+
   #meta(): MetaEntry {
     const start = this.#next(); // `@`
     const key = this.#expect('ident', 'メタ情報のキー');
@@ -283,16 +301,27 @@ class Parser {
 
     const ports: PortDecl[] = [];
     const meta: MetaEntry[] = [];
+    // `gap` describes the space above whatever is declared next, so it is held here until
+    // that declaration arrives. A `gap` with nothing after it stays pending and is
+    // dropped: in a model it may well stop being last, once a device adds ports below it.
+    let pendingGap = 0;
     if (this.#accept('lbrace')) {
       this.#skipSeparators();
       while (!this.#at('rbrace') && !this.#at('eof')) {
         try {
           if (this.#at('ident', 'in') || this.#at('ident', 'out') || this.#at('ident', 'io')) {
-            ports.push(this.#portDecl());
+            const decl = this.#portDecl();
+            if (pendingGap > 0) {
+              decl.gapBefore = pendingGap;
+              pendingGap = 0;
+            }
+            ports.push(decl);
+          } else if (this.#at('ident', 'gap')) {
+            pendingGap += this.#gap();
           } else if (this.#at('at')) {
             meta.push(this.#meta());
           } else {
-            this.#fail('`in` / `out` / `io` / `@キー` のいずれかが必要です');
+            this.#fail('`in` / `out` / `io` / `gap` / `@キー` のいずれかが必要です');
           }
         } catch (error) {
           if (!(error instanceof RecoverError)) throw error;

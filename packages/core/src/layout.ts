@@ -102,12 +102,15 @@ export interface LayoutOptions {
   groupPadding?: number;
   /** Font size used for device labels, which drives box width. */
   fontSize?: number;
+  /** Space one `gap` step leaves between ports, px. Defaults to half a port pitch. */
+  gapStep?: number;
 }
 
 /** Resolved geometry constants. */
 interface Metrics {
   headerHeight: number;
   portPitch: number;
+  gapStep: number;
   minDeviceWidth: number;
   nodeSpacing: number;
   layerSpacing: number;
@@ -116,15 +119,33 @@ interface Metrics {
 }
 
 function resolveMetrics(options: LayoutOptions): Metrics {
+  const portPitch = options.portPitch ?? 22;
   return {
     headerHeight: options.headerHeight ?? 30,
-    portPitch: options.portPitch ?? 22,
+    portPitch,
+    // Half a pitch: enough that the eye stops there, not so much that a sixteen-channel
+    // desk with three gaps in it grows a third taller.
+    gapStep: options.gapStep ?? portPitch / 2,
     minDeviceWidth: options.minDeviceWidth ?? 150,
     nodeSpacing: options.nodeSpacing ?? 40,
     layerSpacing: options.layerSpacing ?? 90,
     groupPadding: options.groupPadding ?? 24,
     fontSize: options.fontSize ?? 13,
   };
+}
+
+/**
+ * Running offsets for a strip of ports, one entry per port.
+ *
+ * A gap moves everything below it down; the space is added before the port that asked for
+ * it, never after, so `gap` above a declaration reads the way it is written.
+ */
+function gapOffsets(list: { gapBefore?: number }[], gapStep: number): number[] {
+  let offset = 0;
+  return list.map((p) => {
+    offset += (p.gapBefore ?? 0) * gapStep;
+    return offset;
+  });
 }
 
 /**
@@ -147,10 +168,17 @@ export function estimateTextWidth(text: string, fontSize: number): number {
   return units * fontSize;
 }
 
+/** The part of a port this file needs: what to draw, and where the blocks break. */
+interface SidedPort {
+  id: string;
+  name: string;
+  gapBefore?: number;
+}
+
 /** Ports grouped by the face they belong on. */
 interface SidedPorts {
-  leading: { id: string; name: string }[];
-  trailing: { id: string; name: string }[];
+  leading: SidedPort[];
+  trailing: SidedPort[];
 }
 
 /**
@@ -162,10 +190,12 @@ interface SidedPorts {
  */
 function sortPorts(diagram: Diagram, deviceId: string): SidedPorts {
   const device = diagram.devices.find((d) => d.id === deviceId);
-  const leading: { id: string; name: string }[] = [];
-  const trailing: { id: string; name: string }[] = [];
+  const leading: SidedPort[] = [];
+  const trailing: SidedPort[] = [];
   for (const port of device?.ports ?? []) {
-    (port.direction === 'in' ? leading : trailing).push({ id: port.id, name: port.name });
+    const sided: SidedPort = { id: port.id, name: port.name };
+    if (port.gapBefore !== undefined) sided.gapBefore = port.gapBefore;
+    (port.direction === 'in' ? leading : trailing).push(sided);
   }
   return { leading, trailing };
 }
@@ -185,7 +215,9 @@ function measureDevice(
 ): BoxSpec {
   const device = diagram.devices.find((d) => d.id === deviceId)!;
   const { leading, trailing } = sortPorts(diagram, deviceId);
-  const rows = Math.max(leading.length, trailing.length);
+
+  const leadingGaps = gapOffsets(leading, m.gapStep);
+  const trailingGaps = gapOffsets(trailing, m.gapStep);
 
   const labelWidth = estimateTextWidth(device.label, m.fontSize) + 24;
   const portLabelWidth = (list: { name: string }[]) =>
@@ -199,29 +231,50 @@ function measureDevice(
       labelWidth,
       portLabelWidth(leading) + portLabelWidth(trailing) + 48,
     );
-    const height = Math.max(m.headerHeight + 20, m.headerHeight + 10 + rows * m.portPitch);
-    const place = (list: { id: string; name: string }[], side: PortSide, dx: number): void => {
+    // Gaps count towards the height, or the last port of a gapped strip sits below the box
+    // that contains it. Added to the existing formula rather than replacing it, so a
+    // device with no gaps measures exactly as it did before.
+    const rows = Math.max(leading.length, trailing.length);
+    const deepestGap = Math.max(leadingGaps.at(-1) ?? 0, trailingGaps.at(-1) ?? 0);
+    const height = Math.max(
+      m.headerHeight + 20,
+      m.headerHeight + 10 + rows * m.portPitch + deepestGap,
+    );
+
+    const place = (
+      list: { id: string; name: string }[],
+      gaps: number[],
+      side: PortSide,
+      dx: number,
+    ): void => {
       list.forEach((p, i) => {
-        ports.push({ ...p, side, dx, dy: m.headerHeight + 12 + i * m.portPitch });
+        ports.push({ ...p, side, dx, dy: m.headerHeight + 12 + i * m.portPitch + (gaps[i] ?? 0) });
       });
     };
-    place(leading, 'WEST', 0);
-    place(trailing, 'EAST', width);
+    place(leading, leadingGaps, 'WEST', 0);
+    place(trailing, trailingGaps, 'EAST', width);
     return { width, height, ports };
   }
 
-  // Top-to-bottom: inputs along the top edge, outputs along the bottom.
+  // Top-to-bottom: inputs along the top edge, outputs along the bottom. Gaps widen the
+  // box here rather than lengthening it, since the strips run across.
   const columns = Math.max(leading.length, trailing.length, 1);
-  const width = Math.max(m.minDeviceWidth, labelWidth, columns * m.portPitch + 24);
+  const widestGap = Math.max(leadingGaps.at(-1) ?? 0, trailingGaps.at(-1) ?? 0);
+  const width = Math.max(m.minDeviceWidth, labelWidth, columns * m.portPitch + 24 + widestGap);
   const height = m.headerHeight + 44;
-  const place = (list: { id: string; name: string }[], side: PortSide, dy: number): void => {
-    const step = width / (list.length + 1);
+  const place = (
+    list: { id: string; name: string }[],
+    gaps: number[],
+    side: PortSide,
+    dy: number,
+  ): void => {
+    const step = (width - (gaps.at(-1) ?? 0)) / (list.length + 1);
     list.forEach((p, i) => {
-      ports.push({ ...p, side, dx: step * (i + 1), dy });
+      ports.push({ ...p, side, dx: step * (i + 1) + (gaps[i] ?? 0), dy });
     });
   };
-  place(leading, 'NORTH', 0);
-  place(trailing, 'SOUTH', height);
+  place(leading, leadingGaps, 'NORTH', 0);
+  place(trailing, trailingGaps, 'SOUTH', height);
   return { width, height, ports };
 }
 

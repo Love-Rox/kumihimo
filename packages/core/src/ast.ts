@@ -92,6 +92,14 @@ export interface PortDecl extends Node {
   spec: PortSpecItem[];
   /** Signal type carried by these ports, when the author named one. */
   signal?: string;
+  /**
+   * Blank space to leave above this declaration, from `gap` lines written before it.
+   *
+   * Counted in gap steps rather than pixels: the author is saying "these belong to a
+   * different block", not choosing a measurement, and the drawing decides how much room
+   * that is worth. Consecutive `gap` lines add up.
+   */
+  gapBefore?: number;
 }
 
 /** A `device` declaration. */
