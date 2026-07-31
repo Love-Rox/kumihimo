@@ -4,8 +4,16 @@
 
 import type { ReactNode } from 'react';
 
-import type { Diagram } from '@love-rox/kumihimo-core';
-import { adapterSchedule, cableSchedule, equipmentSchedule } from '@love-rox/kumihimo-core';
+import type { Diagram, Locale } from '@love-rox/kumihimo-core';
+import {
+  DEFAULT_LOCALE,
+  adapterSchedule,
+  cableSchedule,
+  equipmentSchedule,
+} from '@love-rox/kumihimo-core';
+
+import type { UiKey } from './messages.js';
+import { t } from './messages.js';
 
 /** Which schedule to show. */
 export type ScheduleKind = 'cable' | 'equipment' | 'adapter';
@@ -22,39 +30,43 @@ export interface ScheduleTableProps {
   diagram: Diagram | undefined;
   /** Which schedule to show. */
   kind: ScheduleKind;
+  /** Language for the headings, and for the part names the schedule derives. */
+  locale?: Locale;
 }
 
 interface Column {
   key: string;
-  head: string;
+  /** Catalogue key for the heading, or `undefined` for a column that carries no heading. */
+  head?: UiKey;
 }
 
 const COLUMNS: Record<ScheduleKind, Column[]> = {
   cable: [
-    { key: 'label', head: '番号' },
-    { key: 'fromDevice', head: '送出' },
-    { key: 'from', head: '' },
-    { key: 'toDevice', head: '受け' },
-    { key: 'to', head: '' },
-    { key: 'signalLabel', head: '信号' },
-    { key: 'length', head: '長さ' },
-    { key: 'frequency', head: '周波数' },
-    { key: 'connectors', head: 'コネクタ' },
-    { key: 'adapter', head: '変換部材' },
-    { key: 'note', head: '備考' },
+    { key: 'label', head: 'colNumber' },
+    { key: 'fromDevice', head: 'colFrom' },
+    // The port sits in its own column under the device's heading, so it has none of its own.
+    { key: 'from' },
+    { key: 'toDevice', head: 'colTo' },
+    { key: 'to' },
+    { key: 'signalLabel', head: 'colSignal' },
+    { key: 'length', head: 'colLength' },
+    { key: 'frequency', head: 'colFrequency' },
+    { key: 'connectors', head: 'colConnectors' },
+    { key: 'adapter', head: 'colAdapter' },
+    { key: 'note', head: 'colNote' },
   ],
   equipment: [
-    { key: 'label', head: '機器' },
-    { key: 'id', head: 'id' },
-    { key: 'kind', head: '種別' },
-    { key: 'group', head: '設置' },
-    { key: 'ports', head: 'ポート数' },
-    { key: 'meta', head: '備考' },
+    { key: 'label', head: 'colDevice' },
+    { key: 'id' },
+    { key: 'kind', head: 'colKind' },
+    { key: 'group', head: 'colGroup' },
+    { key: 'ports', head: 'colPorts' },
+    { key: 'meta', head: 'colNote' },
   ],
   adapter: [
-    { key: 'adapter', head: '部材' },
-    { key: 'count', head: '数量' },
-    { key: 'links', head: '対象' },
+    { key: 'adapter', head: 'colPart' },
+    { key: 'count', head: 'colCount' },
+    { key: 'links', head: 'colLinks' },
   ],
 };
 
@@ -78,18 +90,24 @@ function cell(value: unknown): string {
  * @param props - The diagram and which schedule to render.
  * @returns The table.
  */
-export function ScheduleTable({ diagram, kind }: ScheduleTableProps): ReactNode {
-  if (!diagram) return <p className="khm-schedule khm-schedule--empty">まだ図がありません</p>;
+export function ScheduleTable({
+  diagram,
+  kind,
+  locale = DEFAULT_LOCALE,
+}: ScheduleTableProps): ReactNode {
+  if (!diagram) {
+    return <p className="khm-schedule khm-schedule--empty">{t('noDiagram', locale)}</p>;
+  }
 
   const rows: Record<string, unknown>[] =
     kind === 'cable'
-      ? (cableSchedule(diagram) as unknown as Record<string, unknown>[])
+      ? (cableSchedule(diagram, locale) as unknown as Record<string, unknown>[])
       : kind === 'equipment'
         ? (equipmentSchedule(diagram) as unknown as Record<string, unknown>[])
-        : (adapterSchedule(diagram) as unknown as Record<string, unknown>[]);
+        : (adapterSchedule(diagram, locale) as unknown as Record<string, unknown>[]);
 
   if (rows.length === 0) {
-    return <p className="khm-schedule khm-schedule--empty">該当なし</p>;
+    return <p className="khm-schedule khm-schedule--empty">{t('noRows', locale)}</p>;
   }
 
   const columns = COLUMNS[kind];
@@ -100,7 +118,7 @@ export function ScheduleTable({ diagram, kind }: ScheduleTableProps): ReactNode 
         <thead>
           <tr>
             {columns.map((column) => (
-              <th key={column.key}>{column.head}</th>
+              <th key={column.key}>{column.head ? t(column.head, locale) : ''}</th>
             ))}
           </tr>
         </thead>

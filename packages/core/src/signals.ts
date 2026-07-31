@@ -12,6 +12,8 @@
  * Categories drive the default palette and are the unit that compatibility rules
  * are usually expressed against.
  */
+import type { Localised } from './messages.js';
+
 export type SignalCategory =
   | 'video'
   | 'audio'
@@ -33,7 +35,7 @@ export interface SignalType {
   /** Family this signal belongs to. */
   category: SignalCategory;
   /** Human readable name drawn on the diagram, e.g. `SDI`. */
-  label: string;
+  label: Localised;
   /** Stroke colour as a CSS hex string. */
   color: string;
   /** Stroke style. */
@@ -91,7 +93,7 @@ export const CATEGORY_STYLES: Readonly<Record<SignalCategory, LineStyle>> = {
 /** Shape of a builtin entry before category defaults are applied. */
 interface SignalSeed {
   category: SignalCategory;
-  label: string;
+  label: Localised;
   connectors: string[];
   bidirectional?: boolean;
   wireless?: boolean;
@@ -173,10 +175,25 @@ const SEEDS: Record<string, SignalSeed> = {
     bidirectional: true,
     wireless: true,
   },
-  uhf: { category: 'audio', label: 'ワイヤレス (UHF)', connectors: [], wireless: true },
+  uhf: {
+    category: 'audio',
+    label: { en: 'Wireless (UHF)', ja: 'ワイヤレス (UHF)' },
+    connectors: [],
+    wireless: true,
+  },
   iem: { category: 'audio', label: 'IEM', connectors: [], wireless: true },
-  'wireless-video': { category: 'video', label: '無線映像', connectors: [], wireless: true },
-  'wireless-dmx': { category: 'control', label: '無線 DMX', connectors: [], wireless: true },
+  'wireless-video': {
+    category: 'video',
+    label: { en: 'Wireless video', ja: '無線映像' },
+    connectors: [],
+    wireless: true,
+  },
+  'wireless-dmx': {
+    category: 'control',
+    label: { en: 'Wireless DMX', ja: '無線 DMX' },
+    connectors: [],
+    wireless: true,
+  },
 
   // ── power ───────────────────────────────────────────────────────────────
   ac: { category: 'power', label: 'AC', connectors: ['IEC C13', 'IEC C14', 'NEMA'] },

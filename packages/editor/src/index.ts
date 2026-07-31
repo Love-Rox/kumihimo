@@ -19,3 +19,6 @@ export { ScheduleTable } from './ScheduleTable.js';
 export { download, downloadSvg, downloadPng } from './download.js';
 export { encodeSource, decodeSource, buildShareUrl, readSharedSource } from './share.js';
 export { sanitizeSvg } from './sanitize.js';
+
+export type { UiKey } from './messages.js';
+export { t } from './messages.js';

@@ -75,6 +75,7 @@ export async function runBuild(
     : formatReport(diagnostics, {
         file,
         source,
+        ...(options.locale === undefined ? {} : { locale: options.locale }),
         ...(options.color === undefined ? {} : { color: options.color }),
       });
 

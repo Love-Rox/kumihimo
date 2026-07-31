@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
+import type { CompatibilityResult } from '../src/compatibility.js';
 import { checkCompatibility } from '../src/compatibility.js';
+import { localise } from '../src/messages.js';
 import { BUILTIN_SIGNALS } from '../src/signals.js';
 
 function sig(name: string) {
   const s = BUILTIN_SIGNALS[name];
   if (!s) throw new Error(`missing builtin signal: ${name}`);
   return s;
+}
+
+/** A result's reason in the default language, or '' when it had none. */
+function reason(r: CompatibilityResult): string {
+  return r.reason === undefined ? '' : localise(r.reason);
 }
 
 describe('interchangeable signals', () => {
@@ -36,7 +43,7 @@ describe('connector confusions', () => {
   it('rejects HDBaseT patched into a network switch', () => {
     const r = checkCompatibility(sig('hdbaset'), sig('lan'));
     expect(r.verdict).toBe('incompatible');
-    expect(r.reason).toContain('Ethernet ではない');
+    expect(reason(r)).toContain('is not Ethernet');
   });
 
   it('rejects analogue RCA into an S/PDIF input', () => {
@@ -54,7 +61,7 @@ describe('connector confusions', () => {
   it('is not silenced by declaring an adapter', () => {
     const r = checkCompatibility(sig('hdbaset'), sig('lan'), { hasAdapter: true });
     expect(r.verdict).toBe('incompatible');
-    expect(r.reason).toContain('変換器を機器として配置');
+    expect(reason(r)).toContain('put a converter in as a device');
   });
 });
 
@@ -62,14 +69,14 @@ describe('passive adapters', () => {
   it('warns and names the cable when the adapter is undeclared', () => {
     const r = checkCompatibility(sig('hdmi'), sig('dvi'));
     expect(r.verdict).toBe('lossy');
-    expect(r.adapter).toBe('HDMI-DVI 変換ケーブル');
-    expect(r.reason).toContain('via');
+    expect(localise(r.adapter!)).toBe('HDMI-DVI cable');
+    expect(reason(r)).toContain('via');
   });
 
   it('clears once the adapter is declared, but still reports the part', () => {
     const r = checkCompatibility(sig('hdmi'), sig('dvi'), { hasAdapter: true });
     expect(r.verdict).toBe('ok');
-    expect(r.adapter).toBe('HDMI-DVI 変換ケーブル');
+    expect(localise(r.adapter!)).toBe('HDMI-DVI cable');
   });
 
   it('treats DisplayPort passive conversion as one-way', () => {
@@ -83,7 +90,7 @@ describe('lossy pairs', () => {
   it('warns when going balanced to unbalanced', () => {
     const r = checkCompatibility(sig('xlr'), sig('rca'));
     expect(r.verdict).toBe('lossy');
-    expect(r.reason).toContain('バランス→アンバランス');
+    expect(reason(r)).toContain('Balanced to unbalanced');
   });
 
   it('warns both ways on AES over analogue XLR', () => {
@@ -126,6 +133,6 @@ describe('fallback', () => {
   it('rejects SDI into HDMI and points at an active converter', () => {
     const r = checkCompatibility(sig('sdi'), sig('hdmi'));
     expect(r.verdict).toBe('incompatible');
-    expect(r.reason).toContain('変換器を機器として配置');
+    expect(reason(r)).toContain('Put a converter in as a device');
   });
 });

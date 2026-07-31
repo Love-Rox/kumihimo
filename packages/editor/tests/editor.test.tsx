@@ -35,7 +35,7 @@ describe('KumihimoEditor', () => {
   it('redraws as the source is edited', async () => {
     const user = userEvent.setup();
     const { container } = await renderEditor({ initialSource: 'device a "元" as generic' });
-    const box = screen.getByLabelText('kumihimo ソース');
+    const box = screen.getByLabelText('kumihimo source');
 
     await user.clear(box);
     await user.type(box, 'device a "新" as generic');
@@ -46,29 +46,29 @@ describe('KumihimoEditor', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     await renderEditor({ onChange });
-    await user.type(screen.getByLabelText('kumihimo ソース'), '\n');
+    await user.type(screen.getByLabelText('kumihimo source'), '\n');
     expect(onChange).toHaveBeenCalled();
   });
 
   it('shows a clean bill of health when there is nothing wrong', async () => {
     await renderEditor();
-    await waitFor(() => expect(screen.getByText('問題は見つかりませんでした')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Nothing to report')).toBeTruthy());
   });
 
   it('lists diagnostics for faulty wiring', async () => {
     await renderEditor({ initialSource: FAULTY });
-    await waitFor(() => expect(screen.getByLabelText('診断')).toBeTruthy());
-    expect(screen.getByText(/Ethernet ではない/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByLabelText('Diagnostics')).toBeTruthy());
+    expect(screen.getByText(/is not Ethernet/)).toBeTruthy();
   });
 
   it('moves the caret to the offending line when a diagnostic is clicked', async () => {
     const user = userEvent.setup();
     await renderEditor({ initialSource: FAULTY });
-    await waitFor(() => expect(screen.getByLabelText('診断')).toBeTruthy());
+    await waitFor(() => expect(screen.getByLabelText('Diagnostics')).toBeTruthy());
 
-    await user.click(screen.getByText(/Ethernet ではない/));
+    await user.click(screen.getByText(/is not Ethernet/));
 
-    const box = screen.getByLabelText('kumihimo ソース') as HTMLTextAreaElement;
+    const box = screen.getByLabelText('kumihimo source') as HTMLTextAreaElement;
     // The faulty link is the third line, so the selection must start beyond the first two.
     expect(box.selectionStart).toBeGreaterThan(FAULTY.indexOf('ext.CAT') - 1);
     expect(box.selectionEnd).toBeGreaterThan(box.selectionStart);
@@ -77,7 +77,7 @@ describe('KumihimoEditor', () => {
   it('switches to the cable schedule and lists the run', async () => {
     const user = userEvent.setup();
     await renderEditor();
-    await user.click(screen.getByRole('tab', { name: 'ケーブル表' }));
+    await user.click(screen.getByRole('tab', { name: 'Cables' }));
     expect(screen.getByText('V-01')).toBeTruthy();
     expect(screen.getByText('10m')).toBeTruthy();
   });
@@ -85,15 +85,50 @@ describe('KumihimoEditor', () => {
   it('lists devices in the equipment schedule', async () => {
     const user = userEvent.setup();
     await renderEditor();
-    await user.click(screen.getByRole('tab', { name: '機器表' }));
+    await user.click(screen.getByRole('tab', { name: 'Equipment' }));
     expect(screen.getByText('switcher')).toBeTruthy();
   });
 
   it('applies a theme change to the drawing', async () => {
     const user = userEvent.setup();
     const { container } = await renderEditor();
-    await user.selectOptions(screen.getByLabelText('テーマ'), 'dark');
+    await user.selectOptions(screen.getByLabelText('Theme'), 'dark');
     await waitFor(() => expect(container.innerHTML).toContain('#0f172a'));
+  });
+});
+
+describe('locale', () => {
+  it('puts its own words and the compiler’s in the same language', async () => {
+    // The failure this guards: a panel labelled in one language listing faults in
+    // another, which is what happens the moment the two are configured separately.
+    const user = userEvent.setup();
+    render(<KumihimoEditor initialSource={FAULTY} readUrl={false} locale="ja" />);
+
+    await waitFor(() => expect(screen.getByLabelText('診断')).toBeTruthy());
+    expect(screen.getByText(/Ethernet ではない/)).toBeTruthy();
+    expect(screen.getByLabelText('テーマ')).toBeTruthy();
+
+    await user.click(screen.getByRole('tab', { name: 'ケーブル表' }));
+    expect(screen.getByText('信号')).toBeTruthy();
+  });
+
+  it('names the same part in the schedule as the compatibility check does', async () => {
+    const user = userEvent.setup();
+    render(
+      <KumihimoEditor
+        initialSource={
+          'device pc as computer { out HDMI : hdmi }\n' +
+          'device mon as display { in DVI : dvi }\n' +
+          'pc.HDMI -> mon.DVI'
+        }
+        readUrl={false}
+        locale="ja"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: '変換部材' })).toBeTruthy());
+    await user.click(screen.getByRole('tab', { name: '変換部材' }));
+    expect(screen.getByText('HDMI-DVI 変換ケーブル')).toBeTruthy();
   });
 });
 

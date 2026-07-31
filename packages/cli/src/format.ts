@@ -6,7 +6,7 @@
  * underlined.
  */
 
-import type { Diagnostic, Severity } from '@love-rox/kumihimo-core';
+import type { Diagnostic, Locale, Severity } from '@love-rox/kumihimo-core';
 
 /** ANSI escape codes, or empty strings when colour is off. */
 interface Palette {
@@ -47,6 +47,8 @@ export interface FormatOptions {
   source?: string;
   /** Emit ANSI colour. Defaults to `false`. */
   color?: boolean;
+  /** Language for the report's own line. Defaults to English, as the compiler does. */
+  locale?: Locale;
 }
 
 function severityColor(severity: Severity, p: Palette): string {
@@ -136,7 +138,8 @@ export function formatReport(
 ): string {
   const p = options.color ? COLOR : PLAIN;
   if (diagnostics.length === 0) {
-    return `${p.green}✓${p.reset} 問題は見つかりませんでした`;
+    const clean = options.locale === 'ja' ? '問題は見つかりませんでした' : 'Nothing to report';
+    return `${p.green}✓${p.reset} ${clean}`;
   }
 
   const { errors, warnings, infos } = summarize(diagnostics);

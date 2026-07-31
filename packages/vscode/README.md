@@ -20,7 +20,7 @@ can physically work, and every verdict carries its reason.
 
 ```
 warning [signal-mismatch]  ext.CAT → netsw.1
-  HDBaseT は Cat ケーブルと RJ45 を使うが Ethernet ではない。スイッチには挿せない
+  HDBaseT uses Cat cable and RJ45 but is not Ethernet. It does not go into a switch
 ```
 
 That cable seats perfectly and carries nothing. So do `dmx`↔`xlr`, `rca`↔`spdif`,
@@ -37,6 +37,11 @@ connectors are shown beside each type, which is how `trs` (1/4") and `trs35` (3.
 told apart at the point of choosing.
 
 **Syntax highlighting** and the usual bracket and comment handling for `.khm`.
+
+**In your language.** The extension follows VS Code's display language, and so do the
+compiler's own sentences — a panel labelled in one language listing faults in another is
+worse than either language alone. English and Japanese are carried; anything else gets
+English.
 
 ## Settings
 

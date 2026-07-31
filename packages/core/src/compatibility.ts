@@ -23,6 +23,8 @@
  * per file, so a house convention is expressed in the diagram rather than in a fork.
  */
 
+import type { Locale, Localised } from './messages.js';
+import { DEFAULT_LOCALE, localise } from './messages.js';
 import type { SignalType } from './signals.js';
 
 /**
@@ -46,14 +48,14 @@ export interface CompatibilityResult {
    * Carried into the diagnostic message and into exported cable schedules, so the
    * reasoning survives into the document handed to whoever pulls the cable.
    */
-  reason?: string;
+  reason?: Localised;
   /**
    * Name of the passive adapter this link needs, when one is involved.
    *
    * Set whether or not the author declared it, so the renderer can mark the link and the
    * cable schedule can list the part either way.
    */
-  adapter?: string;
+  adapter?: Localised;
 }
 
 /**
@@ -108,7 +110,7 @@ export interface ConnectorConfusion {
   /** The connector they share, which is why the mistake is easy to make. */
   connector: string;
   /** What actually happens if you wire them together. */
-  reason: string;
+  reason: Localised;
 }
 
 /**
@@ -123,43 +125,64 @@ export const CONNECTOR_CONFUSIONS: readonly ConnectorConfusion[] = [
     a: 'hdbaset',
     b: 'lan',
     connector: 'RJ45',
-    reason: 'HDBaseT は Cat ケーブルと RJ45 を使うが Ethernet ではない。スイッチには挿せない',
+    reason: {
+      en: 'HDBaseT uses Cat cable and RJ45 but is not Ethernet. It does not go into a switch',
+      ja: 'HDBaseT は Cat ケーブルと RJ45 を使うが Ethernet ではない。スイッチには挿せない',
+    },
   },
   {
     a: 'dmx',
     b: 'xlr',
     connector: 'XLR',
-    reason: 'DMX は XLR を使うが調光制御であって音声ではない。相互に挿すと機材を傷める',
+    reason: {
+      en: 'DMX uses XLR but is lighting control, not audio. Wiring the two together damages equipment',
+      ja: 'DMX は XLR を使うが調光制御であって音声ではない。相互に挿すと機材を傷める',
+    },
   },
   {
     a: 'rca',
     b: 'spdif',
     connector: 'RCA',
-    reason: 'RCA を共有するだけ。アナログ音声を S/PDIF 入力に入れても何も出ない',
+    reason: {
+      en: 'They only share RCA. Analogue audio into a S/PDIF input produces nothing',
+      ja: 'RCA を共有するだけ。アナログ音声を S/PDIF 入力に入れても何も出ない',
+    },
   },
   {
     a: 'adat',
     b: 'spdif',
     connector: 'TOSLINK',
-    reason: 'TOSLINK を共有するだけ。ADAT と S/PDIF はプロトコルが違う',
+    reason: {
+      en: 'They only share TOSLINK. ADAT and S/PDIF are different protocols',
+      ja: 'TOSLINK を共有するだけ。ADAT と S/PDIF はプロトコルが違う',
+    },
   },
   {
     a: 'composite',
     b: 'component',
     connector: 'BNC / RCA',
-    reason: 'コンポジットは1線、コンポーネントは3線。繋がるが正しい絵にならない',
+    reason: {
+      en: 'Composite is one wire, component is three. It connects and the picture is wrong',
+      ja: 'コンポジットは1線、コンポーネントは3線。繋がるが正しい絵にならない',
+    },
   },
   {
     a: 'genlock',
     b: 'sdi',
     connector: 'BNC',
-    reason: 'BNC を共有するだけ。同期基準入力に映像を入れてもロックしない',
+    reason: {
+      en: 'They only share BNC. A reference input will not lock to video',
+      ja: 'BNC を共有するだけ。同期基準入力に映像を入れてもロックしない',
+    },
   },
   {
     a: 'wordclock',
     b: 'sdi',
     connector: 'BNC',
-    reason: 'BNC を共有するだけ。ワードクロック入力は映像を受け付けない',
+    reason: {
+      en: 'They only share BNC. A word clock input will not take video',
+      ja: 'BNC を共有するだけ。ワードクロック入力は映像を受け付けない',
+    },
   },
 ];
 
@@ -176,11 +199,11 @@ export interface PassiveAdapter {
   /** Signal type expected by the destination port. */
   to: string;
   /** What to order, in the words used on an invoice. */
-  cable: string;
+  cable: Localised;
   /** Whether the adapter also works with `from` and `to` swapped. Defaults to `true`. */
   symmetric?: boolean;
   /** Anything that bites in practice. */
-  caveat?: string;
+  caveat?: Localised;
 }
 
 /**
@@ -194,41 +217,56 @@ export const PASSIVE_ADAPTERS: readonly PassiveAdapter[] = [
   {
     from: 'hdmi',
     to: 'dvi',
-    cable: 'HDMI-DVI 変換ケーブル',
-    caveat: 'TMDS は共通だが音声と HDCP の扱いは機器依存',
+    cable: { en: 'HDMI-DVI cable', ja: 'HDMI-DVI 変換ケーブル' },
+    caveat: {
+      en: 'TMDS is common to both, but audio and HDCP depend on the equipment',
+      ja: 'TMDS は共通だが音声と HDCP の扱いは機器依存',
+    },
   },
   {
     from: 'dp',
     to: 'hdmi',
-    cable: 'DisplayPort-HDMI 変換（パッシブ）',
+    cable: { en: 'DisplayPort-HDMI adapter (passive)', ja: 'DisplayPort-HDMI 変換（パッシブ）' },
     symmetric: false,
-    caveat: 'ソースが Dual-Mode (DP++) の場合のみ。非対応ならアクティブ変換器が要る',
+    caveat: {
+      en: 'Only where the source is Dual-Mode (DP++). Otherwise it needs an active converter',
+      ja: 'ソースが Dual-Mode (DP++) の場合のみ。非対応ならアクティブ変換器が要る',
+    },
   },
   {
     from: 'dp',
     to: 'dvi',
-    cable: 'DisplayPort-DVI 変換（パッシブ）',
+    cable: { en: 'DisplayPort-DVI adapter (passive)', ja: 'DisplayPort-DVI 変換（パッシブ）' },
     symmetric: false,
-    caveat: 'ソースが Dual-Mode (DP++) の場合のみ',
+    caveat: {
+      en: 'Only where the source is Dual-Mode (DP++)',
+      ja: 'ソースが Dual-Mode (DP++) の場合のみ',
+    },
   },
   {
     from: 'aes',
     to: 'spdif',
-    cable: 'AES/EBU-S/PDIF 変換トランス',
-    caveat: '110Ω↔75Ω のインピーダンス変換が要る。直結は不可',
+    cable: { en: 'AES/EBU to S/PDIF transformer', ja: 'AES/EBU-S/PDIF 変換トランス' },
+    caveat: {
+      en: 'Needs the 110Ω to 75Ω impedance change. A direct connection will not do',
+      ja: '110Ω↔75Ω のインピーダンス変換が要る。直結は不可',
+    },
   },
   // Barrel size. Electrically the same thing; the plug simply does not fit the hole, which
   // is the most ordinary adapter on any cart and the easiest one to leave in the workshop.
   {
     from: 'trs',
     to: 'trs35',
-    cable: '3.5mm-6.3mm 変換プラグ',
+    cable: { en: '3.5mm to 6.3mm adapter', ja: '3.5mm-6.3mm 変換プラグ' },
   },
   {
     from: 'trrs',
     to: 'trrs35',
-    cable: '3.5mm-6.3mm 変換プラグ（4極）',
-    caveat: '3極用の変換プラグではマイクの極が繋がらない。4極対応品を指定すること',
+    cable: { en: '3.5mm to 6.3mm adapter (4-pole)', ja: '3.5mm-6.3mm 変換プラグ（4極）' },
+    caveat: {
+      en: 'A three-pole adapter leaves the microphone contact unconnected. Specify a four-pole one',
+      ja: '3極用の変換プラグではマイクの極が繋がらない。4極対応品を指定すること',
+    },
   },
 ];
 
@@ -264,7 +302,7 @@ export interface LossyPair {
   /** Signal type expected by the destination port. */
   to: string;
   /** What is given up. */
-  reason: string;
+  reason: Localised;
   /** Whether the caveat applies in both directions. Defaults to `false`. */
   symmetric?: boolean;
 }
@@ -282,53 +320,87 @@ export const LOSSY_PAIRS: readonly LossyPair[] = [
   {
     from: 'trrs35',
     to: 'trs35',
-    reason: '4極を3極ジャックへ。音声は通るがマイクは通らず、スリーブがリングに当たる',
+    reason: {
+      en: 'Four poles into a three-pole jack. Audio passes, the microphone does not, and the sleeve lands on the ring',
+      ja: '4極を3極ジャックへ。音声は通るがマイクは通らず、スリーブがリングに当たる',
+    },
   },
   {
     from: 'trs35',
     to: 'trrs35',
-    reason: '3極を4極ジャックへ。マイクの極が繋がらない',
+    reason: {
+      en: 'Three poles into a four-pole jack. The microphone contact is left unconnected',
+      ja: '3極を4極ジャックへ。マイクの極が繋がらない',
+    },
   },
   {
     from: 'trrs',
     to: 'trs',
-    reason: '4極を3極ジャックへ。音声は通るがマイクは通らず、スリーブがリングに当たる',
+    reason: {
+      en: 'Four poles into a three-pole jack. Audio passes, the microphone does not, and the sleeve lands on the ring',
+      ja: '4極を3極ジャックへ。音声は通るがマイクは通らず、スリーブがリングに当たる',
+    },
   },
   {
     from: 'trs',
     to: 'trrs',
-    reason: '3極を4極ジャックへ。マイクの極が繋がらない',
+    reason: {
+      en: 'Three poles into a four-pole jack. The microphone contact is left unconnected',
+      ja: '3極を4極ジャックへ。マイクの極が繋がらない',
+    },
   },
   {
     from: 'xlr',
     to: 'rca',
-    reason: 'バランス→アンバランス。レベルが下がりハムループに晒される',
+    reason: {
+      en: 'Balanced to unbalanced: level drop and hum-loop exposure',
+      ja: 'バランス→アンバランス。レベルが下がりハムループに晒される',
+    },
   },
   {
     from: 'trs',
     to: 'rca',
-    reason: 'バランス→アンバランス。レベルが下がりハムループに晒される',
+    reason: {
+      en: 'Balanced to unbalanced: level drop and hum-loop exposure',
+      ja: 'バランス→アンバランス。レベルが下がりハムループに晒される',
+    },
   },
   {
     from: 'rca',
     to: 'xlr',
-    reason: 'アンバランス→バランス。レベル不足になりやすい',
+    reason: {
+      en: 'Unbalanced to balanced: the level is easily too low',
+      ja: 'アンバランス→バランス。レベル不足になりやすい',
+    },
   },
   {
     from: 'rca',
     to: 'trs',
-    reason: 'アンバランス→バランス。レベル不足になりやすい',
+    reason: {
+      en: 'Unbalanced to balanced: the level is easily too low',
+      ja: 'アンバランス→バランス。レベル不足になりやすい',
+    },
   },
   {
     from: 'aes',
     to: 'xlr',
-    reason: 'AES/EBU は 110Ω、アナログ XLR は 600Ω 系。短距離なら通るが厳密には別物',
+    reason: {
+      en: 'AES/EBU is 110Ω, analogue XLR is a 600Ω system. Short runs work; they are not the same thing',
+      ja: 'AES/EBU は 110Ω、アナログ XLR は 600Ω 系。短距離なら通るが厳密には別物',
+    },
     symmetric: true,
   },
 ];
 
 /** How to check one link. */
 export interface CompatibilityOptions {
+  /**
+   * Language for any sentence this function composes itself.
+   *
+   * Table entries carry both languages and are chosen from later; the wording built around
+   * them — "needs X, declare it with via" — is assembled here and has to pick one now.
+   */
+  locale?: Locale;
   /** Author-supplied rules from `compat` declarations. Consulted before every table. */
   overrides?: readonly CompatibilityRule[];
   /**
@@ -358,8 +430,8 @@ function matchAdapter(adapter: PassiveAdapter, from: string, to: string): boolea
 
 function result(
   verdict: CompatibilityVerdict,
-  reason?: string,
-  adapter?: string,
+  reason?: Localised,
+  adapter?: Localised,
 ): CompatibilityResult {
   const out: CompatibilityResult = { verdict };
   if (reason !== undefined) out.reason = reason;
@@ -389,7 +461,7 @@ export function checkCompatibility(
   to: SignalType,
   options: CompatibilityOptions = {},
 ): CompatibilityResult {
-  const { overrides = [], hasAdapter = false } = options;
+  const { overrides = [], hasAdapter = false, locale = DEFAULT_LOCALE } = options;
   const a = from.name;
   const b = to.name;
 
@@ -406,33 +478,40 @@ export function checkCompatibility(
   // receiver, which is a powered box and therefore belongs in the diagram as a device.
   if (from.wireless !== to.wireless) {
     const [air, wire] = from.wireless ? [from, to] : [to, from];
-    return result(
-      'incompatible',
-      `${air.label} は無線区間なので ${wire.label} に直結できない。` +
-        `送受信機を機器として配置すること`,
-    );
+    return result('incompatible', {
+      en: `${localise(air.label, locale)} is a radio path and cannot meet ${localise(wire.label, locale)} directly. Put the transmitter or receiver in as a device`,
+      ja: `${localise(air.label, locale)} は無線区間なので ${localise(wire.label, locale)} に直結できない。送受信機を機器として配置すること`,
+    });
   }
 
   const confusion = CONNECTOR_CONFUSIONS.find(
     (c) => (c.a === a && c.b === b) || (c.a === b && c.b === a),
   );
   if (confusion) {
-    const reason = hasAdapter
-      ? `${confusion.reason}。変換ケーブルでは解決しないため、変換器を機器として配置すること`
-      : confusion.reason;
-    return result('incompatible', reason);
+    const why = localise(confusion.reason, locale);
+    if (!hasAdapter) return result('incompatible', confusion.reason);
+    // `via` was declared, and it does not help. Saying only "incompatible" here would read
+    // as if the adapter had been overlooked, when the point is that no cable is the answer.
+    return result('incompatible', {
+      en: `${why}. A converting lead does not fix this; put a converter in as a device`,
+      ja: `${why}。変換ケーブルでは解決しないため、変換器を機器として配置すること`,
+    });
   }
 
   const adapter = PASSIVE_ADAPTERS.find((p) => matchAdapter(p, a, b));
   if (adapter) {
-    const caveat = adapter.caveat ? `。${adapter.caveat}` : '';
-    return hasAdapter
-      ? result('ok', adapter.caveat, adapter.cable)
-      : result(
-          'lossy',
-          `${adapter.cable}が必要${caveat}。via で明示すると資材表に載る`,
-          adapter.cable,
-        );
+    if (hasAdapter) return result('ok', adapter.caveat, adapter.cable);
+
+    const part = localise(adapter.cable, locale);
+    const caveat = adapter.caveat ? localise(adapter.caveat, locale) : undefined;
+    return result(
+      'lossy',
+      {
+        en: `Needs ${part}${caveat ? `. ${caveat}` : ''}. Declare it with \`via\` and it lands on the parts list`,
+        ja: `${part}が必要${caveat ? `。${caveat}` : ''}。via で明示すると資材表に載る`,
+      },
+      adapter.cable,
+    );
   }
 
   const lossy = LOSSY_PAIRS.find((pair) => matchLossy(pair, a, b));
@@ -440,8 +519,8 @@ export function checkCompatibility(
 
   if (sharesGroup(a, b)) return result('ok');
 
-  return result(
-    'incompatible',
-    `${from.label} と ${to.label} は変換ケーブルでは接続できない。変換器を機器として配置すること`,
-  );
+  return result('incompatible', {
+    en: `${localise(from.label, locale)} and ${localise(to.label, locale)} cannot be joined by a cable. Put a converter in as a device`,
+    ja: `${localise(from.label, locale)} と ${localise(to.label, locale)} は変換ケーブルでは接続できない。変換器を機器として配置すること`,
+  });
 }

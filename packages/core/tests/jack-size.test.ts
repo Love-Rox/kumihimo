@@ -36,7 +36,7 @@ describe('different barrel, same signal', () => {
     const found = link('trs', 'trs35');
     expect(found).toHaveLength(1);
     expect(found[0]).toContain('adapter-required');
-    expect(found[0]).toContain('3.5mm-6.3mm');
+    expect(found[0]).toContain('3.5mm to 6.3mm adapter');
   });
 
   it('is satisfied once the adapter is declared', () => {
@@ -45,7 +45,7 @@ describe('different barrel, same signal', () => {
 
   it('warns that a 3-pole adapter will not do for a 4-pole run', () => {
     const found = link('trrs', 'trrs35');
-    expect(found[0]).toContain('4極対応品');
+    expect(found[0]).toContain('Specify a four-pole one');
   });
 });
 
@@ -53,16 +53,16 @@ describe('different pole count, same barrel', () => {
   it('says what is lost when four poles meet three', () => {
     const found = link('trrs35', 'trs35');
     expect(found).toHaveLength(1);
-    expect(found[0]).toContain('マイクは通らず');
+    expect(found[0]).toContain('the microphone does not');
   });
 
   it('says what is missing when three poles meet four', () => {
     const found = link('trs35', 'trrs35');
-    expect(found[0]).toContain('マイクの極が繋がらない');
+    expect(found[0]).toContain('The microphone contact is left unconnected');
   });
 
   it('applies at 1/4" as well as at 3.5mm', () => {
-    expect(link('trrs', 'trs')[0]).toContain('マイクは通らず');
+    expect(link('trrs', 'trs')[0]).toContain('the microphone does not');
   });
 });
 

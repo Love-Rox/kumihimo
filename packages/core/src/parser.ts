@@ -30,8 +30,16 @@ import type {
 } from './ast.js';
 import type { Diagnostic, SourceSpan } from './diagnostics.js';
 import { DiagnosticBag } from './diagnostics.js';
+import type { Locale, Localised, MessageKey, MessageParams } from './messages.js';
+import { DEFAULT_LOCALE, localise } from './messages.js';
 import type { Token, TokenType } from './lexer.js';
 import { tokenize } from './lexer.js';
+
+/** How to parse. */
+export interface ParseOptions {
+  /** Language for diagnostic messages. Defaults to English. */
+  locale?: Locale;
+}
 
 /** What {@link parse} returns. */
 export interface ParseResult {
@@ -47,11 +55,13 @@ class RecoverError extends Error {}
 class Parser {
   readonly #tokens: Token[];
   readonly #bag: DiagnosticBag;
+  readonly #locale: Locale;
   #index = 0;
 
-  constructor(tokens: Token[], bag: DiagnosticBag) {
+  constructor(tokens: Token[], bag: DiagnosticBag, locale: Locale) {
     this.#tokens = tokens;
     this.#bag = bag;
+    this.#locale = locale;
   }
 
   #peek(ahead = 0): Token {
@@ -73,14 +83,21 @@ class Parser {
     return this.#at(type, value) ? this.#next() : undefined;
   }
 
-  #fail(message: string, span?: SourceSpan): never {
-    this.#bag.report('parse-error', message, span ?? this.#peek().span);
+  #fail(key: MessageKey, params: MessageParams = {}, span?: SourceSpan): never {
+    this.#bag.report('parse-error', key, params, span ?? this.#peek().span);
     throw new RecoverError();
   }
 
-  #expect(type: TokenType, what: string): Token {
+  /**
+   * Consume a token of the given type, or give up on this statement.
+   *
+   * @param type - The token type required here.
+   * @param what - What to call it in the message. A symbol like \`:\` is written once and
+   *   reads the same in any language; a noun needs both.
+   */
+  #expect(type: TokenType, what: Localised): Token {
     const token = this.#accept(type);
-    if (!token) this.#fail(`${what}が必要です`);
+    if (!token) this.#fail('parse.expected', { what: localise(what, this.#locale) });
     return token;
   }
 
@@ -112,7 +129,7 @@ class Parser {
       this.#next();
       return { kind: 'ident', value: token.value, span: token.span };
     }
-    this.#fail('値が必要です');
+    this.#fail('parse.value');
   }
 
   #span(start: Token): SourceSpan {
@@ -129,7 +146,7 @@ class Parser {
     if (!this.#accept('lbrace')) return entries;
     this.#skipSeparators();
     while (!this.#at('rbrace') && !this.#at('eof')) {
-      const key = this.#expect('ident', 'オプション名');
+      const key = this.#expect('ident', { en: 'An option name', ja: 'オプション名' });
       this.#expect('colon', '`:`');
       const value = this.#literal();
       entries.push({ key: key.value, value, span: this.#span(key) });
@@ -146,7 +163,7 @@ class Parser {
     if (!this.#accept('lbracket')) return entries;
     this.#skipNewlines();
     while (!this.#at('rbracket') && !this.#at('eof')) {
-      const key = this.#expect('ident', '属性名');
+      const key = this.#expect('ident', { en: 'An attribute name', ja: '属性名' });
       this.#expect('equals', '`=`');
       const value = this.#literal();
       entries.push({ key: key.value, value, span: this.#span(key) });
@@ -171,9 +188,10 @@ class Parser {
 
   #signal(): SignalDecl {
     const start = this.#next(); // `signal`
-    const name = this.#expect('ident', '信号種別名');
+    const name = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' });
     let category: string | undefined;
-    if (this.#accept('colon')) category = this.#expect('ident', 'カテゴリ名').value;
+    if (this.#accept('colon'))
+      category = this.#expect('ident', { en: 'A category name', ja: 'カテゴリ名' }).value;
     const options = this.#optionBlock();
     const node: SignalDecl = { type: 'signal', name: name.value, options, span: this.#span(start) };
     if (category !== undefined) node.category = category;
@@ -182,11 +200,14 @@ class Parser {
 
   #compat(): CompatDecl {
     const start = this.#next(); // `compat`
-    const from = this.#expect('ident', '信号種別名');
-    if (!this.#accept('arrow')) this.#fail('`->` が必要です');
-    const to = this.#expect('ident', '信号種別名');
+    const from = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' });
+    if (!this.#accept('arrow')) this.#fail('parse.arrow');
+    const to = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' });
     this.#expect('colon', '`:`');
-    const verdict = this.#expect('ident', '判定 (ok / lossy / incompatible)');
+    const verdict = this.#expect('ident', {
+      en: 'A verdict (ok / lossy / incompatible)',
+      ja: '判定 (ok / lossy / incompatible)',
+    });
     const reason = this.#accept('string');
     const attrs = this.#attrList();
     const node: CompatDecl = {
@@ -206,7 +227,7 @@ class Parser {
 
     if (token.type === 'number') {
       if (this.#accept('range')) {
-        const to = this.#expect('number', '範囲の終端');
+        const to = this.#expect('number', { en: 'The end of the range', ja: '範囲の終端' });
         return {
           kind: 'range',
           from: Number(token.value),
@@ -219,9 +240,9 @@ class Parser {
 
     if (token.type === 'ident') {
       if (this.#accept('lbracket')) {
-        const from = this.#expect('number', '範囲の始端');
+        const from = this.#expect('number', { en: 'The start of the range', ja: '範囲の始端' });
         this.#expect('range', '`..`');
-        const to = this.#expect('number', '範囲の終端');
+        const to = this.#expect('number', { en: 'The end of the range', ja: '範囲の終端' });
         this.#expect('rbracket', '`]`');
         return {
           kind: 'template',
@@ -234,7 +255,7 @@ class Parser {
       return { kind: 'name', value: token.value, span: token.span };
     }
 
-    this.#fail('ポート名が必要です', token.span);
+    this.#fail('parse.port-name', {}, token.span);
   }
 
   #portDecl(): PortDecl {
@@ -248,10 +269,10 @@ class Parser {
     // is drawn as, so the order the author wrote them in is kept.
     const signals: string[] = [];
     if (this.#accept('colon')) {
-      signals.push(this.#expect('ident', '信号種別名').value);
+      signals.push(this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' }).value);
       while (this.#accept('pipe')) {
         this.#skipNewlines();
-        signals.push(this.#expect('ident', '信号種別名').value);
+        signals.push(this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' }).value);
       }
     }
 
@@ -278,14 +299,14 @@ class Parser {
     const token = this.#next();
     const count = Number(token.value);
     if (!Number.isFinite(count) || count < 1) {
-      this.#fail('`gap` の数は 1 以上が必要です', token.span);
+      this.#fail('parse.gap-count', {}, token.span);
     }
     return count;
   }
 
   #meta(): MetaEntry {
     const start = this.#next(); // `@`
-    const key = this.#expect('ident', 'メタ情報のキー');
+    const key = this.#expect('ident', { en: 'A metadata key', ja: 'メタ情報のキー' });
     const value = this.#literal();
     return { key: key.value, value, span: this.#span(start) };
   }
@@ -293,19 +314,24 @@ class Parser {
   /** Shared body parser for `device` and `model`, which declare the same things. */
   #equipment(keyword: 'device' | 'model'): DeviceDecl | ModelDecl {
     const start = this.#next(); // `device` or `model`
-    const id = this.#expect('ident', keyword === 'device' ? '機器 id' : 'モデル id');
+    const id = this.#expect(
+      'ident',
+      keyword === 'device'
+        ? { en: 'A device id', ja: '機器 id' }
+        : { en: 'A model id', ja: 'モデル id' },
+    );
 
     let model: string | undefined;
     if (keyword === 'device' && this.#at('ident', 'from')) {
       this.#next();
-      model = this.#expect('ident', 'モデル id').value;
+      model = this.#expect('ident', { en: 'A model id', ja: 'モデル id' }).value;
     }
 
     const label = this.#accept('string');
     let kind: string | undefined;
     if (this.#at('ident', 'as')) {
       this.#next();
-      kind = this.#expect('ident', '機器種別').value;
+      kind = this.#expect('ident', { en: 'A device kind', ja: '機器種別' }).value;
     }
 
     const ports: PortDecl[] = [];
@@ -330,7 +356,7 @@ class Parser {
           } else if (this.#at('at')) {
             meta.push(this.#meta());
           } else {
-            this.#fail('`in` / `out` / `io` / `gap` / `@キー` のいずれかが必要です');
+            this.#fail('parse.device-body');
           }
         } catch (error) {
           if (!(error instanceof RecoverError)) throw error;
@@ -356,13 +382,16 @@ class Parser {
 
   #use(): UseDecl {
     const start = this.#next(); // `use`
-    const path = this.#expect('string', '取り込むファイルのパス');
+    const path = this.#expect('string', {
+      en: 'The path of the file to import',
+      ja: '取り込むファイルのパス',
+    });
     return { type: 'use', path: path.value, span: this.#span(start) };
   }
 
   #group(): GroupDecl {
     const start = this.#next(); // `group`
-    const id = this.#expect('ident', 'グループ id');
+    const id = this.#expect('ident', { en: 'A group id', ja: 'グループ id' });
     const label = this.#accept('string');
     const statements: Statement[] = [];
     if (this.#accept('lbrace')) {
@@ -382,14 +411,14 @@ class Parser {
   // ── connections ───────────────────────────────────────────────────────────
 
   #portRef(): PortRef {
-    const device = this.#expect('ident', '機器 id');
+    const device = this.#expect('ident', { en: 'A device id', ja: '機器 id' });
     const ports: string[] = [];
     if (this.#accept('dot')) {
       if (this.#accept('lparen')) {
         this.#skipNewlines();
         while (!this.#at('rparen') && !this.#at('eof')) {
           const name = this.#peek();
-          if (name.type !== 'ident' && name.type !== 'number') this.#fail('ポート名が必要です');
+          if (name.type !== 'ident' && name.type !== 'number') this.#fail('parse.port-name');
           this.#next();
           ports.push(name.value);
           this.#skipNewlines();
@@ -399,7 +428,7 @@ class Parser {
         this.#expect('rparen', '`)`');
       } else {
         const name = this.#peek();
-        if (name.type !== 'ident' && name.type !== 'number') this.#fail('ポート名が必要です');
+        if (name.type !== 'ident' && name.type !== 'number') this.#fail('parse.port-name');
         this.#next();
         ports.push(name.value);
       }
@@ -411,7 +440,7 @@ class Parser {
     const start = this.#peek();
     const from = this.#portRef();
     const arrow = this.#accept('arrow');
-    if (!arrow) this.#fail('`->` / `<->` / `--` のいずれかが必要です');
+    if (!arrow) this.#fail('parse.any-arrow');
     const to = this.#portRef();
 
     let signal: string | undefined;
@@ -420,7 +449,8 @@ class Parser {
     let via: string | undefined;
     let attrs: AttrEntry[] = [];
 
-    if (this.#accept('colon')) signal = this.#expect('ident', '信号種別名').value;
+    if (this.#accept('colon'))
+      signal = this.#expect('ident', { en: 'A signal type name', ja: '信号種別名' }).value;
 
     // Modifiers are order-independent, so loop until nothing more applies.
     for (;;) {
@@ -434,7 +464,7 @@ class Parser {
       }
       if (this.#at('ident', 'via')) {
         this.#next();
-        via = this.#expect('string', '変換部材名').value;
+        via = this.#expect('string', { en: 'The name of the adapter', ja: '変換部材名' }).value;
         continue;
       }
       if (this.#at('lbracket')) {
@@ -471,7 +501,7 @@ class Parser {
       if (this.#at('ident', 'use')) return this.#use();
       if (this.#at('ident', 'group')) return this.#group();
       if (this.#at('ident')) return this.#connection();
-      this.#fail('文の先頭が解釈できません');
+      this.#fail('parse.statement');
     } catch (error) {
       if (!(error instanceof RecoverError)) throw error;
       this.#recover();
@@ -499,21 +529,23 @@ class Parser {
  * from the tree; every other statement still parses.
  *
  * @param source - The `.khm` text to parse.
+ * @param options - Message language.
  * @returns The document and any diagnostics raised while producing it.
  */
-export function parse(source: string): ParseResult {
-  const bag = new DiagnosticBag();
+export function parse(source: string, options: ParseOptions = {}): ParseResult {
+  const bag = new DiagnosticBag({}, options.locale ?? DEFAULT_LOCALE);
   const tokens = tokenize(source);
 
   for (const token of tokens) {
     if (token.type === 'invalid') {
-      bag.report('parse-error', `解釈できない字句: ${token.value}`, token.span);
+      bag.report('parse-error', 'parse.token', { token: token.value }, token.span);
     }
   }
 
   const document = new Parser(
     tokens.filter((t) => t.type !== 'invalid'),
     bag,
+    options.locale ?? DEFAULT_LOCALE,
   ).parse();
 
   return { document, diagnostics: bag.all };

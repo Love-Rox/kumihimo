@@ -24,6 +24,8 @@ import type {
 import type { CompatibilityRule, CompatibilityVerdict } from './compatibility.js';
 import { checkCompatibility } from './compatibility.js';
 import type { Diagnostic, SeverityConfig, SourceSpan } from './diagnostics.js';
+import type { Locale, Localised, MessageKey } from './messages.js';
+import { DEFAULT_LOCALE, formatMessage, localise } from './messages.js';
 import { DiagnosticBag } from './diagnostics.js';
 import type { Device, Diagram, FlowDirection, Group, Link, Port } from './model.js';
 import { DEVICE_KINDS } from './model.js';
@@ -47,6 +49,30 @@ export interface BuildResult {
 export interface BuildOptions {
   /** Per-rule severity overrides layered over the defaults. */
   severities?: SeverityConfig;
+  /**
+   * Language for the diagnostics this build produces. Defaults to English.
+   *
+   * Each diagnostic also carries the key and the values it was built from, so a caller that
+   * wants another language later does not have to build the diagram again.
+   */
+  locale?: Locale;
+}
+
+/**
+ * The reason a verdict gives, or the stock sentence for verdicts that give none.
+ *
+ * A rule that explains itself is quoted; one that does not still has to say something, and
+ * a bare "types differ" is the least the author can be told.
+ *
+ * @param result - The verdict being reported.
+ * @param fallback - Catalogue key to use when the verdict carries no reason.
+ * @param locale - Language to render in.
+ * @returns The sentence to put in the diagnostic.
+ */
+function reasonOf(result: { reason?: Localised }, fallback: MessageKey, locale: Locale): string {
+  return result.reason === undefined
+    ? formatMessage(fallback, {}, locale)
+    : localise(result.reason, locale);
 }
 
 const VERDICTS: readonly string[] = ['ok', 'lossy', 'incompatible'];
@@ -73,16 +99,16 @@ function expandPortSpec(item: PortSpecItem, bag: DiagnosticBag): string[] {
 
   const { from, to } = item;
   if (!Number.isInteger(from) || !Number.isInteger(to)) {
-    bag.report('invalid-port-spec', '範囲の端は整数である必要があります', item.span);
+    bag.report('invalid-port-spec', 'range.integer', {}, item.span);
     return [];
   }
   if (to < from) {
-    bag.report('invalid-port-spec', `範囲 ${from}..${to} は始端が終端より大きい`, item.span);
+    bag.report('invalid-port-spec', 'range.order', { from, to }, item.span);
     return [];
   }
   // A typo like `1..1000` would otherwise silently produce a thousand ports.
   if (to - from > 512) {
-    bag.report('invalid-port-spec', `範囲 ${from}..${to} が大きすぎます (上限 512)`, item.span);
+    bag.report('invalid-port-spec', 'range.too-large', { from, to, limit: 512 }, item.span);
     return [];
   }
 
@@ -119,7 +145,8 @@ class Collector {
               } else {
                 this.bag.report(
                   'invalid-value',
-                  `direction は LR か TB のいずれかです: ${option.value.value}`,
+                  'value.direction',
+                  { value: option.value.value },
                   option.span,
                 );
               }
@@ -177,7 +204,7 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
       if (CATEGORIES.includes(decl.category)) {
         category = decl.category as SignalCategory;
       } else {
-        bag.report('invalid-value', `未知のカテゴリ: ${decl.category}`, decl.span);
+        bag.report('invalid-value', 'value.category', { value: decl.category }, decl.span);
       }
     }
 
@@ -204,7 +231,7 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
           if (resolved) {
             signal.color = resolved;
           } else {
-            bag.report('invalid-value', `色として解釈できません: ${value}`, option.span);
+            bag.report('invalid-value', 'value.colour', { value }, option.span);
           }
           break;
         }
@@ -216,7 +243,7 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
           if (Number.isFinite(width) && width > 0) {
             signal.width = width;
           } else {
-            bag.report('invalid-value', `width は正の数値です: ${value}`, option.span);
+            bag.report('invalid-value', 'value.width', { value }, option.span);
           }
           break;
         }
@@ -224,11 +251,7 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
           if (LINE_STYLES.includes(value)) {
             signal.style = value as LineStyle;
           } else {
-            bag.report(
-              'invalid-value',
-              `style は solid / dashed / dotted です: ${value}`,
-              option.span,
-            );
+            bag.report('invalid-value', 'value.style', { value }, option.span);
           }
           break;
         case 'bidirectional':
@@ -238,7 +261,7 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
           signal.wireless = value === 'true';
           break;
         default:
-          bag.report('invalid-value', `未知の signal オプション: ${option.key}`, option.span);
+          bag.report('invalid-value', 'value.signal-option', { key: option.key }, option.span);
       }
     }
 
@@ -254,11 +277,7 @@ function buildCompatRules(decls: readonly CompatDecl[], bag: DiagnosticBag): Com
 
   for (const decl of decls) {
     if (!VERDICTS.includes(decl.verdict)) {
-      bag.report(
-        'invalid-value',
-        `判定は ok / lossy / incompatible のいずれかです: ${decl.verdict}`,
-        decl.span,
-      );
+      bag.report('invalid-value', 'value.verdict', { value: decl.verdict }, decl.span);
       continue;
     }
 
@@ -305,7 +324,7 @@ class DeviceTable {
   declare(decl: DeviceDecl, groupId: string | undefined): Device {
     const existing = this.byId.get(decl.id);
     if (existing && !existing.implicit) {
-      this.bag.report('duplicate-id', `機器 id が重複しています: ${decl.id}`, decl.span);
+      this.bag.report('duplicate-id', 'device.duplicate-id', { id: decl.id }, decl.span);
       return existing;
     }
 
@@ -327,7 +346,12 @@ class DeviceTable {
       if (DEVICE_KINDS.includes(decl.kind)) {
         device.kind = decl.kind;
       } else {
-        this.bag.report('unknown-device-kind', `未知の機器種別: ${decl.kind}`, decl.span);
+        this.bag.report(
+          'unknown-device-kind',
+          'device.unknown-kind',
+          { kind: decl.kind },
+          decl.span,
+        );
       }
     }
 
@@ -343,7 +367,7 @@ class DeviceTable {
     const existing = this.byId.get(id);
     if (existing) return existing;
 
-    this.bag.report('implicit-device', `宣言されていない機器を参照しています: ${id}`, span);
+    this.bag.report('implicit-device', 'device.implicit', { id }, span);
     const device: Device = {
       id,
       label: id,
@@ -381,11 +405,7 @@ class DeviceTable {
       let n = 1;
       while (device.ports.some((p) => p.name === `${prefix}${n}`)) n += 1;
       const generated = `${prefix}${n}`;
-      this.bag.report(
-        'implicit-port',
-        `ポートが指定されていないため ${device.id}.${generated} を生成しました`,
-        span,
-      );
+      this.bag.report('implicit-port', 'port.generated', { id: `${device.id}.${generated}` }, span);
       return this.addPort(device, {
         id: `${device.id}.${generated}`,
         name: generated,
@@ -398,11 +418,7 @@ class DeviceTable {
     const existing = device.ports.find((p) => p.name === name);
     if (existing) return existing;
 
-    this.bag.report(
-      'implicit-port',
-      `宣言されていないポートを参照しています: ${device.id}.${name}`,
-      span,
-    );
+    this.bag.report('implicit-port', 'port.implicit', { id: `${device.id}.${name}` }, span);
     return this.addPort(device, {
       id: `${device.id}.${name}`,
       name,
@@ -426,7 +442,8 @@ function pairEnds(
   if (left.length !== right.length) {
     bag.report(
       'invalid-port-spec',
-      `両端のポート数が一致しません (${left.length} 対 ${right.length})`,
+      'ports.count-mismatch',
+      { left: left.length, right: right.length },
       span,
     );
     return [];
@@ -446,7 +463,8 @@ function pairEnds(
  * @returns The diagram and any diagnostics raised while building it.
  */
 export function buildModel(document: Document, options: BuildOptions = {}): BuildResult {
-  const bag = new DiagnosticBag(options.severities ?? {});
+  const locale = options.locale ?? DEFAULT_LOCALE;
+  const bag = new DiagnosticBag(options.severities ?? {}, locale);
 
   const collector = new Collector(bag);
   collector.collect(document.statements);
@@ -464,7 +482,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
     if (decl.model !== undefined) {
       base = collector.models.get(decl.model);
       if (!base) {
-        bag.report('unknown-model', `未定義のモデルです: ${decl.model}`, decl.span);
+        bag.report('unknown-model', 'device.unknown-model', { name: decl.model }, decl.span);
       }
     }
 
@@ -503,7 +521,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
           // accepting the half of the declaration that happened to be spelled right.
           const accepted = (portDecl.signals ?? []).filter((declared) => {
             if (signals[declared]) return true;
-            bag.report('unknown-signal', `未定義の信号種別: ${declared}`, portDecl.span);
+            bag.report('unknown-signal', 'signal.unknown', { name: declared }, portDecl.span);
             return false;
           });
 
@@ -536,7 +554,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
 
       let signalName = stmt.signal;
       if (signalName !== undefined && !signals[signalName]) {
-        bag.report('unknown-signal', `未定義の信号種別: ${signalName}`, stmt.span);
+        bag.report('unknown-signal', 'signal.unknown', { name: signalName }, stmt.span);
         signalName = undefined;
       }
 
@@ -551,23 +569,16 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       const compatibility = checkCompatibility(fromSignal, toSignal, {
         overrides: compatRules,
         hasAdapter: stmt.via !== undefined,
+        locale,
       });
 
       // Direction. Implicit ports have no declared direction, so they never conflict.
       if (stmt.arrow === '->' && !fromPort.implicit && !toPort.implicit) {
         if (fromPort.direction === 'in') {
-          bag.report(
-            'direction-mismatch',
-            `${fromPort.id} は入力ポートなので送出できません`,
-            stmt.span,
-          );
+          bag.report('direction-mismatch', 'link.direction-out', { id: fromPort.id }, stmt.span);
         }
         if (toPort.direction === 'out') {
-          bag.report(
-            'direction-mismatch',
-            `${toPort.id} は出力ポートなので受けられません`,
-            stmt.span,
-          );
+          bag.report('direction-mismatch', 'link.direction-in', { id: toPort.id }, stmt.span);
         }
       }
 
@@ -576,14 +587,24 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         const code = stmt.via !== undefined ? 'adapter-insufficient' : 'signal-mismatch';
         bag.report(
           code,
-          `${fromPort.id} → ${toPort.id}: ${compatibility.reason ?? '信号種別が一致しません'}`,
+          'link.verdict',
+          {
+            from: fromPort.id,
+            to: toPort.id,
+            reason: reasonOf(compatibility, 'verdict.mismatch', locale),
+          },
           stmt.span,
         );
       } else if (compatibility.verdict === 'lossy') {
         const code = compatibility.adapter !== undefined ? 'adapter-required' : 'signal-mismatch';
         bag.report(
           code,
-          `${fromPort.id} → ${toPort.id}: ${compatibility.reason ?? '接続に注意が必要です'}`,
+          'link.verdict',
+          {
+            from: fromPort.id,
+            to: toPort.id,
+            reason: reasonOf(compatibility, 'verdict.caution', locale),
+          },
           stmt.span,
         );
       }
@@ -593,7 +614,8 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       if (seenPairs.has(key)) {
         bag.report(
           'duplicate-connection',
-          `同じ結線が重複しています: ${key.replace(' ', ' → ')}`,
+          'link.duplicate',
+          { pair: key.replace(' ', ' → ') },
           stmt.span,
         );
       }
@@ -603,7 +625,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         const count = (inboundCount.get(toPort.id) ?? 0) + 1;
         inboundCount.set(toPort.id, count);
         if (count > 1) {
-          bag.report('port-overbooked', `${toPort.id} に複数の入力が結線されています`, stmt.span);
+          bag.report('port-overbooked', 'link.overbooked', { id: toPort.id }, stmt.span);
         }
       }
 
@@ -628,15 +650,11 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       const wireless = fromSignal.wireless || toSignal.wireless;
       if (wireless) {
         if (stmt.length !== undefined) {
-          bag.report(
-            'invalid-value',
-            `無線区間にケーブル長は指定できません: ${stmt.length}`,
-            stmt.span,
-          );
+          bag.report('invalid-value', 'link.wireless-length', { value: stmt.length }, stmt.span);
           delete link.length;
         }
         if (stmt.via !== undefined) {
-          bag.report('invalid-value', '無線区間に変換ケーブルは挟めません', stmt.span);
+          bag.report('invalid-value', 'link.wireless-via', {}, stmt.span);
           delete link.via;
         }
         const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
@@ -651,11 +669,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         if (color) {
           link.color = color;
         } else {
-          bag.report(
-            'invalid-value',
-            `色として解釈できません: ${written.value.value}`,
-            written.span,
-          );
+          bag.report('invalid-value', 'value.colour', { value: written.value.value }, written.span);
         }
       }
 
@@ -673,7 +687,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
     const device = table.byId.get(id)!;
     for (const port of device.ports) {
       if (!port.implicit && !wired.has(port.id)) {
-        bag.report('unconnected-port', `どこにも結線されていません: ${port.id}`, port.span);
+        bag.report('unconnected-port', 'port.unconnected', { id: port.id }, port.span);
       }
     }
   }

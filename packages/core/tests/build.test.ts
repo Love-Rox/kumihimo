@@ -129,13 +129,13 @@ describe('compatibility on real links', () => {
   it('flags a connector confusion with its reason', () => {
     const { diagnostics } = build(`${decls} src.D -> dst.D`);
     const hit = diagnostics.find((d) => d.code === 'signal-mismatch');
-    expect(hit?.message).toContain('Ethernet ではない');
+    expect(hit?.message).toContain('is not Ethernet');
   });
 
   it('warns that an adapter is needed and names it', () => {
     const { diagnostics } = build(`${decls} src.E -> dst.F`);
     const hit = diagnostics.find((d) => d.code === 'adapter-required');
-    expect(hit?.message).toContain('変換');
+    expect(hit?.message).toContain('DisplayPort-DVI adapter');
   });
 
   it('clears once via declares the adapter', () => {
@@ -294,6 +294,6 @@ describe('unconnected ports', () => {
     const { diagnostics } = buildModel(document, {
       severities: { 'unconnected-port': 'warning' },
     });
-    expect(diagnostics.map((d) => d.message)).toEqual(['どこにも結線されていません: a.Y']);
+    expect(diagnostics.map((d) => d.message)).toEqual(['Wired to nothing: a.Y']);
   });
 });

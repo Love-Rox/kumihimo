@@ -2,10 +2,12 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { Diagnostic, DiagnosticCode, Severity } from '@love-rox/kumihimo-core';
 import { describe, expect, it } from 'vitest';
 
 import { runBuild, runCheck } from '../src/commands.js';
 import { runExport } from '../src/export.js';
+import { resolveLocale } from '../src/locale.js';
 import { formatDiagnostic, formatReport, summarize } from '../src/format.js';
 
 const CLEAN = `
@@ -37,7 +39,7 @@ describe('runBuild', () => {
     expect(result.exitCode).toBe(0);
     expect(result.written).toBe(out);
     expect(await readFile(out, 'utf8')).toContain('<svg');
-    expect(result.report).toContain('問題は見つかりませんでした');
+    expect(result.report).toContain('Nothing to report');
   });
 
   it('creates the output directory when it does not exist', async () => {
@@ -88,13 +90,24 @@ describe('runCheck', () => {
   });
 });
 
+/**
+ * A diagnostic built by hand, for the formatter's own tests.
+ *
+ * The formatter works on the shape rather than on where it came from, so these do not go
+ * through a compile. `key` and `params` are what a caller re-renders a message from, so
+ * they are required on the type and have to be supplied even here.
+ */
+function diagnostic(code: DiagnosticCode, severity: Severity, message: string): Diagnostic {
+  return { code, severity, message, key: 'parse.statement', params: {} };
+}
+
 describe('formatting', () => {
   it('quotes the offending line and underlines the span', async () => {
     const { path } = await withFile(BROKEN);
     const { report } = await runCheck(path);
     expect(report).toContain('ext.CAT -> net.1');
     expect(report).toContain('~');
-    expect(report).toContain('Ethernet ではない');
+    expect(report).toContain('is not Ethernet');
   });
 
   it('includes file, line and column', async () => {
@@ -113,21 +126,22 @@ describe('formatting', () => {
   it('counts diagnostics by severity', () => {
     expect(
       summarize([
-        { code: 'parse-error', severity: 'error', message: 'a' },
-        { code: 'signal-mismatch', severity: 'warning', message: 'b' },
-        { code: 'signal-mismatch', severity: 'warning', message: 'c' },
+        diagnostic('parse-error', 'error', 'a'),
+        diagnostic('signal-mismatch', 'warning', 'b'),
+        diagnostic('signal-mismatch', 'warning', 'c'),
       ]),
     ).toEqual({ errors: 1, warnings: 2, infos: 0 });
   });
 
   it('formats a diagnostic without a span', () => {
-    const text = formatDiagnostic({ code: 'parse-error', severity: 'error', message: 'だめ' });
-    expect(text).toContain('だめ');
+    const text = formatDiagnostic(diagnostic('parse-error', 'error', 'Unreadable'));
+    expect(text).toContain('Unreadable');
     expect(text).toContain('parse-error');
   });
 
   it('says so when there is nothing to report', () => {
-    expect(formatReport([])).toContain('問題は見つかりませんでした');
+    expect(formatReport([])).toContain('Nothing to report');
+    expect(formatReport([], { locale: 'ja' })).toContain('問題は見つかりませんでした');
   });
 });
 
@@ -173,5 +187,26 @@ describe('runExport', () => {
   it('reports diagnostics alongside the export', async () => {
     const { path } = await withFile(BROKEN);
     expect((await runExport(path, 'drawio')).diagnostics.length).toBeGreaterThan(0);
+  });
+});
+
+describe('resolveLocale', () => {
+  it('takes what was written on the command line', () => {
+    expect(resolveLocale('ja', {})).toBe('ja');
+    expect(resolveLocale('en', { LANG: 'ja_JP.UTF-8' })).toBe('en');
+  });
+
+  it('falls back to the shell, so an upgrade does not change anyone’s language', () => {
+    // This command shipped speaking Japanese. Defaulting to English on a Japanese machine
+    // would read as a regression, whatever the library default is.
+    expect(resolveLocale(undefined, { LANG: 'ja_JP.UTF-8' })).toBe('ja');
+    expect(resolveLocale(undefined, { LC_ALL: 'ja_JP.UTF-8', LANG: 'en_GB' })).toBe('ja');
+    expect(resolveLocale(undefined, { LC_MESSAGES: 'ja', LANG: 'en_GB' })).toBe('ja');
+  });
+
+  it('answers in English for anything the catalogue does not carry', () => {
+    expect(resolveLocale(undefined, { LANG: 'pt_BR.UTF-8' })).toBe('en');
+    expect(resolveLocale(undefined, { LANG: 'C' })).toBe('en');
+    expect(resolveLocale(undefined, {})).toBe('en');
   });
 });

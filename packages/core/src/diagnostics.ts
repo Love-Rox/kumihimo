@@ -6,6 +6,9 @@
  * usable diagram while the author is mid-keystroke.
  */
 
+import type { Locale, MessageKey, MessageParams } from './messages.js';
+import { DEFAULT_LOCALE, formatMessage } from './messages.js';
+
 /** A single point in a source file. */
 export interface Position {
   /** Zero-based offset in UTF-16 code units from the start of the file. */
@@ -81,8 +84,18 @@ export interface Diagnostic {
   code: DiagnosticCode;
   /** How loudly to report it. */
   severity: Severity;
-  /** Human readable, one line, no trailing period. */
+  /** Human readable, one line, no trailing period, in the locale the compile was given. */
   message: string;
+  /**
+   * Which sentence this is, before a language was chosen.
+   *
+   * Carried alongside the rendered text so a caller can say it again in another language
+   * without compiling the diagram twice — which is what an editor has to do when its
+   * display language is not the one the build used.
+   */
+  key: MessageKey;
+  /** The values that were substituted into it. */
+  params: MessageParams;
   /** Where in the source it applies, when the stage knows. */
   span?: SourceSpan;
 }
@@ -121,25 +134,54 @@ export type SeverityConfig = Partial<Record<DiagnosticCode, Severity>>;
 export class DiagnosticBag {
   readonly #diagnostics: Diagnostic[] = [];
   readonly #severities: Readonly<Record<DiagnosticCode, Severity>>;
+  readonly #locale: Locale;
 
   /**
    * @param config - Per-rule severity overrides layered over {@link DEFAULT_SEVERITIES}.
+   * @param locale - Language to render messages in.
    */
-  constructor(config: SeverityConfig = {}) {
+  constructor(config: SeverityConfig = {}, locale: Locale = DEFAULT_LOCALE) {
     this.#severities = { ...DEFAULT_SEVERITIES, ...config };
+    this.#locale = locale;
   }
 
   /**
    * Record a diagnostic, unless its rule is configured `off`.
    *
    * @param code - Which rule fired.
-   * @param message - Human readable explanation.
+   * @param key - Which sentence to say.
+   * @param params - Values for the sentence's placeholders.
    * @param span - Where in the source it applies, if known.
    */
-  report(code: DiagnosticCode, message: string, span?: SourceSpan): void {
+  report(
+    code: DiagnosticCode,
+    key: MessageKey,
+    params: MessageParams = {},
+    span?: SourceSpan,
+  ): void {
     const severity = this.#severities[code];
     if (severity === 'off') return;
-    this.#diagnostics.push(span ? { code, severity, message, span } : { code, severity, message });
+
+    const message = formatMessage(key, params, this.#locale);
+    this.#diagnostics.push(
+      span
+        ? { code, severity, message, key, params, span }
+        : { code, severity, message, key, params },
+    );
+  }
+
+  /**
+   * Take in a diagnostic another stage already produced.
+   *
+   * Used where one compile forwards another's findings — an imported file's, say. Reporting
+   * it again from its message would throw away the key and the values it was built from,
+   * and with them the ability to say it in another language later.
+   *
+   * @param diagnostic - The finding to adopt, as it already stands.
+   */
+  adopt(diagnostic: Diagnostic): void {
+    if (this.#severities[diagnostic.code] === 'off') return;
+    this.#diagnostics.push(diagnostic);
   }
 
   /** Every diagnostic recorded so far, in the order reported. */

@@ -1,4 +1,4 @@
-import type { AdapterRow, CableRow, Diagram, EquipmentRow } from '@love-rox/kumihimo-core';
+import type { AdapterRow, CableRow, Diagram, EquipmentRow, Locale } from '@love-rox/kumihimo-core';
 import { adapterSchedule, cableSchedule, equipmentSchedule } from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
@@ -18,10 +18,10 @@ export interface Table {
  * drawing and its cable list disagreeing is exactly the failure this project exists to
  * avoid, so there is one place they are computed.
  */
-export function tablesOf(diagram: Diagram): Table[] {
-  const cables = cableSchedule(diagram);
+export function tablesOf(diagram: Diagram, locale: Locale = 'en'): Table[] {
+  const cables = cableSchedule(diagram, locale);
   const equipment = equipmentSchedule(diagram);
-  const adapters = adapterSchedule(diagram);
+  const adapters = adapterSchedule(diagram, locale);
 
   return [
     {
