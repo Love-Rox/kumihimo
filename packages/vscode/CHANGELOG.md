@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [53e7d43]
+  - @love-rox/kumihimo-core@0.4.1
+
 ## 0.4.2
 
 - **Format Document.** `⇧⌥F`, or format on save. Indents by nesting, normalises spacing,
