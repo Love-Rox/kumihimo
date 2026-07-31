@@ -51,8 +51,8 @@ function complete(
   // `direction:` — two values, and no reason to make anyone remember which.
   if (/\bdirection\s*:\s*\w*$/.test(line)) {
     return [
-      described('LR', '左から右 / left to right', vscode.CompletionItemKind.EnumMember),
-      described('TB', '上から下 / top to bottom', vscode.CompletionItemKind.EnumMember),
+      described('LR', vscode.l10n.t('left to right'), vscode.CompletionItemKind.EnumMember),
+      described('TB', vscode.l10n.t('top to bottom'), vscode.CompletionItemKind.EnumMember),
     ];
   }
 
@@ -68,12 +68,12 @@ function complete(
   // Inside a device or model body.
   if (insideBody(document, position)) {
     return [
-      described('in', '入力ポート / input port', vscode.CompletionItemKind.Keyword),
-      described('out', '出力ポート / output port', vscode.CompletionItemKind.Keyword),
-      described('io', '双方向ポート / bidirectional port', vscode.CompletionItemKind.Keyword),
+      described('in', vscode.l10n.t('input port'), vscode.CompletionItemKind.Keyword),
+      described('out', vscode.l10n.t('output port'), vscode.CompletionItemKind.Keyword),
+      described('io', vscode.l10n.t('bidirectional port'), vscode.CompletionItemKind.Keyword),
       described(
         'gap',
-        '次の宣言の上に余白 / space above what follows',
+        vscode.l10n.t('space above what follows'),
         vscode.CompletionItemKind.Keyword,
       ),
     ];
@@ -108,10 +108,12 @@ function signals(): vscode.CompletionItem[] {
     // told apart by the barrel, and that is what belongs in front of someone choosing.
     if (signal.connectors.length > 0) {
       entry.documentation = new vscode.MarkdownString(
-        `コネクタ / connectors: ${signal.connectors.join(', ')}`,
+        vscode.l10n.t('Connectors: {0}', signal.connectors.join(', ')),
       );
     } else if (signal.wireless) {
-      entry.documentation = new vscode.MarkdownString('無線 / wireless — 長さではなく周波数');
+      entry.documentation = new vscode.MarkdownString(
+        vscode.l10n.t('Wireless — carries a frequency where a cable carries a length'),
+      );
     }
     // Group by category so audio does not interleave with video in the list.
     entry.sortText = `${signal.category}:${signal.name}`;
@@ -129,25 +131,25 @@ function colours(): vscode.CompletionItem[] {
 
 function topLevel(): vscode.CompletionItem[] {
   return [
-    described('diagram', '図全体の設定 / document settings', vscode.CompletionItemKind.Keyword),
-    described('device', '機材 / a piece of equipment', vscode.CompletionItemKind.Keyword),
-    described('group', 'まとまり / a frame around devices', vscode.CompletionItemKind.Keyword),
-    described('model', '機材の定義 / reusable equipment', vscode.CompletionItemKind.Keyword),
+    described('diagram', vscode.l10n.t('document settings'), vscode.CompletionItemKind.Keyword),
+    described('device', vscode.l10n.t('a piece of equipment'), vscode.CompletionItemKind.Keyword),
+    described('group', vscode.l10n.t('a frame around devices'), vscode.CompletionItemKind.Keyword),
+    described('model', vscode.l10n.t('reusable equipment'), vscode.CompletionItemKind.Keyword),
     described(
       'signal',
-      '独自の信号種別 / a signal type of your own',
+      vscode.l10n.t('a signal type of your own'),
       vscode.CompletionItemKind.Keyword,
     ),
     described(
       'compat',
-      '互換規則の上書き / override a compatibility rule',
+      vscode.l10n.t('override a compatibility rule'),
       vscode.CompletionItemKind.Keyword,
     ),
-    described('use', 'ライブラリの読み込み / import a library', vscode.CompletionItemKind.Keyword),
-    described('via', `変換部材 / adapter in the run`, vscode.CompletionItemKind.Keyword),
+    described('use', vscode.l10n.t('import a library'), vscode.CompletionItemKind.Keyword),
+    described('via', vscode.l10n.t('adapter in the run'), vscode.CompletionItemKind.Keyword),
     described(
       'm',
-      `ケーブル長の単位 / length units: ${LENGTH_UNITS.join(' ')}`,
+      vscode.l10n.t('Length units: {0}', LENGTH_UNITS.join(' ')),
       vscode.CompletionItemKind.Unit,
     ),
   ];

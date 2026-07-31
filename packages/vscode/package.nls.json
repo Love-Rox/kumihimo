@@ -1,0 +1,7 @@
+{
+  "extension.description": "Write AV signal flow diagrams (系統図) as text. Live preview, and the wiring that plugs in but carries nothing gets flagged as you type.",
+  "command.showPreview": "kumihimo: Open Diagram Preview",
+  "config.preview.theme": "Preview theme. `auto` follows the editor's colour theme. A `diagram { theme: … }` in the source wins over both.",
+  "config.diagnostics.enabled": "Report diagnostics while editing.",
+  "config.diagnostics.delay": "How long to wait after typing stops before checking, in milliseconds."
+}

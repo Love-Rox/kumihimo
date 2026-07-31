@@ -1,9 +1,9 @@
 {
   "name": "kumihimo-vscode",
   "displayName": "kumihimo — AV signal flow diagrams",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Write AV signal flow diagrams (系統図) as text. Live preview, and the wiring that plugs in but carries nothing gets flagged as you type.",
+  "description": "%extension.description%",
   "categories": [
     "Linters",
     "Programming Languages",
@@ -46,6 +46,7 @@
     "esbuild": "^0.28.1",
     "ovsx": "^1.0.2"
   },
+  "l10n": "./l10n",
   "contributes": {
     "languages": [
       {
@@ -70,7 +71,7 @@
     "commands": [
       {
         "command": "kumihimo.showPreview",
-        "title": "kumihimo: 図をプレビュー / Open Diagram Preview",
+        "title": "%command.showPreview%",
         "icon": "$(open-preview)"
       }
     ],
@@ -104,18 +105,18 @@
             "blueprint"
           ],
           "default": "auto",
-          "markdownDescription": "プレビューのテーマ。`auto` は VS Code の配色に合わせます。ソース中の `diagram { theme: … }` があればそちらが優先されます。\n\nPreview theme. `auto` follows the editor's colour theme. A `diagram { theme: … }` in the source wins over both."
+          "markdownDescription": "%config.preview.theme%"
         },
         "kumihimo.diagnostics.enabled": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "編集中に診断を出します。\n\nReport diagnostics while editing."
+          "markdownDescription": "%config.diagnostics.enabled%"
         },
         "kumihimo.diagnostics.delay": {
           "type": "number",
           "default": 250,
           "minimum": 0,
-          "markdownDescription": "入力が止まってから診断するまでの待ち時間（ミリ秒）。\n\nHow long to wait after typing stops before checking, in milliseconds."
+          "markdownDescription": "%config.diagnostics.delay%"
         }
       }
     }

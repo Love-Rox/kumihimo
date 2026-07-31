@@ -16,6 +16,7 @@
 /* oxlint-disable no-underscore-dangle */
 
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import Module from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const published = [];
 const commands = new Map();
 const completion = { provider: undefined };
+const asked = new Set();
 const listeners = { open: [], change: [], save: [], close: [], config: [], theme: [] };
 
 const Position = class {
@@ -109,6 +111,14 @@ const vscode = {
   },
   commands: {
     registerCommand: (id, fn) => (commands.set(id, fn), { dispose() {} }),
+  },
+  // The host substitutes translations here. Recording the source strings instead lets the
+  // test check that every one of them has a Japanese entry.
+  l10n: {
+    t: (message, ...args) => {
+      asked.add(message);
+      return args.reduce((text, value, i) => text.replaceAll(`{${i}}`, String(value)), message);
+    },
   },
 };
 
@@ -206,6 +216,77 @@ for (const added of ['trs35', 'trrs', 'trrs35', 'usbpd']) {
   if (!afterColon.includes(added)) throw new Error(`${added} が候補にありません`);
 }
 console.log(`  ○ 今回追加した型も自動で出る  trs35 trrs trrs35 usbpd`);
+
+// The preview: does it actually produce the panes, with rows in them?
+const previewDoc = doc(
+  [
+    'device cam "カメラ" as camera   { out SDI : sdi }',
+    'device sw  "ATEM"   as switcher { in 1 : sdi  out PGM : sdi }',
+    'device pc  "PC"     as computer { out HDMI : hdmi }',
+    'device mon "モニタ" as display  { in DVI : dvi }',
+    '',
+    'cam.SDI -> sw.1     : sdi 30m "V-01"',
+    'pc.HDMI -> mon.DVI  : hdmi 2m "V-02" via "HDMI-DVI変換ケーブル"',
+  ].join('\n'),
+);
+
+let rendered = '';
+vscode.window.createWebviewPanel = () => ({
+  webview: {
+    cspSource: 'vscode-resource:',
+    set html(value) {
+      rendered = value;
+    },
+    get html() {
+      return rendered;
+    },
+  },
+  onDidDispose: () => {},
+  reveal: () => {},
+  dispose: () => {},
+  title: '',
+});
+vscode.window.activeTextEditor = { document: previewDoc };
+
+await commands.get('kumihimo.showPreview')();
+await new Promise((r) => setTimeout(r, 800));
+
+console.log('\nプレビュー:');
+for (const [pane, expect] of [
+  ['diagram', 'data:image/svg+xml'],
+  ['cables', 'V-01'],
+  ['equipment', 'ATEM'],
+  ['adapters', 'HDMI-DVI'],
+]) {
+  const hasPane = rendered.includes(`data-pane="${pane}"`);
+  const hasContent = rendered.includes(expect);
+  console.log(`  ${hasPane && hasContent ? '○' : '×'} ${pane.padEnd(10)} ${expect}`);
+  if (!hasPane) throw new Error(`${pane} のペインがありません`);
+  if (!hasContent) throw new Error(`${pane} に ${expect} がありません`);
+}
+if (/<script/i.test(rendered)) throw new Error('プレビューにスクリプトが入っています');
+console.log('  ○ スクリプトなしで切り替わる（radio + CSS）');
+
+// Every source string the code asked for must have a Japanese entry. A half-translated UI
+// is the failure this replaced: strings that fall back to English do so silently.
+const ja = JSON.parse(readFileSync(resolve(here, '../l10n/bundle.l10n.ja.json'), 'utf8'));
+const untranslated = [...asked].filter((key) => !(key in ja));
+
+console.log(`\n多言語対応: ${asked.size} 文字列を要求、日本語訳 ${Object.keys(ja).length} 件`);
+if (untranslated.length > 0) {
+  throw new Error(`日本語訳のない文字列: ${untranslated.join(' / ')}`);
+}
+console.log('  ○ すべてに日本語訳がある');
+
+// The manifest's user-visible strings must resolve too, in both bundles.
+const manifest = JSON.parse(readFileSync(resolve(here, '../package.json'), 'utf8'));
+const keys = JSON.stringify(manifest).match(/%[\w.]+%/g) ?? [];
+for (const bundle of ['package.nls.json', 'package.nls.ja.json']) {
+  const table = JSON.parse(readFileSync(resolve(here, `../${bundle}`), 'utf8'));
+  const missing = [...new Set(keys)].filter((k) => !(k.slice(1, -1) in table));
+  if (missing.length > 0) throw new Error(`${bundle} に ${missing.join(' ')} がありません`);
+}
+console.log(`  ○ マニフェストの ${new Set(keys).size} キーが両方の bundle にある`);
 
 console.log('\nスモークテスト成功');
 Module._load = original;
