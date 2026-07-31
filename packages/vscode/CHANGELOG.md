@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.4
+
+- The completions know `over`, which says what a signal is riding on — `ndi over wifi`,
+  `dante over lan`. The signal types offered after it are the same list as anywhere else,
+  read from the compiler.
+- Diagnostics follow: a channel written on a cabled run is now reported, where before it
+  was read by nothing and said nothing.
+
+### Patch Changes
+
+- Updated dependencies [45a0ff3]
+  - @love-rox/kumihimo-core@0.5.0
+
 ## 0.4.3
 
 ### Patch Changes
