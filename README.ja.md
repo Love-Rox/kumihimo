@@ -27,6 +27,12 @@ sw.PGM  -> rec.SDI  : sdi 2m  "V-10"
 - **`@love-rox/kumihimo-astro`** — Astro 用 integration とコンポーネント
 - **`@love-rox/kumihimo-editor`** — 埋め込み可能なライブエディタ
 
+[**VS Code 拡張**](https://marketplace.visualstudio.com/items?itemName=love-rox.kumihimo-vscode)もあります。書きながら診断が出て、隣に図が出ます。
+
+```bash
+code --install-extension love-rox.kumihimo-vscode
+```
+
 ## なぜ作るのか
 
 Mermaid が描くのは「ノードを線でつないだ図」です。AV システムはそうではありません。ミキサーの `IN 12` と `IN 13` は別物ですし、SDI 出力は HDMI 入力に入りませんし、ケーブルの長さと外被色は現場で必要になる事実です。フローチャートのツールでも絵は描けますが、**その絵が間違っていることは教えてくれません**。

@@ -15,7 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  # write, to attach the .vsix to a GitHub release. That release is where the extension is
+  # actually obtainable while Marketplace publishing is unconfigured, so it is not optional.
+  contents: write
 
 jobs:
   publish:
@@ -76,15 +78,53 @@ jobs:
       - run: pnpm --filter kumihimo-vscode exec vsce package --no-dependencies --out kumihimo.vsix
         if: steps.version.outputs.publish == 'true'
 
-      # Kept when nothing is published: the point of a version bump is the .vsix, and
-      # somebody has to be able to upload it by hand while automation is unconfigured.
-      - name: Keep the .vsix as an artifact
+      # A GitHub release rather than a run artifact: artifacts expire after ninety days and
+      # need a login to fetch, and while Marketplace publishing is unconfigured this is
+      # where the extension is actually obtainable.
+      #
+      # Re-runnable. `gh release create` fails on an existing tag, so an existing release
+      # has its asset replaced instead — a re-run should end in the same state, not an error.
+      - name: Attach the .vsix to a GitHub release
         if: steps.version.outputs.publish == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: kumihimo-vscode-${{ steps.version.outputs.current }}
-          path: packages/vscode/kumihimo.vsix
-          if-no-files-found: error
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.current }}
+        run: |
+          tag="kumihimo-vscode@${VERSION}"
+          vsix="packages/vscode/kumihimo-vscode-${VERSION}.vsix"
+          mv packages/vscode/kumihimo.vsix "$vsix"
+
+          # The section of the changelog for this version, if it has one.
+          notes=$(mktemp)
+          awk -v v="## ${VERSION}" '
+            $0 == v { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' packages/vscode/CHANGELOG.md > "$notes"
+
+          {
+            echo
+            echo '## 入れ方 / Install'
+            echo
+            echo '```'
+            echo "code --install-extension kumihimo-vscode-${VERSION}.vsix"
+            echo '```'
+            echo
+            echo '拡張パネル右上の「…」→ **Install from VSIX…** でも同じです。'
+            echo
+            echo '同梱物のライセンスは `THIRD-PARTY-NOTICES.txt` にあります。elkjs は EPL-2.0 です。'
+          } >> "$notes"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$vsix" --clobber
+            echo "::notice::既存のリリース $tag の .vsix を差し替えました"
+          else
+            gh release create "$tag" "$vsix" \
+              --title "kumihimo for VS Code ${VERSION}" \
+              --notes-file "$notes" \
+              --latest=false
+            echo "::notice::リリース $tag を作成しました"
+          fi
 
       # Skipped rather than failed when no token is configured, the same way Open VSX is.
       # A pipeline that has not been given credentials has nothing to report as broken.
