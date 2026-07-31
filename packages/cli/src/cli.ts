@@ -3,8 +3,9 @@
  * `kumihimo` command line entry point.
  */
 
-import { watch } from 'node:fs';
-import { basename, extname, join } from 'node:path';
+import { readFileSync, watch } from 'node:fs';
+import { basename, dirname, extname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { Command } from 'commander';
 
@@ -19,12 +20,28 @@ function defaultOutput(file: string): string {
   return join(file, '..', `${base}.svg`);
 }
 
+/**
+ * This command's own version, read from the package that ships it.
+ *
+ * It used to be the literal `'0.0.0'`, so `kumihimo --version` answered 0.0.0 whatever was
+ * installed. That is worse than not offering the flag at all: the number it gives is the
+ * one that ends up in a bug report.
+ *
+ * `src` and `dist` both sit one level under the package root, so the same relative path
+ * works whether this is running from source or from the build.
+ */
+const version = ((): string => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const manifest: unknown = JSON.parse(readFileSync(join(here, '../package.json'), 'utf8'));
+  return (manifest as { version?: string }).version ?? '0.0.0';
+})();
+
 const program = new Command();
 
 program
   .name('kumihimo')
   .description('映像・音響・制御・電源の系統図をテキストから描く')
-  .version('0.0.0');
+  .version(version);
 
 program
   .command('build', { isDefault: true })

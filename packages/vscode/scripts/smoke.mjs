@@ -28,7 +28,15 @@ const commands = new Map();
 const completion = { provider: undefined };
 const formatting = { provider: undefined };
 const asked = new Set();
-const listeners = { open: [], change: [], save: [], close: [], config: [], theme: [] };
+const listeners = {
+  open: [],
+  change: [],
+  save: [],
+  close: [],
+  config: [],
+  theme: [],
+  viewState: [],
+};
 
 const Position = class {
   constructor(line, character) {
@@ -265,10 +273,16 @@ const previewDoc = doc(
 );
 
 let rendered = '';
-vscode.window.createWebviewPanel = () => ({
+// Assigning `html` is what reloads a real webview, so counting the assignments is
+// counting the cost. Under the fix, an edit that leaves the drawing identical writes
+// nothing at all.
+let htmlWrites = 0;
+const panel = {
+  visible: true,
   webview: {
     cspSource: 'vscode-resource:',
     set html(value) {
+      htmlWrites += 1;
       rendered = value;
     },
     get html() {
@@ -276,10 +290,12 @@ vscode.window.createWebviewPanel = () => ({
     },
   },
   onDidDispose: () => {},
+  onDidChangeViewState: (f) => (listeners.viewState.push(f), { dispose() {} }),
   reveal: () => {},
   dispose: () => {},
   title: '',
-});
+};
+vscode.window.createWebviewPanel = () => panel;
 vscode.window.activeTextEditor = { document: previewDoc };
 
 await commands.get('kumihimo.showPreview')();
@@ -301,6 +317,69 @@ for (const [pane, expect] of [
 if (/<script/i.test(rendered)) throw new Error('プレビューにスクリプトが入っています');
 console.log('  ○ スクリプトなしで切り替わる（radio + CSS）');
 
+// The freeze this guards: every keystroke used to reload the whole webview — the document
+// torn down, the markup parsed again, a base64 data URI of the entire drawing decoded
+// again. For a job-sized diagram that is 130 kB, four times a second.
+console.log('\nプレビューの再描画:');
+
+const settled = async () => {
+  await new Promise((r) => setTimeout(r, 900));
+};
+
+htmlWrites = 0;
+for (let i = 0; i < 8; i += 1) {
+  for (const listener of listeners.change) listener({ document: previewDoc });
+}
+await settled();
+const afterIdenticalEdits = htmlWrites;
+console.log(
+  `  ${afterIdenticalEdits <= 1 ? '○' : '×'} 同じ内容の編集 8 回 → 書き込み ${afterIdenticalEdits} 回`,
+);
+if (afterIdenticalEdits > 1) {
+  throw new Error(`図が変わらない編集で ${afterIdenticalEdits} 回も webview を作り直しています`);
+}
+
+// A real change must still land, or the debounce has simply broken the preview.
+const changedDoc = doc(
+  [
+    'device cam "カメラ" as camera { out SDI : sdi }',
+    'device rec as recorder { in SDI : sdi }',
+    'cam.SDI -> rec.SDI',
+  ].join('\n'),
+);
+vscode.window.activeTextEditor = { document: changedDoc };
+htmlWrites = 0;
+await commands.get('kumihimo.showPreview')();
+await settled();
+console.log(
+  `  ${htmlWrites >= 1 ? '○' : '×'} 内容が変わったら描き直す → 書き込み ${htmlWrites} 回`,
+);
+if (htmlWrites < 1) throw new Error('内容が変わったのに描き直していません');
+
+// A panel nobody is looking at should not be drawn into at all — and the edit it missed
+// has to be a real one, or there would be nothing to catch up on either way.
+const whileHidden = doc(
+  [
+    'device cam "カメラ" as camera { out SDI : sdi }',
+    'device mon as display { in SDI : sdi }',
+    'cam.SDI -> mon.SDI',
+  ].join('\n'),
+);
+panel.visible = false;
+htmlWrites = 0;
+for (const listener of listeners.change) listener({ document: whileHidden });
+await settled();
+console.log(
+  `  ${htmlWrites === 0 ? '○' : '×'} 隠れているタブには描かない → 書き込み ${htmlWrites} 回`,
+);
+if (htmlWrites !== 0) throw new Error('見えていないタブに描き込んでいます');
+
+// …and should catch up when it comes back.
+panel.visible = true;
+for (const listener of listeners.viewState) listener();
+await settled();
+console.log(`  ${htmlWrites >= 1 ? '○' : '×'} 戻ってきたら追いつく → 書き込み ${htmlWrites} 回`);
+if (htmlWrites < 1) throw new Error('タブに戻っても描き直していません');
 // The formatter. Before it existed, `.khm` was a language the editor offered to format and
 // then could not — which sends someone to the Marketplace to look for one that is not there.
 console.log('\n整形:');

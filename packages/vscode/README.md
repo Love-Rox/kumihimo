@@ -58,11 +58,12 @@ English.
 
 ## Settings
 
-| Setting                        | Default |                                                                                                                                |
-| ------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `kumihimo.preview.theme`       | `auto`  | `auto` follows the editor. `light` `dark` `mono` `blueprint` force one. A `diagram { theme: … }` in the source wins over both. |
-| `kumihimo.diagnostics.enabled` | `true`  | Report while editing.                                                                                                          |
-| `kumihimo.diagnostics.delay`   | `250`   | Milliseconds after typing stops.                                                                                               |
+| Setting                        | Default |                                                                                                                                                                        |
+| ------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `kumihimo.preview.theme`       | `auto`  | `auto` follows the editor. `light` `dark` `mono` `blueprint` force one. A `diagram { theme: … }` in the source wins over both.                                         |
+| `kumihimo.diagnostics.enabled` | `true`  | Report while editing.                                                                                                                                                  |
+| `kumihimo.diagnostics.delay`   | `250`   | Milliseconds after typing stops.                                                                                                                                       |
+| `kumihimo.preview.delay`       | `600`   | Milliseconds after typing stops before the preview redraws. Slower than the diagnostics delay on purpose: redrawing a whole diagram costs more than checking one line. |
 
 ## Notes
 
