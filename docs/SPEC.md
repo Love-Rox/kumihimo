@@ -113,8 +113,8 @@ device <id> "<label>" as <kind> {
 ### Device kinds
 
 `camera` `switcher` `mixer` `recorder` `player` `display` `projector` `speaker`
-`microphone` `amplifier` `computer` `converter` `matrix` `patchbay` `router`
-`interface` `generic`
+`microphone` `amplifier` `computer` `converter` `transmitter` `receiver` `matrix`
+`patchbay` `router` `interface` `generic`
 
 ### Port declarations
 
