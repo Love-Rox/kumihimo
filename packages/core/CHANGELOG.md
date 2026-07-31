@@ -1,5 +1,106 @@
 # @love-rox/kumihimo-core
 
+## 0.4.0
+
+### Minor Changes
+
+- e86ae97: Adds `adapter` — a passive part with named ends: a splitter, a Y-lead, a breakout.
+
+  A converter is a powered box. It needs racking **and** a cable on each side, so it is a
+  `device`. A conversion lead **is** the cable, and needs only itself. Until now the only way
+  to model a part with more than two ends was to declare it as a device, which put a headset
+  splitter on the equipment list — where nobody will ever rack it — and invented a cable run
+  on each side of a thing that is one line item.
+
+  ```khm
+  adapter split "TRRS splitter" {
+    io  HS  : trrs35
+    out HP  : trs35
+    in  MIC : trs35
+  }
+  ```
+
+  A run touching an adapter is a plug going into a socket, so it produces no cable row. The
+  exception is written rather than guessed: a run given a **length or a cable number** is a
+  cable. Either alone is enough, because a length is often unknown when the drawing is made
+  and a number is often assigned before anyone measures.
+
+  Drawn as a pill without the header band the equipment boxes carry, so a reader does not go
+  looking for the splitter in the rack.
+
+  `via` is unchanged, and is still the right thing for a two-ended part inside one run.
+
+  `Device` gained `passive: boolean`. Anything constructing a `Device` by hand has to set it.
+
+- b008f57: Adds `transmitter` and `receiver` device kinds.
+
+  The language has wireless signal types as first-class citizens, and reports a radio path
+  wired straight into a cabled input with "put the transmitter or receiver in as a device".
+  There was then no kind to declare it as, so following that advice produced
+  `unknown-device-kind`. A diagnostic that names a thing the vocabulary cannot express is a
+  gap, not a style choice.
+
+  Named separately rather than folded into `interface` because which end a box is decides
+  where the signal is going, and an equipment schedule reading "interface ×4" does not tell
+  anyone what to pack.
+
+- e86ae97: Adds a formatter: `formatSource` in core, `kumihimo fmt` on the command line, and Format
+  Document in VS Code.
+
+  Line-oriented rather than a print of the syntax tree. Statements here are separated by line
+  breaks, so lines are the unit the author already thinks in — and a tree printer would have
+  to reinvent comment attachment, which is where most formatters lose text.
+
+  It indents by nesting, normalises spacing, and lines the columns up down a run of similar
+  lines. That last one is the point: a rack list is read by scanning a column, and columns
+  drift the moment anybody edits a name.
+
+  ```khm
+  device sw "ATEM Mini Extreme" as switcher {
+    in  1..8             : sdi
+    in  AUDIO_L, AUDIO_R : trs
+    out PGM              : sdi  # main
+    out STREAM           : lan
+  }
+  ```
+
+  A run ends at a blank line, a lone comment, or a change of shape. Each block's columns are
+  its own, so widening a name in one device does not reflow another. `--no-align` gives one
+  space between everything, which diffs more cleanly and reads worse.
+
+  Formatting never changes what a file says. The tests assert that by compiling before and
+  after and comparing the models, not the text — and it settles after one pass.
+
+  `kumihimo fmt --check` fails when a file is not already laid out, for CI.
+
+### Patch Changes
+
+- e86ae97: Documents the two things `via` was being asked to mean, which were being counted
+  differently by accident.
+
+  `via "HDMI-DVI cable"` on a 2 m run counts one object twice: the cable row _is_ the
+  HDMI-DVI cable, and the parts row is that same cable. Someone packing from both schedules
+  brings two. The other reading — an ordinary cable with a small adapter on the end — really
+  is two objects, and two rows are right.
+
+  Nothing in the source distinguished them, so the distinction is now in the source:
+
+  - `via` is **an adapter used with an ordinary cable**. Two objects, two rows.
+  - A **converting lead** is one object. Declare it with `adapter`, and it is counted once.
+
+  No behaviour changed; the spec and its examples did, and both cases are now locked in by
+  tests so the difference stays deliberate.
+
+- e86ae97: The key below a drawing now says what it is, and fits inside the canvas.
+
+  It lists the signal types in use and had no caption, so a reader counts the entries and
+  takes them for the cables. In the sample drawing that is five entries under seven drawn
+  runs, sitting beneath a diagram someone plans a job from.
+
+  The canvas width also came from the layout alone, ignoring the key — so a narrow drawing
+  with several signal types ran its key off the right-hand edge, where it is not merely ugly
+  but cropped.
+
 ## 0.3.0
 
 ### Minor Changes

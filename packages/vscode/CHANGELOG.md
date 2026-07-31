@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.2
+
+### Patch Changes
+
+- Updated dependencies [e86ae97]
+- Updated dependencies [e86ae97]
+- Updated dependencies [e86ae97]
+- Updated dependencies [b008f57]
+- Updated dependencies [e86ae97]
+  - @love-rox/kumihimo-core@0.4.0
+
 ## 0.4.1
 
 - The preview no longer rebuilds itself on every keystroke. Assigning a webview's `html`
