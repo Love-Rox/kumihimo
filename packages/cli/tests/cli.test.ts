@@ -2,6 +2,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { Diagnostic, DiagnosticCode, Severity } from '@love-rox/kumihimo-core';
 import { describe, expect, it } from 'vitest';
 
 import { runBuild, runCheck } from '../src/commands.js';
@@ -38,7 +39,7 @@ describe('runBuild', () => {
     expect(result.exitCode).toBe(0);
     expect(result.written).toBe(out);
     expect(await readFile(out, 'utf8')).toContain('<svg');
-    expect(result.report).toContain('問題は見つかりませんでした');
+    expect(result.report).toContain('Nothing to report');
   });
 
   it('creates the output directory when it does not exist', async () => {
@@ -89,6 +90,17 @@ describe('runCheck', () => {
   });
 });
 
+/**
+ * A diagnostic built by hand, for the formatter's own tests.
+ *
+ * The formatter works on the shape rather than on where it came from, so these do not go
+ * through a compile. `key` and `params` are what a caller re-renders a message from, so
+ * they are required on the type and have to be supplied even here.
+ */
+function diagnostic(code: DiagnosticCode, severity: Severity, message: string): Diagnostic {
+  return { code, severity, message, key: 'parse.statement', params: {} };
+}
+
 describe('formatting', () => {
   it('quotes the offending line and underlines the span', async () => {
     const { path } = await withFile(BROKEN);
@@ -114,21 +126,22 @@ describe('formatting', () => {
   it('counts diagnostics by severity', () => {
     expect(
       summarize([
-        { code: 'parse-error', severity: 'error', message: 'a' },
-        { code: 'signal-mismatch', severity: 'warning', message: 'b' },
-        { code: 'signal-mismatch', severity: 'warning', message: 'c' },
+        diagnostic('parse-error', 'error', 'a'),
+        diagnostic('signal-mismatch', 'warning', 'b'),
+        diagnostic('signal-mismatch', 'warning', 'c'),
       ]),
     ).toEqual({ errors: 1, warnings: 2, infos: 0 });
   });
 
   it('formats a diagnostic without a span', () => {
-    const text = formatDiagnostic({ code: 'parse-error', severity: 'error', message: 'だめ' });
-    expect(text).toContain('だめ');
+    const text = formatDiagnostic(diagnostic('parse-error', 'error', 'Unreadable'));
+    expect(text).toContain('Unreadable');
     expect(text).toContain('parse-error');
   });
 
   it('says so when there is nothing to report', () => {
-    expect(formatReport([])).toContain('問題は見つかりませんでした');
+    expect(formatReport([])).toContain('Nothing to report');
+    expect(formatReport([], { locale: 'ja' })).toContain('問題は見つかりませんでした');
   });
 });
 
