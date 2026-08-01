@@ -73,6 +73,16 @@
         "command": "kumihimo.showPreview",
         "title": "%command.showPreview%",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "kumihimo.exportSvg",
+        "title": "%command.exportSvg%",
+        "category": "kumihimo"
+      },
+      {
+        "command": "kumihimo.print",
+        "title": "%command.print%",
+        "category": "kumihimo"
       }
     ],
     "menus": {

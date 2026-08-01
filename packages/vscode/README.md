@@ -38,6 +38,19 @@ cannot disagree.
 
 ![The cable schedule in the same panel](https://raw.githubusercontent.com/Love-Rox/kumihimo/main/packages/vscode/media/tables.png)
 
+**Onto paper.** _kumihimo: Print the diagram and schedules_ lays the drawing and every
+non-empty schedule out for A4 landscape and opens it in your browser, where **Save as PDF**
+lives in the print dialog. Each schedule starts its own sheet — the person holding the
+cable list is not the person holding the equipment list.
+
+_kumihimo: Export the diagram as SVG_ writes the drawing on its own.
+
+There is no PNG. The preview is built with scripts disabled on purpose — the drawing is
+compiled from a file that arrived with somebody else's repository, and putting it in an
+`<img>` rather than an inline `<svg>` removes the whole class of script-in-an-image rather
+than filtering it. A PNG needs a canvas, a canvas needs a scripted webview, and the print
+page carries the drawing as vector and prints it as vector anyway.
+
 **Completions**, read from the compiler itself. Signal types after `:` and `|`, device kinds
 after `as`, jacket colours inside `[color=`, themes and directions in a `diagram` block.
 Every name offered is one the compiler accepts, because both read the same list — and the
