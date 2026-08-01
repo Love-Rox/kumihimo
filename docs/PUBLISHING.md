@@ -177,3 +177,62 @@ gh release download 'kumihimo-vscode@0.4.3' -R Love-Rox/kumihimo -p '*.vsix'
 
 Then upload it at
 <https://marketplace.visualstudio.com/manage/publishers/love-rox>.
+
+## The Obsidian plugin
+
+Obsidian's community directory takes a **repository URL** and reads `manifest.json` from the
+root of that repository's default branch. A monorepo cannot answer that, so the plugin is
+mirrored: developed here under `packages/obsidian`, beside the compiler it uses, and pushed
+to a repository shaped the way the directory expects.
+
+`publish-obsidian.yml` does it on every release, the same way the VS Code extension goes to
+the Marketplace. What it needs:
+
+### 1. The mirror repository
+
+Create **`Love-Rox/obsidian-kumihimo`**, public, empty — no README, no licence, no
+`.gitignore`. The workflow force-pushes over it, so anything committed there by hand is
+overwritten on the next release.
+
+### 2. A token that can write to it
+
+The default `GITHUB_TOKEN` reaches only this repository, so a token for the other one is
+required. A fine-grained personal access token:
+
+- **Repository access** — only `Love-Rox/obsidian-kumihimo`
+- **Permissions** — Contents: _Read and write_
+- **Expiry** — whatever you are willing to rotate. The workflow fails loudly when it lapses
+  rather than publishing half of a release.
+
+Set it as a secret on **this** repository, in your own terminal so the value never travels
+through anything else:
+
+```sh
+gh secret set OBSIDIAN_REPO_TOKEN --repo Love-Rox/kumihimo
+```
+
+### 3. Submitting it, once
+
+Only the first version goes through the directory; after that Obsidian takes new releases
+from GitHub by itself.
+
+1. Let a release run, so the mirror has `manifest.json` at its root and a GitHub release
+   whose **tag is exactly the version** — no `v` prefix. Obsidian looks for that tag by
+   name when somebody installs the plugin.
+2. Sign in at [community.obsidian.md](https://community.obsidian.md) with an Obsidian
+   account and link the GitHub account that owns the repository.
+3. **Plugins → New plugin**, give the repository URL, agree to the developer policies.
+4. An automated review runs and shows what needs correcting. To answer it, fix the source
+   **here**, and release again — the mirror is generated, so editing it directly is undone.
+
+### What the review checks, and where each answer lives
+
+|                                                                         |                                                                                                                  |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `README.md`, `LICENSE`, `manifest.json` at the root                     | `packages/obsidian/`, copied by the workflow                                                                     |
+| `id` unique, and not containing "obsidian"                              | `kumihimo`                                                                                                       |
+| Description ≤ 250 characters, ends with a period, no special characters | `manifest.json`                                                                                                  |
+| `minAppVersion` set to something real                                   | `manifest.json`                                                                                                  |
+| `isDesktopOnly` true if Node or Electron APIs are used                  | false, and it is true that none are — the layout engine builds no worker and runs with `Worker` deleted outright |
+| No `fundingUrl` unless donations are actually accepted                  | absent                                                                                                           |
+| No leftover sample code                                                 | none: this was not made from the template                                                                        |
