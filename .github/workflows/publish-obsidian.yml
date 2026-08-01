@@ -123,6 +123,10 @@ jobs:
               description: src.description,
               license: "MIT",
               private: true,
+              // Which pnpm, because `pnpm/action-setup` refuses to guess and there is no
+              // monorepo root here to read it from. Without it the mirror's own workflow
+              // cannot even install.
+              packageManager: root.packageManager,
               scripts: { build: src.scripts.build, test: src.scripts.test, typecheck: src.scripts.typecheck },
               // Exact, not a range. A caret means somebody building this next year gets
               // a different compiler than the one the release was built with, and then the
