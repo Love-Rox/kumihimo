@@ -22,6 +22,12 @@ concurrency:
 
 permissions:
   contents: read
+  # `attest-build-provenance` signs with a short-lived OIDC token and records the result
+  # against this repository. The directory asks for these, and it is a fair thing to ask:
+  # what somebody installs is a 1.5 MB bundle, and an attestation is how they check it came
+  # from the source beside it rather than from somewhere else.
+  id-token: write
+  attestations: write
 
 jobs:
   publish:
@@ -80,22 +86,89 @@ jobs:
           VERSION: ${{ steps.version.outputs.current }}
         run: |
           set -euo pipefail
-          rm -rf mirror && mkdir mirror
-          # Exactly what the directory reads, at the root where it reads it.
+          rm -rf mirror && mkdir -p mirror/src mirror/scripts
+
+          # The built plugin, and what the directory reads, at the root where it reads it.
           cp packages/obsidian/dist/main.js       mirror/main.js
           cp packages/obsidian/manifest.json      mirror/manifest.json
           cp packages/obsidian/styles.css         mirror/styles.css
           cp packages/obsidian/README.md          mirror/README.md
           cp packages/obsidian/LICENSE            mirror/LICENSE
 
+          # And the source it was built from. The directory refuses a repository that has
+          # only the bundle in it — closed source is not accepted — and it is right to: a
+          # 1.5 MB minified file is not something anybody can read before trusting it.
+          cp packages/obsidian/src/*.ts           mirror/src/
+          cp packages/obsidian/scripts/*.mjs      mirror/scripts/
+          cp packages/obsidian/tsconfig.json      mirror/tsconfig.json
+
+          # A package.json that works here rather than only inside the monorepo: the
+          # compiler comes from npm at the version this build actually used, so somebody
+          # can clone this, install, build, and get the file that is attached to the
+          # release.
+          CORE=$(node -p "require('./packages/core/package.json').version")
+          node -e '
+            const fs = require("node:fs");
+            const src = JSON.parse(fs.readFileSync("packages/obsidian/package.json", "utf8"));
+            const root = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            fs.writeFileSync("mirror/package.json", JSON.stringify({
+              name: "obsidian-kumihimo",
+              version: src.version,
+              description: src.description,
+              license: "MIT",
+              private: true,
+              scripts: { build: src.scripts.build, test: src.scripts.test, typecheck: src.scripts.typecheck },
+              dependencies: { "@love-rox/kumihimo-core": "^" + process.env.CORE },
+              // TypeScript comes from the monorepo root here, so it has to be named
+              // explicitly there — a repository that says it can be built has to be
+              // buildable, `typecheck` included.
+              // TypeScript and the Node types come from the monorepo root here, so they
+              // have to be named explicitly there — a repository that says it can be
+              // built has to be buildable, `typecheck` included.
+              devDependencies: {
+                ...src.devDependencies,
+                typescript: root.devDependencies.typescript,
+                "@types/node": root.devDependencies["@types/node"],
+              },
+            }, null, 2) + "\n");
+          '
+
+          # The package's tsconfig extends `../../tsconfig.base.json`, a path that means
+          # nothing once the package is the whole repository. Rewrite the one line rather
+          # than ship a file that cannot resolve — checked by building the assembled folder
+          # on its own, which is the only way to know.
+          cp tsconfig.base.json mirror/tsconfig.base.json
+          node -e '
+            const fs = require("node:fs");
+            const path = "mirror/tsconfig.json";
+            const text = fs.readFileSync(path, "utf8").replace("../../tsconfig.base.json", "./tsconfig.base.json");
+            fs.writeFileSync(path, text);
+          '
+
+          cat > mirror/.gitignore <<'EOF'
+          node_modules/
+          dist/
+          EOF
+
           # Where it came from, so nobody edits the copy and wonders why it reverts.
           cat > mirror/CONTRIBUTING.md <<'EOF'
           # Contributing
 
-          This repository is generated. The plugin is developed in
-          [Love-Rox/kumihimo](https://github.com/Love-Rox/kumihimo) under `packages/obsidian`,
-          alongside the compiler it uses, and mirrored here on release because Obsidian's
-          community directory reads `manifest.json` from the root of a repository.
+          This repository is generated, and everything in it is built from
+          [Love-Rox/kumihimo](https://github.com/Love-Rox/kumihimo) under `packages/obsidian`
+          — where the plugin lives beside the compiler it uses. It is mirrored here because
+          Obsidian's community directory reads `manifest.json` from the root of a repository,
+          which a monorepo cannot offer.
+
+          The source is here and it builds:
+
+          ```sh
+          pnpm install
+          pnpm build
+          ```
+
+          That produces the `main.js` attached to the matching release, from the compiler
+          version pinned in `package.json`.
 
           Open issues and pull requests against the monorepo. Changes made here are
           overwritten by the next release.
@@ -112,6 +185,14 @@ jobs:
 
           echo "組み立てたもの ($VERSION):"
           ls -la mirror
+
+      - if: steps.version.outputs.publish == 'true'
+        name: Attest what was built
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            mirror/main.js
+            mirror/styles.css
 
       - if: steps.version.outputs.publish == 'true'
         name: Push to the plugin repository
