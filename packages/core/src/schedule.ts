@@ -613,3 +613,88 @@ export const SCHEDULE_KINDS = Object.keys(SCHEDULES) as readonly ScheduleKind[];
 export function formatCell(value: unknown): string {
   return cell(value);
 }
+
+/** One schedule, trimmed for something a person reads rather than packs from. */
+export interface ReadableSheet {
+  /** Which schedule this is. */
+  kind: ScheduleKind;
+  /** What it is called. */
+  title: string;
+  /** Column headings. */
+  head: string[];
+  /** Rows, already text. */
+  rows: string[][];
+}
+
+/**
+ * The schedules as a document rather than as data.
+ *
+ * A spreadsheet export wants every column: it is machine-readable, and a column dropped
+ * there is one nobody can get back. A page somebody reads wants the opposite, and the three
+ * rules are the same wherever it is read — a printed sheet, a Markdown file, a note.
+ *
+ * An **unheaded column continues the one before it**, which is what a column with no
+ * heading means; the pair goes in one cell, because "From" followed by a nameless column is
+ * not something prose can draw. An **id that only repeats the name it follows is dropped**:
+ * `SDI sdi` is a stutter where `SONY FX3 cam1` is not, since that id is the word somebody
+ * types in the source and cannot be worked out from the name. And a **column empty in every
+ * row is left out**, because a column of dashes is width spent saying nothing.
+ *
+ * Written here rather than in each surface for the reason the registry itself exists: this
+ * had been written twice before it was written down once.
+ *
+ * @param diagram - The resolved diagram.
+ * @param locale - Language for the headings and the names inside the rows.
+ * @returns One entry per schedule that has anything in it.
+ */
+export function readableSchedules(
+  diagram: Diagram,
+  locale: Locale = DEFAULT_LOCALE,
+): ReadableSheet[] {
+  const undeclared = locale === 'ja' ? '未宣言' : 'undeclared';
+
+  const text = (value: unknown): string => {
+    // `false` is not a word anybody wants in a table. A device nobody declared is worth
+    // marking; the seven that were declared are not worth seven `false`s.
+    if (value === false) return '';
+    if (value === true) return undeclared;
+    return cell(value);
+  };
+
+  return SCHEDULE_KINDS.flatMap((kind): ReadableSheet[] => {
+    const schedule = SCHEDULES[kind];
+    const rows = schedule.rows(diagram, locale);
+    if (rows.length === 0) return [];
+
+    const groups: { head: string; keys: string[] }[] = [];
+    for (const column of schedule.columns) {
+      if (column.head !== undefined || groups.length === 0) {
+        groups.push({
+          head: column.head === undefined ? '' : localise(column.head, locale),
+          keys: [],
+        });
+      }
+      groups[groups.length - 1]?.keys.push(column.key);
+    }
+
+    const cellOf = (row: Record<string, unknown>, group: { keys: string[] }): string => {
+      const parts = group.keys.map((key) => text(row[key])).filter((part) => part !== '');
+      const [first, ...rest] = parts;
+      if (first === undefined) return '';
+      const head = first.toLowerCase();
+      return [first, ...rest.filter((part) => !head.startsWith(part.toLowerCase()))].join(' ');
+    };
+
+    const used = groups.filter((group) => rows.some((row) => cellOf(row, group) !== ''));
+    if (used.length === 0) return [];
+
+    return [
+      {
+        kind,
+        title: localise(schedule.title, locale),
+        head: used.map((group) => group.head),
+        rows: rows.map((row) => used.map((group) => cellOf(row, group) || '—')),
+      },
+    ];
+  });
+}

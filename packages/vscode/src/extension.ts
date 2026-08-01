@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { checkDocument } from './diagnostics.js';
 import { exportMarkdown, exportPng, exportSvg, print } from './export.js';
 import { Preview } from './preview.js';
+import { disposeTrace, showTrace } from './trace.js';
 import { registerCompletion } from './completion.js';
 import { registerFormatting } from './formatting.js';
 
@@ -129,6 +130,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('kumihimo.print', () => void print(context)),
 
+    vscode.commands.registerCommand('kumihimo.showTrace', () => void showTrace()),
+
     vscode.commands.registerCommand('kumihimo.showPreview', () => {
       const editor = vscode.window.activeTextEditor;
       if (editor?.document.languageId !== LANGUAGE) {
@@ -151,4 +154,5 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
   Preview.disposeAll();
+  disposeTrace();
 }

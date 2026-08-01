@@ -134,8 +134,15 @@ export interface Group {
   id: string;
   /** Name drawn on the frame. */
   label: string;
-  /** Devices inside, in declaration order. */
+  /** Devices inside, in declaration order. Not those inside a nested group. */
   deviceIds: string[];
+  /**
+   * The group this one sits inside, when it is nested.
+   *
+   * A venue holds a stage and a rack; the stage holds cameras. Both levels are real to
+   * whoever walks the site, and flattening them loses the one that says which building.
+   */
+  parent?: string;
   /** Where the group was declared. */
   span?: SourceSpan;
 }

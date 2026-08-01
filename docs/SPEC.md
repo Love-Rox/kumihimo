@@ -290,6 +290,20 @@ v0.1.
 <device>.<port> <arrow> <device>.<port> : <signal> <modifier>*
 ```
 
+A group can hold another group. A venue holds a stage and a rack; the stage holds the
+cameras. Both levels are real to whoever walks the site, and only the innermost one names
+the place a box is actually standing in.
+
+```khm
+group venue "Hall 3" {
+  group stage "Stage" { device cam "FX3" as camera { out SDI : sdi } }
+  group rack  "Rack"  { device sw "ATEM" as switcher { in 1 : sdi } }
+}
+```
+
+A device belongs to the group it is written in, not to that group's parent. The equipment
+list names the innermost one, because that is the shelf somebody walks to.
+
 ### Arrows
 
 | Syntax | Meaning                                |

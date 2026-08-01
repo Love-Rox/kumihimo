@@ -207,6 +207,11 @@ class Collector {
             deviceIds: [],
             span: statement.span,
           };
+          // `groupId` here is whatever group *this* declaration sits inside, which for a
+          // nested one is its parent. Without it the tree came out flat, and a group whose
+          // devices were all in a child group came out empty — and, having nothing to size
+          // itself from, was drawn at NaN by NaN.
+          if (groupId !== undefined) group.parent = groupId;
           this.groups.push(group);
           this.collect(statement.statements, statement.id);
           break;
