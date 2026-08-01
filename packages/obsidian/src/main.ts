@@ -84,8 +84,7 @@ class DiagramBlock extends MarkdownRenderChild {
   }
 
   private async draw(): Promise<void> {
-    const { theme, showSchedules } = this.plugin.settings;
-    const locale = resolveLocale();
+    const { theme, showSchedules, locale } = this.plugin.settings;
 
     let svg: string;
     let diagnostics: readonly Diagnostic[];
@@ -144,21 +143,6 @@ class DiagramBlock extends MarkdownRenderChild {
   }
 }
 
-/**
- * Which language to say things in.
- *
- * Obsidian keeps the interface language in `localStorage`, which is where its own code
- * reads it from. Anything that is not Japanese gets English, because those are the two the
- * compiler speaks.
- */
-function resolveLocale(): 'en' | 'ja' {
-  try {
-    return window.localStorage.getItem('language') === 'ja' ? 'ja' : 'en';
-  } catch {
-    return 'en';
-  }
-}
-
 class KumihimoSettingTab extends PluginSettingTab {
   constructor(private readonly plugin: KumihimoPlugin) {
     super(plugin.app, plugin);
@@ -175,6 +159,18 @@ class KumihimoSettingTab extends PluginSettingTab {
         for (const name of ['light', 'dark', 'mono', 'blueprint']) drop.addOption(name, name);
         drop.setValue(this.plugin.settings.theme).onChange(async (value) => {
           this.plugin.settings.theme = value as KumihimoSettings['theme'];
+          await this.plugin.save();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName('Language')
+      .setDesc('For the headings, the schedule names and the compiler’s messages.')
+      .addDropdown((drop) => {
+        drop.addOption('en', 'English');
+        drop.addOption('ja', '日本語');
+        drop.setValue(this.plugin.settings.locale).onChange(async (value) => {
+          this.plugin.settings.locale = value as KumihimoSettings['locale'];
           await this.plugin.save();
         });
       });
