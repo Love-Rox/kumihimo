@@ -124,6 +124,12 @@ out  <port spec> : <signal>          # output
 io   <port spec> : <signal>          # bidirectional (Dante, Ethernet …)
 ```
 
+`io` says a port **can** go either way, not that it does. Which one it is in a given
+drawing is read off the runs that touch it: a port that only ever receives is drawn on the
+incoming face, whatever it is capable of. A port used both ways, or connected to nothing,
+is drawn on the outgoing face — that one is genuinely ambiguous, and a stable default beats
+a coin toss.
+
 A port spec takes four forms.
 
 | Form           | Example     | Expands to         |

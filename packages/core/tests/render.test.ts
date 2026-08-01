@@ -48,6 +48,45 @@ describe('layout', () => {
     expect(ports.find((p) => p.name === 'B')?.side).toBe('EAST');
   });
 
+  it('puts a bidirectional port on the side it is actually used on', async () => {
+    // `io` says a port *can* go either way, not that it does. Which one it is in this
+    // drawing is written down already, in the runs that touch it.
+    const { layout } = await layoutOf(
+      [
+        'device cam "Camera" as camera { out W : ndi }',
+        'device ap "AP" as router { io W : ndi  out LAN : ndi }',
+        'device pc "PC" as recorder { in LAN : ndi }',
+        'cam.W  -> ap.W   : ndi 10m',
+        'ap.LAN -> pc.LAN : ndi 20m',
+      ].join('\n'),
+    );
+    const ap = layout.devices.find((d) => d.id === 'ap')!;
+    // Nothing leaves by W, so drawing it on the outgoing face sent every run that reached
+    // it around the box.
+    expect(ap.ports.find((p) => p.name === 'W')?.side).toBe('WEST');
+    expect(ap.ports.find((p) => p.name === 'LAN')?.side).toBe('EAST');
+  });
+
+  it('leaves a bidirectional port on the outgoing face when it is used both ways', async () => {
+    // A switch really is ambiguous, and a stable default beats a coin toss.
+    const { layout } = await layoutOf(
+      [
+        'device a "A" as computer { out L : lan }',
+        'device sw "SW" as router { io 1 : lan }',
+        'device b "B" as computer { in L : lan }',
+        'a.L  -> sw.1 : lan 5m',
+        'sw.1 -> b.L  : lan 5m',
+      ].join('\n'),
+    );
+    expect(layout.devices.find((d) => d.id === 'sw')!.ports[0]?.side).toBe('EAST');
+  });
+
+  it('leaves a bidirectional port on the outgoing face when nothing is connected', async () => {
+    // Nothing to read, so nothing to go on.
+    const { layout } = await layoutOf('device d { io A : dante }');
+    expect(layout.devices[0]!.ports[0]?.side).toBe('EAST');
+  });
+
   it('keeps ports in declaration order', async () => {
     const { layout } = await layoutOf('device d { in 1..4 : sdi }');
     const ys = layout.devices[0]!.ports.map((p) => p.center.y);
