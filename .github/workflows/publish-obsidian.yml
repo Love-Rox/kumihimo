@@ -9,11 +9,13 @@ name: Publish Obsidian plugin
 # meant watching a file that only changes after the build this workflow is deciding whether
 # to run — and the release would never have fired at all.
 on:
-  push:
+  # After Release, not beside it. The mirror depends on the compiler at an exact version,
+  # and that version reaches npm when Release finishes — 34 seconds after this workflow
+  # failed asking for it, the first time they ran together.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'packages/obsidian/**'
-      - 'packages/core/**'
   workflow_dispatch:
 
 concurrency:
@@ -31,33 +33,35 @@ permissions:
 
 jobs:
   publish:
+    # Nothing to publish if the release that would have produced it did not happen.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-        with:
-          # The previous commit, to see whether the version moved.
-          fetch-depth: 2
 
       - id: version
         name: Decide whether this is a release
+        env:
+          GH_TOKEN: ${{ secrets.OBSIDIAN_REPO_TOKEN }}
         run: |
           current=$(node -p "require('./packages/obsidian/package.json').version")
-          previous=$(git show HEAD~1:packages/obsidian/package.json 2>/dev/null \
-            | node -p "JSON.parse(require('node:fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
+          echo "current=$current" >> "$GITHUB_OUTPUT"
 
-          echo "current=$current"   >> "$GITHUB_OUTPUT"
-          echo "previous=$previous" >> "$GITHUB_OUTPUT"
-
+          # Whether the plugin repository already has this version, rather than whether the
+          # previous commit differed. Following Release rather than a push means the commit
+          # before this one is not necessarily the one that moved the version — and "is it
+          # already out" is the question actually being asked. It is also what makes a
+          # re-run after a failure do the right thing instead of nothing.
           if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
             echo "手動実行のため公開します ($current)"
-          elif [ "$current" != "$previous" ]; then
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "版が動きました: $previous → $current"
-          else
+          elif gh release view "$current" --repo Love-Rox/obsidian-kumihimo > /dev/null 2>&1; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "版は $current のまま。公開しません"
+            echo "$current は公開済みです"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "$current は未公開です。公開します"
           fi
 
       - if: steps.version.outputs.publish == 'true'
@@ -92,6 +96,23 @@ jobs:
           # and none of the three was visible by reading it. As a script it runs in CI on
           # every commit, and the smoke test checks what it produced.
           node packages/obsidian/scripts/assemble.mjs mirror
+
+          # Release publishes to npm and this waits on Release, but "the workflow finished"
+          # and "the registry serves it" are not the same instant. Ask until it is there
+          # rather than fail on a version that is thirty seconds away.
+          CORE=$(node -p "require('./packages/core/package.json').version")
+          for attempt in $(seq 1 30); do
+            if npm view "@love-rox/kumihimo-core@${CORE}" version > /dev/null 2>&1; then
+              echo "@love-rox/kumihimo-core@${CORE} を確認しました"
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              echo "::error::@love-rox/kumihimo-core@${CORE} が npm に現れません"
+              exit 1
+            fi
+            echo "npm を待っています (${attempt}/30)"
+            sleep 10
+          done
 
           # The lockfile, generated from what was just written. Without one the reviewer
           # cannot install, so `obsidian` and the compiler resolve to `any` — and every
