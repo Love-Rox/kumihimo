@@ -559,6 +559,37 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
           if (accepted[0] !== undefined) port.signal = accepted[0];
           if (accepted.length > 1) port.accepts = accepted;
 
+          // A run's `[…]` list is kept on the model as free-form extra data, so an unknown
+          // key there survives for whoever wants it. A port's is not: `connector` is the
+          // only one read, and anything else goes nowhere at all. Saying so is the
+          // difference between a typo that does nothing and a typo that does nothing
+          // quietly.
+          for (const attr of portDecl.attrs ?? []) {
+            if (attr.key === 'connector') continue;
+            bag.report('invalid-value', 'port.attr-unknown', { name: attr.key }, attr.span);
+          }
+
+          // `[connector=XLR-M]` — which of the type's connectors this box actually has.
+          // Checked against the type, because a name the type does not list is either a
+          // typo or a claim the schedules cannot act on, and both are worth saying.
+          const declared = portDecl.attrs?.find((attr) => attr.key === 'connector');
+          if (declared !== undefined) {
+            const type = port.signal === undefined ? undefined : signals[port.signal];
+            const value = String(declared.value.value);
+            if (type === undefined) {
+              bag.report('invalid-value', 'port.connector-needs-signal', {}, declared.span);
+            } else if (!type.connectors.includes(value)) {
+              bag.report(
+                'invalid-value',
+                'port.connector-unknown',
+                { name: value, signal: type.name, expected: type.connectors.join(' / ') },
+                declared.span,
+              );
+            } else {
+              port.connector = value;
+            }
+          }
+
           table.addPort(device, port);
         }
       }

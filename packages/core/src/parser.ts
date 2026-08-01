@@ -277,6 +277,11 @@ class Parser {
       }
     }
 
+    // `[connector=XLR-M]` — which of the type's connectors is on this box. The same
+    // bracket syntax a run takes, because it is the same kind of thing: a detail about
+    // this one instance that the type cannot know.
+    const attrs = this.#attrList();
+
     const node: PortDecl = {
       type: 'port',
       direction: start.value as PortDirection,
@@ -284,6 +289,7 @@ class Parser {
       span: this.#span(start),
     };
     if (signals.length > 0) node.signals = signals;
+    if (attrs.length > 0) node.attrs = attrs;
     return node;
   }
 
