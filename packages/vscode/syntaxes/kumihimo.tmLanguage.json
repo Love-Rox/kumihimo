@@ -27,11 +27,11 @@
     },
     "declaration": {
       "name": "keyword.control.kumihimo",
-      "match": "(?<![\\w.])(diagram|device|group|model|signal|compat|use|gap)(?![\\w])"
+      "match": "(?<![\\w.])(diagram|device|adapter|group|model|signal|compat|use|gap)(?![\\w])"
     },
     "port-direction": {
       "name": "storage.type.kumihimo",
-      "match": "(?<![\\w.])(in|out|io)(?![\\w])"
+      "match": "(?<![\\w.])(in|out|io|over|via|from|as)(?![\\w])"
     },
     "arrow": {
       "name": "keyword.operator.kumihimo",

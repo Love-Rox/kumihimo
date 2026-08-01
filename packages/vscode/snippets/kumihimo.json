@@ -1,0 +1,142 @@
+{
+  "device": {
+    "prefix": "device",
+    "body": [
+      "device ${1:id} \"${2:Name}\" as ${3|camera,switcher,mixer,recorder,player,display,projector,speaker,microphone,amplifier,computer,converter,transmitter,receiver,matrix,patchbay,router,interface,generic|} {",
+      "\tin  ${4:IN}  : ${5:sdi}",
+      "\tout ${6:OUT} : ${7:sdi}",
+      "}"
+    ],
+    "description": "A piece of equipment. The id is yours; the kind comes from the list."
+  },
+  "device on one line": {
+    "prefix": "device1",
+    "body": [
+      "device ${1:id} \"${2:Name}\" as ${3:generic} { ${4|in,out,io|} ${5:PORT} : ${6:sdi} }"
+    ],
+    "description": "A device with a single port, on one line."
+  },
+  "device with a range of ports": {
+    "prefix": "devicerange",
+    "body": [
+      "device ${1:id} \"${2:Name}\" as ${3:mixer} {",
+      "\tin  ${4:CH}[${5:1}..${6:16}] : ${7:xlr}",
+      "\tout ${8:L}, ${9:R}    : ${10:xlr}",
+      "}"
+    ],
+    "description": "CH[1..16] expands to sixteen ports, drawn in the order written."
+  },
+  "device from a model": {
+    "prefix": "devicefrom",
+    "body": ["device ${1:id} from ${2:model} \"${3:Name}\""],
+    "description": "One unit of equipment declared with `model`."
+  },
+  "adapter": {
+    "prefix": "adapter",
+    "body": [
+      "adapter ${1:id} \"${2:Part name}\" {",
+      "\tio  ${3:A} : ${4:trrs35}",
+      "\tout ${5:B} : ${6:trs35}",
+      "\tin  ${7:C} : ${8:trs35}",
+      "}"
+    ],
+    "description": "A passive part: a splitter, a Y-lead. Lands on the parts list, not the equipment list."
+  },
+  "model": {
+    "prefix": "model",
+    "body": [
+      "model ${1:id} \"${2:Model name}\" as ${3:mixer} {",
+      "\tin  ${4:CH}[1..${5:16}] : ${6:xlr}",
+      "\tout ${7:L}, ${8:R}     : ${9:xlr}",
+      "\t@vendor \"${10:Yamaha}\"",
+      "}"
+    ],
+    "description": "Equipment declared once and instantiated with `device … from`."
+  },
+  "group": {
+    "prefix": "group",
+    "body": ["group ${1:id} \"${2:Name}\" {", "\t$0", "}"],
+    "description": "A frame drawn around a set of devices."
+  },
+  "diagram": {
+    "prefix": "diagram",
+    "body": [
+      "diagram \"${1:Title}\" {",
+      "\tdirection: ${2|LR,TB|}",
+      "\ttheme: ${3|light,dark,mono,blueprint|}",
+      "}"
+    ],
+    "description": "Document settings. A theme here wins over the one a caller supplies."
+  },
+  "connection": {
+    "prefix": "->",
+    "body": ["${1:from}.${2:OUT} -> ${3:to}.${4:IN} : ${5:sdi} ${6:10m} \"${7:V-01}\""],
+    "description": "A run from one port to another, with a length and a cable number."
+  },
+  "connection over a carrier": {
+    "prefix": "over",
+    "body": [
+      "${1:from}.${2:OUT} -> ${3:to}.${4:IN} : ${5:ndi} over ${6:lan} ${7:10m} \"${8:N-01}\""
+    ],
+    "description": "What is riding, and what it is riding on. The carrier decides the physics."
+  },
+  "wireless connection": {
+    "prefix": "wireless",
+    "body": ["${1:tx}.${2:RF} -> ${3:rx}.${4:RF} : ${5:uhf} [ch=${6:38}]"],
+    "description": "A radio path: a channel rather than a length, and nothing to coil."
+  },
+  "connection with an adapter": {
+    "prefix": "via",
+    "body": [
+      "${1:from}.${2:OUT} -> ${3:to}.${4:IN} : ${5:sdi} ${6:30m} \"${7:V-01}\" via \"${8:BNC-RCA adapter}\""
+    ],
+    "description": "A cable with a small passive part on the end. Two objects, two rows."
+  },
+  "parallel connection": {
+    "prefix": "parallel",
+    "body": ["${1:from}.(${2:L}, ${3:R}) -> ${4:to}.(${5:IN_L}, ${6:IN_R}) : ${7:trs} ${8:3m}"],
+    "description": "Several runs at once, paired in the order written."
+  },
+  "signal": {
+    "prefix": "signal",
+    "body": [
+      "signal ${1:name} : ${2|video,audio,control,network,power,sync,generic|} {",
+      "\tlabel: \"${3:Drawn name}\"",
+      "\tconnectors: \"${4:XLR}\"",
+      "}"
+    ],
+    "description": "A signal type of your own, layered over the builtins."
+  },
+  "compat": {
+    "prefix": "compat",
+    "body": ["compat ${1:from} -> ${2:to} : ${3|ok,lossy,incompatible|} \"${4:why}\""],
+    "description": "Override how a pairing is judged. The reason is shown in the diagnostic."
+  },
+  "use": {
+    "prefix": "use",
+    "body": ["use \"${1:lib/vendor.khm}\""],
+    "description": "Bring in model, signal and compat declarations from another file."
+  },
+  "gap": {
+    "prefix": "gap",
+    "body": ["gap ${1:1}"],
+    "description": "Space above the next port block. Appearance only; the wiring is unchanged."
+  },
+  "adapter with a socket on one side": {
+    "prefix": "adapter2",
+    "body": [
+      "adapter ${1:id} \"${2:USB-HDMI adapter}\" {",
+      "\tin  ${3:USB}  : ${4:usb}",
+      "\tout ${5:HDMI} : ${6:hdmi}",
+      "}",
+      "${7:pc}.${8:USB} -> ${1:id}.${3:USB} : ${4:usb}",
+      "${1:id}.${5:HDMI} -> ${9:mon}.${10:HDMI} : ${6:hdmi} ${11:2m} \"${12:V-01}\""
+    ],
+    "description": "A part with one end moulded on and one that needs a cable."
+  },
+  "connection with an unmeasured length": {
+    "prefix": "tbd",
+    "body": ["${1:from}.${2:OUT} -> ${3:to}.${4:IN} : ${5:xlr} ?${6|m,cm,mm,ft,in|} \"${7:A-01}\""],
+    "description": "A cable that exists and has not been measured yet."
+  }
+}

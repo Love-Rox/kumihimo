@@ -365,6 +365,28 @@ class Parser {
     const id = this.#expect('ident', { en: 'An adapter id', ja: '変換部材 id' });
     const label = this.#accept('string');
 
+    // `as cable 5m "C-01"` — the same modifiers a run takes, because they describe the same
+    // thing: a cable somebody has to find, measure and label.
+    let asCable = false;
+    let length: string | undefined;
+    let cableLabel: string | undefined;
+    if (this.#at('ident', 'as')) {
+      this.#next();
+      this.#expect('ident', { en: '`cable`', ja: '`cable`' });
+      asCable = true;
+      for (;;) {
+        if (this.#at('measure')) {
+          length = this.#next().value;
+          continue;
+        }
+        if (this.#at('string')) {
+          cableLabel = this.#next().value;
+          continue;
+        }
+        break;
+      }
+    }
+
     const { ports, meta } = this.#body();
 
     const node: AdapterDecl = {
@@ -375,6 +397,9 @@ class Parser {
       span: this.#span(start),
     };
     if (label) node.label = label.value;
+    if (asCable) node.asCable = true;
+    if (length !== undefined) node.length = length;
+    if (cableLabel !== undefined) node.cableLabel = cableLabel;
     return node;
   }
 

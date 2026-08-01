@@ -146,6 +146,10 @@ export const MESSAGES = {
     ja: '同じ結線が重複しています: {pair}',
   },
   'link.verdict': { en: '{from} → {to}: {reason}', ja: '{from} → {to}: {reason}' },
+  'adapter.two-ended': {
+    en: 'Every end of {id} is moulded on, so it is one cable rather than a junction. Write it as `via` on the run it sits in — or give a run a length or a cable number, if something plugs into it',
+    ja: '{id} はすべての端が一体なので、分岐ではなく1本のケーブルです。その結線に `via` で書いてください。差し込む口があるなら、その結線に長さかケーブル番号を書いてください',
+  },
   'link.wireless-via': {
     en: 'A radio path cannot have an adapter in it',
     ja: '無線区間に変換ケーブルは挟めません',

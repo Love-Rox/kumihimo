@@ -122,6 +122,48 @@ function describe(link: Link): string {
  * @returns Rows in the order the links were written.
  */
 export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE): CableRow[] {
+  // A moulded lead declared `as cable` is one object with several plugs on it, so it gets
+  // one row rather than one per plug. The far ends go in the "to" column together: the
+  // person loading the van needs to know where it reaches, and a fan-out reaches several
+  // places at once.
+  const moulded: CableRow[] = diagram.devices
+    .filter((device) => device.passive && device.cable !== undefined)
+    .map((device) => {
+      const touching = diagram.links.filter(
+        (l) => l.from.deviceId === device.id || l.to.deviceId === device.id,
+      );
+      const others = [
+        ...new Set(
+          touching.map((l) =>
+            endpointName(diagram, l.from.deviceId === device.id ? l.to.deviceId : l.from.deviceId),
+          ),
+        ),
+      ];
+      const signal = touching[0]?.signal;
+
+      const row: CableRow = {
+        from: device.id,
+        fromDevice: device.label,
+        to: others.join(' / '),
+        toDevice: others.join(' / '),
+        signal: signal?.name ?? 'generic',
+        signalLabel: signal === undefined ? '' : localise(signal.label, locale) || signal.name,
+        medium: 'cable',
+        // From the signals its ports carry: a Port names a type, and the type is what
+        // knows how it is terminated.
+        connectors: [
+          ...new Set(
+            device.ports.flatMap((p) =>
+              p.signal === undefined ? [] : (diagram.signals[p.signal]?.connectors ?? []),
+            ),
+          ),
+        ],
+      };
+      if (device.cable?.label !== undefined) row.label = device.cable.label;
+      if (device.cable?.length !== undefined) row.length = device.cable.length;
+      return row;
+    });
+
   return diagram.links
     .filter((link) => isCableRun(diagram, link))
     .map((link) => {
@@ -149,7 +191,8 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
         row.note = localise(link.compatibility.reason, locale);
       }
       return row;
-    });
+    })
+    .concat(moulded);
 }
 
 /**
@@ -194,11 +237,23 @@ export function adapterSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCAL
   // one object, and the schedule is a list of things to put in the van.
   for (const device of diagram.devices) {
     if (!device.passive) continue;
+    // `as cable` moves it to the cable schedule. A row on both would be the same object
+    // counted twice, which is the failure this whole area exists to avoid.
+    if (device.cable !== undefined) continue;
     const touching = diagram.links.filter(
       (l) => l.from.deviceId === device.id || l.to.deviceId === device.id,
     );
     const existing = rows.get(device.label);
-    const where = touching.map((l) => describe(l));
+    // What it plugs into, not the runs it takes part in. A splitter is one part with
+    // three plugs on it; listing three runs reads as three cables, which is the thing
+    // this schedule exists to stop.
+    const where = [
+      ...new Set(
+        touching.map((l) =>
+          endpointName(diagram, l.from.deviceId === device.id ? l.to.deviceId : l.from.deviceId),
+        ),
+      ),
+    ];
     if (existing) {
       existing.count += 1;
       existing.links.push(...where);
@@ -208,7 +263,16 @@ export function adapterSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCAL
   }
 
   for (const link of diagram.links) {
-    const source = link.via ?? link.compatibility.adapter;
+    // A lead that converts *is* the cable, and the cable schedule already has a row for
+    // it with the part named in its adapter column. Counting it here as well would send
+    // someone to site with two objects for a job that needs one.
+    //
+    // The compatibility check is what tells them apart: it names a lead only when the two
+    // ends disagree. Where they agree, a `via` is a separate part beside an ordinary
+    // cable, and belongs on this list.
+    if (link.compatibility.adapter !== undefined) continue;
+
+    const source = link.via;
     if (source === undefined) continue;
     // The part name is the key, so it has to be one language before it is counted.
     const adapter = localise(source, locale);

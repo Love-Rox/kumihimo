@@ -247,6 +247,23 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
+    // `?m` and the rest: a length that is going to exist and is not known yet. The unit
+    // is still written, because which unit it will be measured in is not the open question.
+    if (ch === '?') {
+      const start = here();
+      let unit = '';
+      let probe = offset + 1;
+      while (probe < source.length && /[a-zA-Z]/.test(source[probe]!)) {
+        unit += source[probe];
+        probe += 1;
+      }
+      if (unit && LENGTH_UNITS.includes(unit.toLowerCase())) {
+        advance(1 + unit.length);
+        push('measure', `?${unit}`, start);
+        continue;
+      }
+    }
+
     if (isIdentChar(ch)) {
       let value = '';
       while (offset < source.length) {

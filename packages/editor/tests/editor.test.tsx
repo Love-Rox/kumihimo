@@ -126,8 +126,10 @@ describe('locale', () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole('tab', { name: '変換部材' })).toBeTruthy());
-    await user.click(screen.getByRole('tab', { name: '変換部材' }));
+    // On the cable schedule, not the parts list: the run *is* the converting lead, so a
+    // second row would send someone to site with two objects for a job that needs one.
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'ケーブル表' })).toBeTruthy());
+    await user.click(screen.getByRole('tab', { name: 'ケーブル表' }));
     expect(screen.getByText('HDMI-DVI 変換ケーブル')).toBeTruthy();
   });
 });
