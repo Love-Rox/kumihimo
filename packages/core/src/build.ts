@@ -644,7 +644,36 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       const toSignal = signals[resolveEnd(toPort, endName)] ?? generic;
       const carrier = carrierName === undefined ? undefined : signals[carrierName];
 
-      const compatibility = checkCompatibility(fromSignal, toSignal, {
+      // An end that declares the carrier itself is right, not mismatched. `ndi over wifi`
+      // into a port declared `wifi` is the whole point of writing `over`: the payload rides
+      // on the carrier, and the socket it plugs into is a socket for the carrier. Judged
+      // without knowing that, the check compared `ndi` against `wifi`, found air meeting
+      // copper, and asked for a transmitter that is already there.
+      // Both ends declaring the carrier is the run working as written: `ndi over wifi`
+      // between two Wi-Fi sockets is a radio hop carrying NDI, and judging the payload
+      // against the carrier found air meeting copper and asked for a transmitter that was
+      // already in the drawing.
+      //
+      // Both, not either. A Wi-Fi socket wired to an RJ45 socket does not become sound by
+      // saying what rides on it — that is a real fault and the check still has to catch it.
+      const payload = signalName === undefined ? undefined : signals[signalName];
+      // `over` says these two travel together, so a socket for either is a socket this run
+      // can plug into. A camera declares `ndi` and the access point declares `wifi`; both
+      // are right, and comparing one against the other found air meeting copper and asked
+      // for a transmitter that was already in the drawing.
+      //
+      // Both ends, not either. A Wi-Fi socket wired to an RJ45 socket does not become sound
+      // by saying what rides on it — that is a real fault and the check still catches it.
+      const onThisRun = (type: SignalType) =>
+        carrier !== undefined &&
+        payload !== undefined &&
+        (type.name === carrier.name || type.name === payload.name);
+      const [fromEnd, toEnd] =
+        onThisRun(fromSignal) && onThisRun(toSignal) && payload !== undefined
+          ? [payload, payload]
+          : [fromSignal, toSignal];
+
+      const compatibility = checkCompatibility(fromEnd, toEnd, {
         overrides: compatRules,
         hasAdapter: stmt.via !== undefined,
         locale,
