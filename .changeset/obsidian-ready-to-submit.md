@@ -15,7 +15,7 @@ is the tag Obsidian looks for by name when somebody installs the plugin.
 
 The trigger is the version in `package.json`, not the one in the manifest. Changesets moves
 the first and the build copies it into the second; watching the manifest would have meant
-watching a file that only changes *after* the build this workflow is deciding whether to
+watching a file that only changes _after_ the build this workflow is deciding whether to
 run, and the release would never have fired at all. The assembled manifest is checked
 against it before anything is pushed, because a mismatch there means a release tag that
 does not exist and a plugin that simply fails to install.
