@@ -1,5 +1,12 @@
 # @love-rox/kumihimo-vue
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies [4e3e0fe]
+  - @love-rox/kumihimo-core@0.9.0
+
 ## 0.8.1
 
 ### Patch Changes
