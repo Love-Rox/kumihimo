@@ -1,9 +1,9 @@
 {
   "id": "kumihimo",
   "name": "kumihimo",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "minAppVersion": "1.7.2",
-  "description": "Write AV signal flow diagrams (系統図) as text in a code block, and see them rendered — with the cable, wireless, equipment and parts schedules beside them.",
+  "description": "Write AV signal flow diagrams as text in a code block and see them drawn, with the cable, wireless, equipment and parts schedules beside them.",
   "author": "Love-Rox",
   "authorUrl": "https://github.com/Love-Rox/kumihimo",
   "isDesktopOnly": false

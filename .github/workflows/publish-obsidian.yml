@@ -1,0 +1,159 @@
+name: Publish Obsidian plugin
+
+# Obsidian's directory takes a repository URL and reads the `manifest.json` at the root of
+# its default branch. A monorepo cannot answer that, so the plugin is mirrored to a
+# repository shaped the way the directory expects — built here, published there.
+#
+# The trigger is the version in `package.json`, not the one in the manifest. Changesets
+# moves the first; the build copies it into the second. Watching the manifest would have
+# meant watching a file that only changes after the build this workflow is deciding whether
+# to run — and the release would never have fired at all.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/obsidian/**'
+      - 'packages/core/**'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-obsidian
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The previous commit, to see whether the version moved.
+          fetch-depth: 2
+
+      - id: version
+        name: Decide whether this is a release
+        run: |
+          current=$(node -p "require('./packages/obsidian/package.json').version")
+          previous=$(git show HEAD~1:packages/obsidian/package.json 2>/dev/null \
+            | node -p "JSON.parse(require('node:fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo none)
+
+          echo "current=$current"   >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "手動実行のため公開します ($current)"
+          elif [ "$current" != "$previous" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "版が動きました: $previous → $current"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "版は $current のまま。公開しません"
+          fi
+
+      - if: steps.version.outputs.publish == 'true'
+        uses: pnpm/action-setup@v5
+
+      - if: steps.version.outputs.publish == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - if: steps.version.outputs.publish == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - if: steps.version.outputs.publish == 'true'
+        run: pnpm --filter "kumihimo-obsidian..." build
+
+      # Nothing goes out that has not been run. The smoke test loads the built plugin
+      # against a stand-in for the app and checks a block really does become a drawing.
+      - if: steps.version.outputs.publish == 'true'
+        run: pnpm --filter kumihimo-obsidian test
+
+      - if: steps.version.outputs.publish == 'true'
+        name: Assemble the plugin repository
+        env:
+          VERSION: ${{ steps.version.outputs.current }}
+        run: |
+          set -euo pipefail
+          rm -rf mirror && mkdir mirror
+          # Exactly what the directory reads, at the root where it reads it.
+          cp packages/obsidian/dist/main.js       mirror/main.js
+          cp packages/obsidian/manifest.json      mirror/manifest.json
+          cp packages/obsidian/styles.css         mirror/styles.css
+          cp packages/obsidian/README.md          mirror/README.md
+          cp packages/obsidian/LICENSE            mirror/LICENSE
+
+          # Where it came from, so nobody edits the copy and wonders why it reverts.
+          cat > mirror/CONTRIBUTING.md <<'EOF'
+          # Contributing
+
+          This repository is generated. The plugin is developed in
+          [Love-Rox/kumihimo](https://github.com/Love-Rox/kumihimo) under `packages/obsidian`,
+          alongside the compiler it uses, and mirrored here on release because Obsidian's
+          community directory reads `manifest.json` from the root of a repository.
+
+          Open issues and pull requests against the monorepo. Changes made here are
+          overwritten by the next release.
+          EOF
+
+          # The build syncs the manifest from package.json; if that ever stops happening,
+          # Obsidian would look for a release tag that does not exist and the plugin would
+          # simply fail to install.
+          shipped=$(node -p "require('./mirror/manifest.json').version")
+          if [ "$shipped" != "$VERSION" ]; then
+            echo "::error::manifest.json は $shipped、package.json は $VERSION。同期されていません"
+            exit 1
+          fi
+
+          echo "組み立てたもの ($VERSION):"
+          ls -la mirror
+
+      - if: steps.version.outputs.publish == 'true'
+        name: Push to the plugin repository
+        env:
+          # A token with write access to the mirror. Without it the workflow says so and
+          # stops rather than half-publishing.
+          TOKEN: ${{ secrets.OBSIDIAN_REPO_TOKEN }}
+          VERSION: ${{ steps.version.outputs.current }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TOKEN:-}" ]; then
+            echo "::error::OBSIDIAN_REPO_TOKEN が設定されていません。docs/PUBLISHING.md を参照してください"
+            exit 1
+          fi
+
+          cd mirror
+          git init -q
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "kumihimo ${VERSION}
+
+          Built from Love-Rox/kumihimo@${GITHUB_SHA}."
+
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/Love-Rox/obsidian-kumihimo.git"
+          # Force, because this is a mirror and not a history: the monorepo is the history.
+          git push -q --force origin HEAD:main
+
+      - if: steps.version.outputs.publish == 'true'
+        name: Release it there
+        env:
+          GH_TOKEN: ${{ secrets.OBSIDIAN_REPO_TOKEN }}
+          VERSION: ${{ steps.version.outputs.current }}
+        run: |
+          set -euo pipefail
+          # The tag has to equal the manifest version exactly, with no `v`: that is the tag
+          # Obsidian looks for when somebody installs the plugin.
+          gh release create "$VERSION" \
+            --repo Love-Rox/obsidian-kumihimo \
+            --title "$VERSION" \
+            --notes "Built from [Love-Rox/kumihimo@${GITHUB_SHA:0:7}](https://github.com/Love-Rox/kumihimo/commit/${GITHUB_SHA})." \
+            mirror/main.js mirror/manifest.json mirror/styles.css
+
+          echo "### Obsidian ${VERSION} を公開しました" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/Love-Rox/obsidian-kumihimo/releases/tag/${VERSION}" >> "$GITHUB_STEP_SUMMARY"
