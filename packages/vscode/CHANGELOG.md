@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- 2151e49: Nineteen snippets, and the keywords that were never coloured.
+
+  `adapter` and `over` were not coloured — the grammar's keyword list predates both — and
+  neither were `via`, `from` and `as`. All are now.
+
+  Nineteen snippets cover every declaration the language has, so the shape of one can be
+  inserted rather than remembered. Where a word comes from a fixed list — device kinds,
+  signal types, themes, units — the snippet offers that list rather than a blank to guess at.
+
+  The snippets are checked against the compiler rather than against themselves: every word
+  offered in a choice list has to be one the compiler accepts, and every skeleton has to
+  parse once its placeholders are filled. A snippet that inserts something the compiler
+  rejects teaches the wrong thing, which is worse than offering nothing.
+
+  Nothing in core.
+
+### Patch Changes
+
+- Updated dependencies [2151e49]
+- Updated dependencies [2151e49]
+- Updated dependencies [2151e49]
+  - @love-rox/kumihimo-core@0.6.0
+
 ## 0.4.4
 
 - The completions know `over`, which says what a signal is riding on — `ndi over wifi`,
