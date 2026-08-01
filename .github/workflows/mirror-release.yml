@@ -1,0 +1,80 @@
+name: Release
+
+# This file is copied into the plugin repository and runs there, not here.
+#
+# The release is built and signed by the repository somebody is asked to trust. Attesting
+# from the monorepo would have recorded the provenance against the monorepo, where nobody
+# checking the plugin would think to look — and the point of an attestation is that it can
+# be checked against the source sitting beside the file.
+#
+# It also proves the source in this repository is the source: what gets attached is what
+# the checked-in source and the pinned compiler produce, built here, from nothing else.
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Frozen, because the lockfile is the whole reason a build here is reproducible.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - name: Check the manifest matches the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./manifest.json').version")
+          if [ "$version" != "$TAG" ]; then
+            echo "::error::manifest.json は $version、タグは $TAG。Obsidian はタグでファイルを探すので一致していないとインストールできません"
+            exit 1
+          fi
+
+      # Signed before the release exists, so nothing can be attached unattested.
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            dist/main.js
+            styles.css
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # `main.js` is at the root for anyone installing by hand; the built one is what
+          # goes out, and the two are the same file because the build just produced it.
+          cp dist/main.js main.js
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "Built from the source in this repository, and attested. Verify with:
+
+          \`\`\`
+          gh attestation verify main.js --repo $REPO
+          \`\`\`" \
+            main.js manifest.json styles.css

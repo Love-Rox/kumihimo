@@ -143,9 +143,51 @@ class DiagramBlock extends MarkdownRenderChild {
   }
 }
 
+/**
+ * The settings, described rather than drawn.
+ *
+ * `getSettingDefinitions` is how Obsidian 1.13 and later index a plugin's settings for the
+ * global search — a tab that only draws itself is a tab whose settings nobody can find by
+ * typing their name. It also does the reading and saving, so there is no `onChange` to get
+ * wrong.
+ *
+ * `display()` stays beside it because 1.13 is an insider build and `minAppVersion` here is
+ * 1.7.2. On an older Obsidian the declarative method is simply never called, and the tab
+ * draws itself the way it always did. Dropping `display()` would have been dropping every
+ * version anybody is actually running today.
+ */
 class KumihimoSettingTab extends PluginSettingTab {
   constructor(private readonly plugin: KumihimoPlugin) {
     super(plugin.app, plugin);
+  }
+
+  /** Cheap on purpose: this runs on every update and once at registration. */
+  override getSettingDefinitions() {
+    return [
+      {
+        name: 'Theme',
+        desc: 'A `diagram { theme: … }` in the block wins over this.',
+        control: {
+          type: 'dropdown' as const,
+          key: 'theme',
+          options: { light: 'light', dark: 'dark', mono: 'mono', blueprint: 'blueprint' },
+        },
+      },
+      {
+        name: 'Language',
+        desc: 'For the headings, the schedule names and the compiler’s messages.',
+        control: {
+          type: 'dropdown' as const,
+          key: 'locale',
+          options: { en: 'English', ja: '日本語' },
+        },
+      },
+      {
+        name: 'Show the schedules',
+        desc: 'The cable, wireless, equipment and parts lists, folded up under the drawing.',
+        control: { type: 'toggle' as const, key: 'showSchedules' },
+      },
+    ];
   }
 
   override display(): void {
