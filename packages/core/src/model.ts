@@ -68,6 +68,14 @@ export interface Port {
    */
   accepts?: string[];
   /**
+   * The connector on the equipment, when the author said which.
+   *
+   * Only meaningful where the signal type offers a choice. What matters downstream is what
+   * plugs into it — which for a gendered type is the opposite gender, and otherwise the
+   * same thing.
+   */
+  connector?: string;
+  /**
    * Whether the port was invented because a connection referred to it.
    *
    * Implicit ports carry no declared direction, so direction checking skips them.

@@ -126,6 +126,18 @@ export const MESSAGES = {
     ja: 'ポートが指定されていないため {id} を生成しました',
   },
   'port.unconnected': { en: 'Wired to nothing: {id}', ja: 'どこにも結線されていません: {id}' },
+  'port.attr-unknown': {
+    en: '{name} is not something a port understands. The only one is `connector`',
+    ja: '{name} は口が解釈しない属性です。使えるのは `connector` だけです',
+  },
+  'port.connector-unknown': {
+    en: '{name} is not a connector {signal} uses. Try one of: {expected}',
+    ja: '{name} は {signal} のコネクタではありません。次のいずれかです: {expected}',
+  },
+  'port.connector-needs-signal': {
+    en: 'A connector can only be named on a port that names a signal type',
+    ja: 'コネクタを書けるのは、信号種別を書いた口だけです',
+  },
   'signal.unknown': { en: 'Unknown signal type: {name}', ja: '未定義の信号種別: {name}' },
 
   // ── connections ───────────────────────────────────────────────────────────
