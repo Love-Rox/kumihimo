@@ -1,5 +1,87 @@
 # @love-rox/kumihimo-core
 
+## 0.8.0
+
+### Minor Changes
+
+- 6fc570b: One place that knows what the schedules are called.
+
+  Four surfaces show these — the CLI, the VS Code pane, the live editor and the site — and
+  each carried its own column list and its own set of headings. Adding the wireless sheet
+  meant editing all four, in four different i18n mechanisms. A heading that disagrees between
+  two of them is a heading somebody will read as naming two different things.
+
+  `SCHEDULES` says what exists, what columns the rows carry and what each is called, in every
+  language the library speaks. `SCHEDULE_KINDS` lists them. `formatCell` is the one that was
+  written three times and disagreed: an array of connectors came out `XLR-M / XLR-F` in one
+  place and `XLR-M,XLR-F` in another, off the same row.
+
+  **How it looks stays with each surface.** A terminal export wants the port ids and a
+  sidebar does not, and forcing one answer on both would have been worse than the duplication
+  it removed. The registry hands out the vocabulary, not the layout.
+
+  Writing a test that the columns cover what the rows actually carry immediately found three
+  that did not: `signal` and `carrier` — the machine names behind the drawn ones, which every
+  other name/id pair on these sheets already had — and `implicit`, the flag saying a device
+  was never declared, which is a gap in the drawing rather than a thing to order. All three
+  now reach the sheet.
+
+  The VS Code extension drops 21 translated strings, which are now the library's to say.
+
+- 2b9c557: A port can say which connector is on the box, and the cable ends follow.
+
+  ```khm
+  device dk "Desk" as mixer   { out CH[1..16] : xlr [connector=XLR-M] }
+  device sp "SP"   as speaker { in  IN        : xlr [connector=XLR-F] }
+  ```
+
+  Gender is a property of the socket, not of the cable. A plug mates with the opposite
+  gender, so a male output takes a female cable end — which means the cable schedule can be
+  worked out rather than written. Stated once per socket, every cable reaching that socket
+  agrees with it; stated per run, two runs can come to disagree about the same socket.
+
+  The cable schedule gains a **source end** and a **far end**, filled where the ports said
+  what they have. `connectors` stays as it was: what the _type_ is terminated with, which
+  cannot say which end is which.
+
+  `xlr` is now marked `gendered`, and it is the only builtin that is. That was a real
+  ambiguity: its list read `XLR-M / XLR-F` in the same column where `usb` reads
+  `USB-A / USB-B / USB-C`, and the two meant different things — a pair against a choice.
+  Saying which is which makes it readable and makes the mate derivable. For a type that is
+  not a pair, the cable end is the same name rather than an opposite.
+
+  A connector the signal type does not list is reported. So is any port attribute other than
+  `connector`: a run's `[…]` list is kept on the model as free-form extra data, so an unknown
+  key there survives for whoever wants it, but a port's is not, and a typo would otherwise go
+  nowhere quietly.
+
+  A turnaround is now writable as the thing it is — a barrel with two ends the same gender,
+  which is exactly why it exists.
+
+### Patch Changes
+
+- 2b9c557: A bidirectional port is drawn on the side it is actually used on.
+
+  `io` says a port _can_ go either way, not that it does. Which one it is in a given drawing
+  is written down already — in the runs that touch it. A port that only ever receives is an
+  input here, whatever it is capable of, and drawing it on the outgoing face sent every run
+  that reached it around the box.
+
+  ```khm
+  device ap "Access point" as router { io WIFI : ndi  out LAN : ndi }
+  cam.WIFI -> ap.WIFI : ndi over wifi [ch=36]   # nothing leaves by WIFI
+  ```
+
+  Only a genuinely two-way port — an L2 switch, a `<->` — is ambiguous, and that keeps the
+  old default of the outgoing face. So does a port with nothing connected: there is nothing
+  to read.
+
+  This is the rule the rest of the language already follows. Whether an adapter's end is
+  captive is read off the run, not the declaration; what decides a run's physics is the
+  carrier named on it. The one place still deciding from the shape of a declaration was this.
+
+  No source has to change. `io` still means what it meant.
+
 ## 0.7.0
 
 ### Minor Changes
