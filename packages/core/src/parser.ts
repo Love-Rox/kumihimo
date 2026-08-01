@@ -169,8 +169,15 @@ class Parser {
       const value = this.#literal();
       entries.push({ key: key.value, value, span: this.#span(key) });
       this.#skipNewlines();
-      this.#accept('comma');
+      const separated = this.#accept('comma') !== undefined;
       this.#skipNewlines();
+      // `[connector=HDMI Micro]`. The value stopped at the space and `Micro` reads as the
+      // next attribute name, so the complaint used to be that `=` was missing — pointing at
+      // a token the author never meant to write. Most connector names have a space in them,
+      // so this is the ordinary mistake rather than an exotic one.
+      if (!separated && !this.#at('rbracket') && !this.#at('eof')) {
+        this.#fail('parse.attr-unquoted', { key: key.value, value: String(value.value) });
+      }
     }
     this.#expect('rbracket', '`]`');
     return entries;
