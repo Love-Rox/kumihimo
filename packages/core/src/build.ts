@@ -783,6 +783,11 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
   for (const id of table.order) {
     const device = table.byId.get(id)!;
     if (!device.passive) continue;
+    // `as cable` is the author saying this already: it is one cable, and here is its number.
+    // Telling them to write it as `via` instead would be telling them to undo the more
+    // precise of the two ways of saying the same thing — `via` names a part on somebody
+    // else's run, `as cable` gives the part a row and a number of its own.
+    if (device.cable !== undefined) continue;
 
     const touching = links.filter(
       (l) => l.from.deviceId === device.id || l.to.deviceId === device.id,

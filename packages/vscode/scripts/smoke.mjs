@@ -21,6 +21,8 @@ import Module from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { formatSource } from '@love-rox/kumihimo-core';
+
 const here = dirname(fileURLToPath(import.meta.url));
 
 const published = [];
@@ -414,16 +416,41 @@ const formatDoc = {
 };
 
 const edits = formatting.provider.provideDocumentFormattingEdits(formatDoc, { tabSize: 2 });
-const text = edits[0]?.newText ?? '';
-const lines = text.split('\n');
 
 console.log(`  ${edits.length === 1 ? '○' : '×'} 編集を1件返す`);
 if (edits.length !== 1) throw new Error(`編集が1件のはずが ${edits.length} 件`);
+
+/**
+ * Apply a line-and-character ranged edit, the way the editor would.
+ *
+ * The edit covers only the lines that changed — replacing the whole document invalidates
+ * everything and sets this extension's own diagnostics and preview going again, on save,
+ * when several things are already competing for the moment. So the test can no longer read
+ * the edit's text as the finished document; it has to apply it.
+ */
+const apply = (source, edit) => {
+  const lines = source.split('\n');
+  const { start, end } = edit.range;
+  const head = [...lines.slice(0, start.line), lines[start.line]?.slice(0, start.character) ?? ''];
+  const tail = [(lines[end.line] ?? '').slice(end.character), ...lines.slice(end.line + 1)];
+  return head.join('\n') + edit.newText + tail.join('\n');
+};
+
+const text = apply(messy, edits[0]);
+const lines = text.split('\n');
 
 const ports = lines.filter((l) => /^ {2}(in|out) /.test(l));
 const aligned = new Set(ports.map((l) => l.indexOf(':'))).size === 1;
 console.log(`  ${aligned ? '○' : '×'} 桁が揃う  ${JSON.stringify(ports)}`);
 if (!aligned) throw new Error('桁が揃っていません');
+
+// The property a partial edit has to have and a whole-document replace got for free: what
+// the editor ends up holding is what the formatter meant to write.
+const whole = formatSource(messy, { indent: 2, align: true });
+console.log(`  ${text === whole ? '○' : '×'} 部分編集の結果が全体整形と一致する`);
+if (text !== whole) {
+  throw new Error(`部分編集がずれています\n--- 適用後 ---\n${text}\n--- 全体整形 ---\n${whole}`);
+}
 
 // Formatting something already formatted must produce no edit at all: an edit that
 // replaces the document with itself still moves the cursor and dirties the file.
