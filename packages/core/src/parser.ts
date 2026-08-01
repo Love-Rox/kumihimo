@@ -594,9 +594,19 @@ class Parser {
     const statements: Statement[] = [];
     this.#skipSeparators();
     while (!this.#at('eof')) {
+      // Where the loop was before this: `#recover` stops in front of a `}` because a
+      // closing brace belongs to the block it closes, which is right inside one and wrong
+      // at the top, where there is no block and nobody to consume it. `rack R1 42U { }` —
+      // or any unknown statement with a brace in it — left the position untouched and this
+      // loop went round for ever. Parsing is documented never to throw; hanging is worse,
+      // because a caller cannot even catch it.
+      const before = this.#index;
       const statement = this.#statement();
       if (statement) statements.push(statement);
       this.#skipSeparators();
+      // Nothing consumed and nothing reported: drop one token so the next turn is somewhere
+      // new. The statement that failed has already said what was wrong with it.
+      if (this.#index === before && !this.#at('eof')) this.#next();
     }
     return { type: 'document', statements, span: this.#span(start) };
   }

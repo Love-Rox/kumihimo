@@ -207,3 +207,54 @@ describe('error recovery', () => {
     expect(diagnostics[0]?.span?.start.line).toBe(1);
   });
 });
+
+describe('a statement it cannot read', () => {
+  // Every one of these hung. `#recover` stops in front of a `}` because a closing brace
+  // belongs to the block it closes — right inside one, wrong at the top level, where there
+  // is no block and nobody to consume it. The position never moved and the loop went round
+  // for ever.
+  //
+  // Parsing is documented never to throw. Hanging is worse: a caller cannot catch it, and
+  // in an editor it takes the diagnostics and the preview with it, because both go through
+  // here. That is what "it stops redrawing after a while" looks like from the outside.
+  const HUNG = [
+    'rack R1 42U { 40U: sw 3U }',
+    'x { 40U: sw }',
+    'foo bar { baz }',
+    'rack R1 42U { }',
+    '{ }',
+    '}',
+    'device a { in 1 : sdi }\n} stray',
+  ];
+
+  for (const source of HUNG) {
+    it(`returns for ${JSON.stringify(source)}`, () => {
+      const started = Date.now();
+      const { diagnostics } = parse(source, { locale: 'en' });
+      expect(Date.now() - started, 'took too long, which means it looped').toBeLessThan(1000);
+      expect(
+        diagnostics.length,
+        'said nothing about a statement it could not read',
+      ).toBeGreaterThan(0);
+    });
+  }
+
+  it('still reads the statements around one it cannot', () => {
+    // Recovery is worth having only if what follows still parses.
+    const { document, diagnostics } = parse(
+      [
+        'device cam "Camera" as camera { out SDI : sdi }',
+        'rack R1 42U { }',
+        'device rec as recorder { in SDI : sdi }',
+      ].join('\n'),
+      { locale: 'en' },
+    );
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(document.statements.filter((s) => s.type === 'device')).toHaveLength(2);
+  });
+
+  it('leaves valid nesting alone', () => {
+    const source = 'group g "G" { device a "A" as camera { out O : sdi } }';
+    expect(parse(source, { locale: 'en' }).diagnostics).toEqual([]);
+  });
+});
