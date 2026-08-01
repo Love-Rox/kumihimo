@@ -1,5 +1,80 @@
 # @love-rox/kumihimo-core
 
+## 0.6.0
+
+### Minor Changes
+
+- 2151e49: An adapter's ends decide what it is, and `as cable` puts a moulded lead where it is packed
+  from.
+
+  The rule that decided the schedules turns out to decide everything:
+
+  > **A run touching an adapter is captive unless it carries a length or a cable number.**
+
+  Not the number of ends. A USB-HDMI dongle has two and is a junction — the USB tail is
+  moulded on, the HDMI side is a socket, and the cable reaching it is one somebody has to
+  bring. A previous release warned that two ends meant a cable; that was too coarse and is
+  replaced by asking whether any end is a socket at all.
+
+  ```khm
+  adapter dg "USB-HDMI adapter" {
+    in  USB  : usb
+    out HDMI : hdmi
+  }
+  pc.USB  -> dg.USB   : usb              # moulded on — no cable row
+  dg.HDMI -> mon.HDMI : hdmi 2m "V-01"   # a socket — one cable to bring
+  ```
+
+  `adapter … as cable 5m "C-01"` puts a moulded lead on the **cable schedule**, one row for
+  the whole object rather than one per plug, with the far ends listed together. It leaves the
+  parts list, rather than appearing on both.
+
+  `?m` says a cable exists and has not been measured. Leaving the length off already worked,
+  and the blank it produced meant both "not measured" and "nobody thought about it" — only
+  one of which is a job still to do. Any unit the language knows: `?m`, `?ft`.
+
+- 2151e49: A conversion lead is one cable, not a node with cables either side.
+
+  `adapter` makes a **node** — a place the drawing stops at and several runs meet. That is
+  right for a splitter, which is a real junction, and wrong for a two-ended lead, which is a
+  single unbroken run. Modelling one as a node invents a stop in the middle of a cable and
+  draws one object as three. Two ends are now reported, pointing at `via`.
+
+  `via` was also counting the same object twice. On a run whose ends disagree, the part it
+  names **is** the cable, and the cable schedule already accounts for it. On a run whose ends
+  agree it is a separate thing to bring, and two rows are right. Nothing new has to be
+  written to tell them apart — the compatibility check already names the lead a pairing
+  needs, so it knows.
+
+  |                                       | cable schedule              | parts list  |
+  | ------------------------------------- | --------------------------- | ----------- |
+  | `hdmi` → `dvi` `via "HDMI-DVI cable"` | the run, naming the lead    | —           |
+  | `sdi` → `sdi` `via "BNC-RCA adapter"` | the run, naming the adapter | the adapter |
+
+  And a junction's row lists **what it plugs into** rather than the runs it takes part in.
+  Three runs against one part read as three cables, which is the thing this schedule exists
+  to stop saying.
+
+  The specs said to use `adapter` for a two-ended lead. That was wrong, and is corrected.
+
+### Patch Changes
+
+- 2151e49: Nineteen snippets, and the keywords that were never coloured.
+
+  `adapter` and `over` were not coloured — the grammar's keyword list predates both — and
+  neither were `via`, `from` and `as`. All are now.
+
+  Nineteen snippets cover every declaration the language has, so the shape of one can be
+  inserted rather than remembered. Where a word comes from a fixed list — device kinds,
+  signal types, themes, units — the snippet offers that list rather than a blank to guess at.
+
+  The snippets are checked against the compiler rather than against themselves: every word
+  offered in a choice list has to be one the compiler accepts, and every skeleton has to
+  parse once its placeholders are filled. A snippet that inserts something the compiler
+  rejects teaches the wrong thing, which is worse than offering nothing.
+
+  Nothing in core.
+
 ## 0.5.0
 
 ### Minor Changes

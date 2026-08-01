@@ -1,5 +1,14 @@
 # @love-rox/kumihimo-rehype
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [2151e49]
+- Updated dependencies [2151e49]
+- Updated dependencies [2151e49]
+  - @love-rox/kumihimo-core@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
