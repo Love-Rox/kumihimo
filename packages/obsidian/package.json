@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node scripts/smoke.mjs"
+    "test": "pnpm build && node scripts/smoke.mjs && node scripts/check-mirror.mjs"
   },
   "dependencies": {
     "@love-rox/kumihimo-core": "workspace:*"
