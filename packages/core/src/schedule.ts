@@ -11,9 +11,6 @@ import type { Locale } from './messages.js';
 import { DEFAULT_LOCALE, localise } from './messages.js';
 import type { Diagram, Link } from './model.js';
 
-/** Whether a link is a physical cable or a radio path. */
-export type LinkMedium = 'cable' | 'wireless';
-
 /** One row of the cable schedule. */
 export interface CableRow {
   /** Cable number as written, e.g. `V-01`. */
@@ -30,12 +27,8 @@ export interface CableRow {
   signal: string;
   /** Signal type's drawn name, e.g. `SDI`. */
   signalLabel: string;
-  /** Cable or radio. */
-  medium: LinkMedium;
-  /** Cable length as written. Absent on a radio path. */
+  /** Cable length as written. */
   length?: string;
-  /** Frequency or channel. Absent on a cable. */
-  frequency?: string;
   /** Jacket colour as resolved, when one was written. */
   color?: string;
   /** Connectors this signal is typically terminated with. */
@@ -43,6 +36,44 @@ export interface CableRow {
   /** Passive adapter this run needs, declared or detected. */
   adapter?: string;
   /** Why this run was flagged, when it was. */
+  note?: string;
+}
+
+/**
+ * One row of the wireless schedule.
+ *
+ * A radio path has no length, no connector and nothing to coil, so it has no business on a
+ * list of cables to pull. What it does have is a frequency somebody has to co-ordinate,
+ * which is a different job done by a different person — hence a different sheet.
+ */
+export interface WirelessRow {
+  /** Number as written, when the author numbered the path. */
+  label?: string;
+  /** Transmitting end, as `deviceId.port`. */
+  from: string;
+  /** Transmitting device's drawn name. */
+  fromDevice: string;
+  /** Receiving end, as `deviceId.port`. */
+  to: string;
+  /** Receiving device's drawn name. */
+  toDevice: string;
+  /** Signal type name, e.g. `ndi`. */
+  signal: string;
+  /** Signal type's drawn name, e.g. `NDI`. */
+  signalLabel: string;
+  /**
+   * What the signal is riding on, when `over` named something.
+   *
+   * NDI over Wi-Fi is an NDI row whose carrier is Wi-Fi. The frequency belongs to the
+   * carrier and the name belongs to the payload, which is the whole reason they are
+   * separate columns.
+   */
+  carrier?: string;
+  /** Carrier's drawn name. */
+  carrierLabel?: string;
+  /** Frequency or channel as written. */
+  frequency?: string;
+  /** Why this path was flagged, when it was. */
   note?: string;
 }
 
@@ -112,13 +143,24 @@ function describe(link: Link): string {
   );
 }
 
+/** Whether the physics of this run belongs to the air rather than to a cable. */
+function isWireless(link: Link): boolean {
+  // The carrier decides, when the author named one: an NDI hop over Wi-Fi is a radio path
+  // however many RJ45s `ndi` itself lists.
+  return (link.carrier ?? link.signal).wireless === true;
+}
+
 /**
- * Every link as a row, cables and radio paths alike.
+ * Every cable as a row.
  *
- * Radio paths are included rather than filtered out: they are part of the system and
- * someone has to check the frequency, even though there is nothing to coil.
+ * Radio paths are not here. They were, once, on the reasoning that they are part of the
+ * system and somebody has to check the frequency — which is true, and is an argument for
+ * listing them, not for listing them *here*. This is the sheet someone packs a van from,
+ * and a row with no length, no connector and nothing to coil reads as a cable that was
+ * never measured. {@link wirelessSchedule} has them.
  *
  * @param diagram - The resolved diagram.
+ * @param locale - Language for the drawn names and any note.
  * @returns Rows in the order the links were written.
  */
 export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE): CableRow[] {
@@ -148,7 +190,6 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
         toDevice: others.join(' / '),
         signal: signal?.name ?? 'generic',
         signalLabel: signal === undefined ? '' : localise(signal.label, locale) || signal.name,
-        medium: 'cable',
         // From the signals its ports carry: a Port names a type, and the type is what
         // knows how it is terminated.
         connectors: [
@@ -165,7 +206,7 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
     });
 
   return diagram.links
-    .filter((link) => isCableRun(diagram, link))
+    .filter((link) => !isWireless(link) && isCableRun(diagram, link))
     .map((link) => {
       const row: CableRow = {
         from: `${link.from.deviceId}.${link.from.portName}`,
@@ -174,14 +215,12 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
         toDevice: endpointName(diagram, link.to.deviceId),
         signal: link.signal.name,
         signalLabel: localise(link.signal.label, locale) || link.signal.name,
-        // The physics belongs to the carrier when the author named one: an NDI hop over
-        // Wi-Fi has no connector, however many RJ45s `ndi` itself lists.
-        medium: (link.carrier ?? link.signal).wireless ? 'wireless' : 'cable',
+        // The connectors belong to the carrier when the author named one: what is crimped
+        // on the end is a property of the cable, not of what rides down it.
         connectors: (link.carrier ?? link.signal).connectors,
       };
       if (link.label !== undefined) row.label = link.label;
       if (link.length !== undefined) row.length = link.length;
-      if (link.frequency !== undefined) row.frequency = link.frequency;
       if (link.color !== undefined) row.color = link.color;
       if (link.compatibility.adapter !== undefined) {
         row.adapter = localise(link.compatibility.adapter, locale);
@@ -193,6 +232,44 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
       return row;
     })
     .concat(moulded);
+}
+
+/**
+ * Every radio path as a row.
+ *
+ * The counterpart to {@link cableSchedule}, and the reason that one no longer carries
+ * them. Nothing here is pulled, coiled or measured; what it needs is a frequency plan, and
+ * the person holding that sheet is checking for two paths on one channel rather than for
+ * enough cable to reach.
+ *
+ * @param diagram - The resolved diagram.
+ * @param locale - Language for the drawn names and any note.
+ * @returns Rows in the order the links were written.
+ */
+export function wirelessSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE): WirelessRow[] {
+  return diagram.links.filter(isWireless).map((link) => {
+    const row: WirelessRow = {
+      from: `${link.from.deviceId}.${link.from.portName}`,
+      fromDevice: endpointName(diagram, link.from.deviceId),
+      to: `${link.to.deviceId}.${link.to.portName}`,
+      toDevice: endpointName(diagram, link.to.deviceId),
+      signal: link.signal.name,
+      signalLabel: localise(link.signal.label, locale) || link.signal.name,
+    };
+    if (link.label !== undefined) row.label = link.label;
+    // Only when it differs: `uhf -> uhf` writing "uhf, riding on uhf" is noise, and the
+    // column exists to answer "what is it actually going over", which needs no answer
+    // when the signal is its own carrier.
+    if (link.carrier !== undefined && link.carrier.name !== link.signal.name) {
+      row.carrier = link.carrier.name;
+      row.carrierLabel = localise(link.carrier.label, locale) || link.carrier.name;
+    }
+    if (link.frequency !== undefined) row.frequency = link.frequency;
+    if (link.compatibility.verdict !== 'ok' && link.compatibility.reason !== undefined) {
+      row.note = localise(link.compatibility.reason, locale);
+    }
+    return row;
+  });
 }
 
 /**

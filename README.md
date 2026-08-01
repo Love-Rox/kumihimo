@@ -103,7 +103,8 @@ kumihimo build studio.khm --watch         # redraw on save
 kumihimo build studio.khm --theme mono    # for a black and white print
 
 kumihimo export studio.khm drawio         # editable draw.io file
-kumihimo export studio.khm cable --stdout # cable schedule as TSV
+kumihimo export studio.khm cable --stdout    # cable schedule as TSV
+kumihimo export studio.khm wireless --stdout # radio paths and their channels
 ```
 
 Diagnostics are printed against the line that caused them:

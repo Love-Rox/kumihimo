@@ -1,5 +1,17 @@
-import type { AdapterRow, CableRow, Diagram, EquipmentRow, Locale } from '@love-rox/kumihimo-core';
-import { adapterSchedule, cableSchedule, equipmentSchedule } from '@love-rox/kumihimo-core';
+import type {
+  AdapterRow,
+  CableRow,
+  Diagram,
+  EquipmentRow,
+  Locale,
+  WirelessRow,
+} from '@love-rox/kumihimo-core';
+import {
+  adapterSchedule,
+  cableSchedule,
+  equipmentSchedule,
+  wirelessSchedule,
+} from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
 /** One rendered table: what to call it, and its HTML. */
@@ -14,12 +26,13 @@ export interface Table {
 /**
  * The schedules, as HTML.
  *
- * The same three the CLI exports and the live editor shows, from the same functions — a
+ * The same four the CLI exports and the live editor shows, from the same functions — a
  * drawing and its cable list disagreeing is exactly the failure this project exists to
  * avoid, so there is one place they are computed.
  */
 export function tablesOf(diagram: Diagram, locale: Locale = 'en'): Table[] {
   const cables = cableSchedule(diagram, locale);
+  const radio = wirelessSchedule(diagram, locale);
   const equipment = equipmentSchedule(diagram);
   const adapters = adapterSchedule(diagram, locale);
 
@@ -43,10 +56,34 @@ export function tablesOf(diagram: Diagram, locale: Locale = 'en'): Table[] {
           `${row.fromDevice} ${row.from.split('.').pop() ?? ''}`,
           `${row.toDevice} ${row.to.split('.').pop() ?? ''}`,
           row.signalLabel,
-          // A radio path has no length to coil, and saying so beats an empty cell.
-          row.length ?? row.frequency ?? '',
+          row.length ?? '',
           row.connectors.join(' / '),
           [row.adapter, row.note].filter(Boolean).join(' — '),
+        ]),
+      ),
+    },
+    {
+      id: 'wireless',
+      label: vscode.l10n.t('Wireless'),
+      count: radio.length,
+      html: table(
+        [
+          vscode.l10n.t('No.'),
+          vscode.l10n.t('From'),
+          vscode.l10n.t('To'),
+          vscode.l10n.t('Signal'),
+          vscode.l10n.t('Over'),
+          vscode.l10n.t('Channel'),
+          vscode.l10n.t('Note'),
+        ],
+        radio.map((row: WirelessRow) => [
+          row.label ?? '',
+          `${row.fromDevice} ${row.from.split('.').pop() ?? ''}`,
+          `${row.toDevice} ${row.to.split('.').pop() ?? ''}`,
+          row.signalLabel,
+          row.carrierLabel ?? '',
+          row.frequency ?? '',
+          row.note ?? '',
         ]),
       ),
     },
