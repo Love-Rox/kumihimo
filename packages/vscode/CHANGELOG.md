@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.2
+
+### Patch Changes
+
+- Updated dependencies [72cf6d8]
+- Updated dependencies [72cf6d8]
+  - @love-rox/kumihimo-core@0.9.2
+
 ## 0.8.1
 
 ### Patch Changes

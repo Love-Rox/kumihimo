@@ -1,5 +1,38 @@
 # @love-rox/kumihimo-core
 
+## 0.9.2
+
+### Patch Changes
+
+- 72cf6d8: A radio has no socket, so nothing arriving at one is overbooked.
+
+  Five laptops on an access point was reported as `port-overbooked`, five times. So were two
+  radio mics into one receiver. That rule is a fact about **sockets** — two cables do not go
+  into one — and it was being applied to the air, where it does not hold.
+
+  The carrier decides, as it does everywhere else. `ndi over wifi` reaching one port from
+  five machines is an access point doing its job; `ndi over lan` reaching one port twice is
+  still two cables into one socket, and is still reported.
+
+- 72cf6d8: A socket for the carrier is the right socket.
+
+  ```khm
+  device pc "PC" as computer { out WIFI : ndi }
+  device ap "AP" as router   { io  WIFI : wifi }
+
+  pc.WIFI -> ap.WIFI : ndi over wifi
+  ```
+
+  That was reported as `Wi-Fi は無線区間なので NDI に直結できない。送受信機を機器として配置すること`
+  — asking for the access point it is plugged into. The check did not know about `over`: it
+  compared the payload against the carrier, found air meeting copper, and named a fault that
+  was not there.
+
+  `over` says those two travel together, so a socket for either is one this run can plug
+  into. **Both ends, though.** A Wi-Fi socket wired to an RJ45 socket does not become sound
+  by saying what rides on it, and that check still catches it — which a first attempt at this
+  broke, and an existing test caught within the minute.
+
 ## 0.9.1
 
 ### Patch Changes
