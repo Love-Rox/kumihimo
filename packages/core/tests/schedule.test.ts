@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { buildModel } from '../src/build.js';
 import { parse } from '../src/parser.js';
+import { localise } from '../src/messages.js';
 import {
+  SCHEDULES,
+  SCHEDULE_KINDS,
   adapterSchedule,
   cableSchedule,
   equipmentSchedule,
@@ -199,5 +202,71 @@ describe('wirelessSchedule', () => {
       'mic.RF -> rx.RF : uhf [ch=38] "RF-01"',
     );
     expect(wirelessSchedule(scheduleOf(numbered))[0]?.label).toBe('RF-01');
+  });
+});
+
+describe('the schedule registry', () => {
+  // A show with one of everything, so every row type has a row and every optional
+  // property that can be filled is filled.
+  const EVERYTHING = [
+    'device mic "マイク"   as microphone { out RF : uhf }',
+    'device rx  "受信機"   as interface  { in RF : uhf  out CH1 : xlr }',
+    'device dk  "卓"       as mixer      { in CH1 : xlr  out MAIN : xlr }',
+    'device cam "カメラ"   as camera     { out W : ndi }',
+    'device ap  "AP"       as router     { io W : ndi  out LAN : ndi }',
+    'device pc  "PC"       as recorder   { in LAN : ndi }',
+    'adapter pp "分配パネル" { in IN : xlr  out A : xlr }',
+    'device sp  "SP"       as speaker    { in IN : xlr }',
+    '',
+    'mic.RF   -> rx.RF   : uhf [ch=38]',
+    'rx.CH1   -> dk.CH1  : xlr 3m "A-01" [color=青]',
+    'cam.W    -> ap.W    : ndi over wifi [ch=36]',
+    'ap.LAN   -> pc.LAN  : ndi over lan 20m "N-01"',
+    'dk.MAIN  -> pp.IN   : xlr 10m "A-02"',
+    'pp.A     -> sp.IN   : xlr 5m  "A-03"',
+  ].join('\n');
+
+  it('covers every kind', () => {
+    expect([...SCHEDULE_KINDS].sort()).toEqual(['adapter', 'cable', 'equipment', 'wireless']);
+    for (const kind of SCHEDULE_KINDS) expect(SCHEDULES[kind]).toBeDefined();
+  });
+
+  it('has a column for every property the rows actually carry', () => {
+    // The failure this exists to catch: a field added to a row type and not to the column
+    // list. Nothing else notices — the row carries it, every table quietly drops it, and
+    // the first person to find out is whoever needed that column on site.
+    const diagram = scheduleOf(EVERYTHING);
+
+    for (const kind of SCHEDULE_KINDS) {
+      const schedule = SCHEDULES[kind];
+      const declared = new Set(schedule.columns.map((column) => column.key));
+      const produced = new Set(schedule.rows(diagram, 'ja').flatMap((row) => Object.keys(row)));
+
+      const missing = [...produced].filter((key) => !declared.has(key));
+      expect(missing, `${kind} の行にあって列にない項目`).toEqual([]);
+    }
+  });
+
+  it('names every column in both languages', () => {
+    for (const kind of SCHEDULE_KINDS) {
+      const schedule = SCHEDULES[kind];
+      for (const locale of ['en', 'ja'] as const) {
+        expect(localise(schedule.title, locale), `${kind} の表題 (${locale})`).not.toBe('');
+        for (const column of schedule.columns) {
+          if (column.head === undefined) continue;
+          expect(localise(column.head, locale), `${kind}.${column.key} (${locale})`).not.toBe('');
+        }
+      }
+    }
+  });
+
+  it('returns the same rows as the function it wraps', () => {
+    // The registry is a second way to reach the same data, and two ways to reach one thing
+    // is one way for them to disagree.
+    const diagram = scheduleOf(EVERYTHING);
+    expect(SCHEDULES.cable.rows(diagram, 'ja')).toEqual(cableSchedule(diagram, 'ja'));
+    expect(SCHEDULES.wireless.rows(diagram, 'ja')).toEqual(wirelessSchedule(diagram, 'ja'));
+    expect(SCHEDULES.equipment.rows(diagram)).toEqual(equipmentSchedule(diagram));
+    expect(SCHEDULES.adapter.rows(diagram, 'ja')).toEqual(adapterSchedule(diagram, 'ja'));
   });
 });
