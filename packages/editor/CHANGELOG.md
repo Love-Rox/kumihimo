@@ -1,5 +1,13 @@
 # @love-rox/kumihimo-editor
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies [d3efacb]
+  - @love-rox/kumihimo-core@0.9.1
+  - @love-rox/kumihimo-react@0.9.1
+
 ## 0.9.0
 
 ### Patch Changes
