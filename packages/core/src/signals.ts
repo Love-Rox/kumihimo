@@ -59,6 +59,35 @@ export interface SignalType {
   wireless: boolean;
   /** Connectors this signal is typically terminated with, for labelling and reports. */
   connectors: string[];
+  /**
+   * Whether {@link SignalType.connectors} is a mating pair rather than a list of choices.
+   *
+   * Everywhere else the list means "one of these": `usb` is A or B or C, `composite` is
+   * BNC or RCA. `xlr` is the odd one out — its two entries are a male and a female, and a
+   * cable has one of each. Two different meanings in one field is a trap for whoever reads
+   * a schedule and has learned the other one.
+   *
+   * Saying which it is here is also what lets the ends be worked out rather than guessed:
+   * a plug mates with the opposite gender, so a port declared male takes a female cable
+   * end. A gendered type lists exactly two connectors, male first.
+   */
+  gendered?: boolean;
+}
+
+/**
+ * The connector that goes into this one.
+ *
+ * For a gendered pair, the other of the two — which is the whole point of a gendered pair.
+ * For anything else, the same name: a USB-C lead ends in a USB-C plug and goes into a
+ * USB-C socket, and there is no opposite to reach for.
+ *
+ * @param signal - The signal type the connector belongs to.
+ * @param connector - The connector on the equipment.
+ * @returns What plugs into it.
+ */
+export function mateOf(signal: SignalType, connector: string): string {
+  if (signal.gendered !== true) return connector;
+  return signal.connectors.find((c) => c !== connector) ?? connector;
 }
 
 /**
@@ -97,6 +126,7 @@ interface SignalSeed {
   connectors: string[];
   bidirectional?: boolean;
   wireless?: boolean;
+  gendered?: boolean;
   color?: string;
   style?: LineStyle;
   width?: number;
@@ -117,7 +147,9 @@ const SEEDS: Record<string, SignalSeed> = {
   fiber: { category: 'video', label: 'Fiber', connectors: ['LC', 'SC', 'OpticalCON'] },
 
   // ── audio ───────────────────────────────────────────────────────────────
-  xlr: { category: 'audio', label: 'XLR', connectors: ['XLR-M', 'XLR-F'] },
+  // The one gendered type. Male first, and the pair is a pair rather than a choice —
+  // every other multi-connector list here means "one of these".
+  xlr: { category: 'audio', label: 'XLR', connectors: ['XLR-M', 'XLR-F'], gendered: true },
   // Jack types are split by barrel size, because size is what decides whether the plug
   // goes in at all. One type listing both could never answer the question a drawing is for.
   //
@@ -226,6 +258,7 @@ function resolve(name: string, seed: SignalSeed): SignalType {
     bidirectional: seed.bidirectional ?? false,
     wireless: seed.wireless ?? false,
     connectors: seed.connectors,
+    ...(seed.gendered === true ? { gendered: true } : {}),
   };
 }
 

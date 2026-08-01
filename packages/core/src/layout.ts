@@ -182,11 +182,37 @@ interface SidedPorts {
 }
 
 /**
+ * Which face a bidirectional port belongs on, read off how it is used.
+ *
+ * `io` says a port *can* go either way, not that it does. Which one it is in this drawing
+ * is written down already — in the runs that touch it. A port that only ever receives is
+ * an input here, whatever it is capable of, and drawing it on the outgoing face sends
+ * every run that reaches it around the box.
+ *
+ * Only a genuinely two-way port — an L2 switch, a `<->` — is ambiguous, and that keeps the
+ * old default. So does a port nothing is connected to: there is nothing to read.
+ *
+ * @param diagram - The resolved diagram.
+ * @param deviceId - Device the port belongs to.
+ * @param portName - The port.
+ * @returns Whether it should sit on the incoming face.
+ */
+function receivesOnly(diagram: Diagram, deviceId: string, portName: string): boolean {
+  let receives = false;
+  let sends = false;
+  for (const link of diagram.links) {
+    if (link.to.deviceId === deviceId && link.to.portName === portName) receives = true;
+    if (link.from.deviceId === deviceId && link.from.portName === portName) sends = true;
+  }
+  return receives && !sends;
+}
+
+/**
  * Decide which face each port sits on.
  *
  * Inputs face the incoming side and outputs the outgoing one, so signal reads along the
- * flow direction. Bidirectional ports join the outputs: a Dante or Ethernet port is more
- * often drawn feeding onwards than being fed.
+ * flow direction. A bidirectional port joins whichever side it is actually used on — see
+ * {@link receivesOnly} — and the outputs when it is used both ways or not at all.
  */
 function sortPorts(diagram: Diagram, deviceId: string): SidedPorts {
   const device = diagram.devices.find((d) => d.id === deviceId);
@@ -195,7 +221,10 @@ function sortPorts(diagram: Diagram, deviceId: string): SidedPorts {
   for (const port of device?.ports ?? []) {
     const sided: SidedPort = { id: port.id, name: port.name };
     if (port.gapBefore !== undefined) sided.gapBefore = port.gapBefore;
-    (port.direction === 'in' ? leading : trailing).push(sided);
+    const incoming =
+      port.direction === 'in' ||
+      (port.direction === 'io' && receivesOnly(diagram, deviceId, port.name));
+    (incoming ? leading : trailing).push(sided);
   }
   return { leading, trailing };
 }

@@ -99,6 +99,13 @@ export interface PortDecl extends Node {
    */
   signals?: string[];
   /**
+   * `[connector=…]` and anything else written in brackets after the signal.
+   *
+   * Which connector is on the box, when the signal type offers more than one. The cable
+   * end is then the one that mates with it rather than a guess.
+   */
+  attrs?: AttrEntry[];
+  /**
    * Blank space to leave above this declaration, from `gap` lines written before it.
    *
    * Counted in gap steps rather than pixels: the author is saying "these belong to a

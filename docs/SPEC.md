@@ -124,6 +124,34 @@ out  <port spec> : <signal>          # output
 io   <port spec> : <signal>          # bidirectional (Dante, Ethernet …)
 ```
 
+`io` says a port **can** go either way, not that it does. Which one it is in a given
+drawing is read off the runs that touch it: a port that only ever receives is drawn on the
+incoming face, whatever it is capable of. A port used both ways, or connected to nothing,
+is drawn on the outgoing face — that one is genuinely ambiguous, and a stable default beats
+a coin toss.
+
+#### Which connector is on the box
+
+Where a signal type offers a choice, a port can say which one it has.
+
+```khm
+device dk "Desk" as mixer   { out CH[1..16] : xlr [connector=XLR-M] }
+device sp "SP"   as speaker { in  IN        : xlr [connector=XLR-F] }
+```
+
+**The cable ends follow.** A plug mates with the opposite gender, so a male output takes a
+female cable end. Written on the port, the fact is stated once per socket and every cable
+reaching that socket agrees with it — rather than once per run, where two runs can come to
+disagree about the same socket.
+
+`xlr` is the only builtin whose connector list is a **mating pair**. Everywhere else the
+list means "one of these" — `usb` is A or B or C — and there the cable end is the same name
+rather than an opposite.
+
+A connector the type does not list is reported, and so is any attribute other than
+`connector`: a run's `[…]` list is kept on the model as free-form extra data, so an unknown
+key there survives for whoever wants it, but a port's is not.
+
 A port spec takes four forms.
 
 | Form           | Example     | Expands to         |

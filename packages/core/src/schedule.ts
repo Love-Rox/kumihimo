@@ -10,6 +10,7 @@
 import type { Locale, Localised } from './messages.js';
 import { DEFAULT_LOCALE, localise } from './messages.js';
 import type { Diagram, Link } from './model.js';
+import { mateOf } from './signals.js';
 
 /** One row of the cable schedule. */
 export interface CableRow {
@@ -33,6 +34,17 @@ export interface CableRow {
   color?: string;
   /** Connectors this signal is typically terminated with. */
   connectors: string[];
+  /**
+   * The connector on this cable's source end, when the port said what it plugs into.
+   *
+   * Derived, not written. A port declares what is on the *box*; what goes into it is the
+   * connector that mates with it, which for a gendered type is the opposite gender. The
+   * author writes the fact once per socket instead of once per cable, and the two cannot
+   * come to disagree.
+   */
+  fromConnector?: string;
+  /** The connector on this cable's destination end. See {@link CableRow.fromConnector}. */
+  toConnector?: string;
   /** Passive adapter this run needs, declared or detected. */
   adapter?: string;
   /** Why this run was flagged, when it was. */
@@ -143,6 +155,40 @@ function describe(link: Link): string {
   );
 }
 
+/**
+ * What is on each end of this cable, where the ports said what they have.
+ *
+ * A port declares the connector on the *box*. What has to be on the cable is whatever
+ * mates with it — the opposite gender for a gendered type, the same name otherwise. So the
+ * author writes it once per socket, and every cable reaching that socket agrees with it
+ * for free.
+ *
+ * The carrier owns this when one was named: what is crimped on the end is a property of
+ * the cable, not of what rides down it.
+ *
+ * @param diagram - The resolved diagram.
+ * @param link - The run.
+ * @returns The two ends, each absent where its port said nothing.
+ */
+function cableEnds(diagram: Diagram, link: Link): { from?: string; to?: string } {
+  const type = link.carrier ?? link.signal;
+  const ends: { from?: string; to?: string } = {};
+  for (const [key, end] of [
+    ['from', link.from],
+    ['to', link.to],
+  ] as const) {
+    const port = diagram.devices
+      .find((d) => d.id === end.deviceId)
+      ?.ports.find((p) => p.name === end.portName);
+    if (port?.connector === undefined) continue;
+    // Only when the port's connector belongs to the type actually running down this cable.
+    // A combo jack declared XLR-F and used for a TRS run has nothing to say about the TRS.
+    if (!type.connectors.includes(port.connector)) continue;
+    ends[key] = mateOf(type, port.connector);
+  }
+  return ends;
+}
+
 /** Whether the physics of this run belongs to the air rather than to a cable. */
 function isWireless(link: Link): boolean {
   // The carrier decides, when the author named one: an NDI hop over Wi-Fi is a radio path
@@ -219,6 +265,9 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
         // on the end is a property of the cable, not of what rides down it.
         connectors: (link.carrier ?? link.signal).connectors,
       };
+      const ends = cableEnds(diagram, link);
+      if (ends.from !== undefined) row.fromConnector = ends.from;
+      if (ends.to !== undefined) row.toConnector = ends.to;
       if (link.label !== undefined) row.label = link.label;
       if (link.length !== undefined) row.length = link.length;
       if (link.color !== undefined) row.color = link.color;
@@ -445,6 +494,8 @@ const COL = {
   length: { en: 'Length', ja: '長さ' },
   colour: { en: 'Colour', ja: '色' },
   connectors: { en: 'Connectors', ja: 'コネクタ' },
+  fromEnd: { en: 'Source end', ja: '送出端' },
+  toEnd: { en: 'Far end', ja: '受け端' },
   adapter: { en: 'Adapter', ja: '変換部材' },
   carrier: { en: 'Over', ja: '乗り物' },
   frequency: { en: 'Channel', ja: 'チャンネル' },
@@ -488,6 +539,11 @@ export const SCHEDULES: Readonly<Record<ScheduleKind, ScheduleDefinition>> = {
       { key: 'length', head: COL.length },
       { key: 'color', head: COL.colour },
       { key: 'connectors', head: COL.connectors },
+      // What is on each end, where the ports said what they have. Separate from
+      // `connectors`, which lists what the *type* is terminated with and cannot say which
+      // end is which.
+      { key: 'fromConnector', head: COL.fromEnd },
+      { key: 'toConnector', head: COL.toEnd },
       { key: 'adapter', head: COL.adapter },
       { key: 'note', head: COL.note },
     ],
