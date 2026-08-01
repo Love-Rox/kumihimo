@@ -1,6 +1,6 @@
 {
   "name": "kumihimo-playground",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": true,
   "description": "Development harness for @love-rox/kumihimo-editor",
   "type": "module",
