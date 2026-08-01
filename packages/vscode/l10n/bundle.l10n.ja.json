@@ -24,5 +24,9 @@
   "adapter in the run": "変換部材",
   "Length units: {0}": "ケーブル長の単位: {0}",
   "a passive part: a splitter, a converting lead": "変換部材（分岐ケーブル・変換ケーブルなど）",
-  "what this signal is riding on": "この信号が乗っている搬送"
+  "what this signal is riding on": "この信号が乗っている搬送",
+  "Open": "開く",
+  "Saved {0}": "{0} を保存しました",
+  "Open the preview first.": "先にプレビューを開いてください。",
+  "The preview did not answer.": "プレビューが応答しませんでした。"
 }

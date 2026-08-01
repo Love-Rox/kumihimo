@@ -29,6 +29,14 @@ export class Preview {
   #shown = '';
   /** The last document seen while the panel was hidden, drawn when it comes back. */
   #missed: vscode.TextDocument | undefined;
+  /**
+   * The nonce the page's one script runs under.
+   *
+   * Per panel rather than per render on purpose: {@link Preview.#shown} skips a redraw when
+   * the markup is unchanged, and a nonce that moved every time would make every render look
+   * different and reload the webview on every keystroke.
+   */
+  readonly #nonce = Buffer.from(`${Date.now()}${Math.random()}`).toString('base64url').slice(0, 24);
 
   private constructor(panel: vscode.WebviewPanel, uri: vscode.Uri) {
     this.#panel = panel;
@@ -61,12 +69,19 @@ export class Preview {
       'kumihimo.preview',
       'kumihimo',
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
-      // No scripts and nothing loaded from disk: the page is a heading and an image.
+      // Scripts, under a nonce, and nothing loaded from disk.
+      //
+      // What keeps somebody else's drawing from running here is not this flag — it is that
+      // the SVG goes into an `<img>`. A browser refuses to run script in an image whatever
+      // else the page is allowed to do, which removes the class rather than filtering it.
+      // The flag was belt as well as braces, and it cost the export: turning an SVG into a
+      // PNG needs a canvas, and a canvas needs script. The CSP names a nonce, so the only
+      // script that runs is the one written below.
       //
       // `retainContextWhenHidden` is deliberately not set. The editor's own documentation
       // warns it is memory-expensive, and it buys nothing here: the page holds no state a
       // reader would lose, and it is redrawn on the way back anyway.
-      { enableScripts: false },
+      { enableScripts: true },
     );
 
     Preview.#current = new Preview(panel, document.uri);
@@ -84,6 +99,50 @@ export class Preview {
   static disposeAll(): void {
     const current = Preview.#current;
     if (current) current.#panel.dispose();
+  }
+
+  /**
+   * The diagram pane, as PNG bytes.
+   *
+   * Done in the panel because that is where the drawing already is, as an `<img>` a canvas
+   * can be told to draw. The extension host has no canvas and no renderer; bringing one in
+   * would mean a native binary per platform inside the .vsix.
+   *
+   * Only the diagram. The schedules are text, and text belongs on the print page where it
+   * stays selectable and reflows to the paper.
+   *
+   * @param scale - Multiplier on the drawing's own size. 2 gives a usable screenshot.
+   * @returns The PNG bytes.
+   * @throws If no preview is open, or the panel does not answer.
+   */
+  static async toPng(scale: number): Promise<Uint8Array> {
+    const current = Preview.#current;
+    if (!current || current.#disposed) throw new Error(vscode.l10n.t('Open the preview first.'));
+    return current.#png(scale);
+  }
+
+  async #png(scale: number): Promise<Uint8Array> {
+    const answer = new Promise<string>((resolve, reject) => {
+      // A render replaces the whole page, and a page that has been replaced will never
+      // answer. Better to say so than to wait for something that is not coming.
+      const timer = setTimeout(() => {
+        listener.dispose();
+        reject(new Error(vscode.l10n.t('The preview did not answer.')));
+      }, 10_000);
+
+      const listener = this.#panel.webview.onDidReceiveMessage((message: unknown) => {
+        const reply = message as { type?: string; dataUrl?: string; error?: string };
+        if (reply.type !== 'png') return;
+        clearTimeout(timer);
+        listener.dispose();
+        if (typeof reply.dataUrl === 'string') resolve(reply.dataUrl);
+        else reject(new Error(reply.error ?? vscode.l10n.t('The preview did not answer.')));
+      });
+    });
+
+    await this.#panel.webview.postMessage({ type: 'png', scale });
+    const dataUrl = await answer;
+    return Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
   }
 
   /**
@@ -133,12 +192,18 @@ export class Preview {
         locale,
       });
       if (this.#disposed) return;
-      html = page(svg, tablesOf(diagram, locale), diagnostics.length, this.#panel.webview);
+      html = page(
+        svg,
+        tablesOf(diagram, locale),
+        diagnostics.length,
+        this.#panel.webview,
+        this.#nonce,
+      );
     } catch (error) {
       if (this.#disposed) return;
       // compile() is documented never to throw; if that ever stops being true the preview
       // says so rather than going blank and leaving the author guessing.
-      html = failure(error, this.#panel.webview);
+      html = failure(error, this.#panel.webview, this.#nonce);
     }
 
     // Assigning `html` reloads the webview — the document is torn down, the markup parsed
@@ -176,7 +241,13 @@ function escape(text: string): string {
  * same bytes in an `<img>` cannot, because browsers refuse to run script in an image. That
  * removes the whole class rather than filtering it, which is worth more than selectable text.
  */
-function page(svg: string, tables: Table[], diagnostics: number, webview: vscode.Webview): string {
+function page(
+  svg: string,
+  tables: Table[],
+  diagnostics: number,
+  webview: vscode.Webview,
+  nonce: string,
+): string {
   const src = `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
   const status =
     diagnostics === 0
@@ -211,6 +282,7 @@ function page(svg: string, tables: Table[], diagnostics: number, webview: vscode
 
   return shell(
     webview,
+    nonce,
     `${inputs}
      <header><nav class="tabs">${labels}</nav>${status}</header>
      <main>${bodies}</main>`,
@@ -218,17 +290,18 @@ function page(svg: string, tables: Table[], diagnostics: number, webview: vscode
   );
 }
 
-function failure(error: unknown, webview: vscode.Webview): string {
+function failure(error: unknown, webview: vscode.Webview, nonce: string): string {
   const message = error instanceof Error ? error.message : String(error);
   return shell(
     webview,
+    nonce,
     `<header><span class="warn">${escape(vscode.l10n.t('Could not render.'))}</span></header>
      <main><pre>${escape(message)}</pre></main>`,
     [],
   );
 }
 
-function shell(webview: vscode.Webview, body: string, panes: string[]): string {
+function shell(webview: vscode.Webview, nonce: string, body: string, panes: string[]): string {
   // One rule per pane, generated: `#tab-cables:checked ~ main [data-pane="cables"]`. Written
   // out rather than looped in script, for the same reason the tabs are radios.
   const paneRules = panes
@@ -247,7 +320,7 @@ function shell(webview: vscode.Webview, body: string, panes: string[]): string {
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'unsafe-inline';">
+      content="default-src 'none'; img-src ${webview.cspSource} data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
   body { margin: 0; padding: 12px; font-family: var(--vscode-font-family);
          color: var(--vscode-foreground); background: var(--vscode-editor-background); }
@@ -281,6 +354,44 @@ function shell(webview: vscode.Webview, body: string, panes: string[]): string {
 ${paneRules}
 </style>
 </head>
-<body>${body}</body>
+<body>${body}
+<script nonce="${nonce}">
+// The only script on the page, and it does one thing: turn the drawing into PNG bytes when
+// the extension asks. It never reads the SVG as markup — it draws the <img> that is already
+// on the page, which is what keeps somebody else's drawing from ever being executable here.
+(function () {
+  var vscode = acquireVsCodeApi();
+
+  window.addEventListener('message', function (event) {
+    var ask = event.data;
+    if (!ask || ask.type !== 'png') return;
+
+    // The diagram pane, not whichever tab happens to be showing. Exporting what is on
+    // screen would give an empty PNG to anyone who had clicked through to a schedule.
+    var img = document.querySelector('[data-pane="diagram"] img');
+    if (!img) {
+      vscode.postMessage({ type: 'png', error: 'no diagram' });
+      return;
+    }
+
+    try {
+      var scale = ask.scale || 2;
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      var ctx = canvas.getContext('2d');
+      // Paper, not transparency: a diagram dropped into a dark document with a transparent
+      // background loses every black line in it.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      vscode.postMessage({ type: 'png', dataUrl: canvas.toDataURL('image/png') });
+    } catch (error) {
+      vscode.postMessage({ type: 'png', error: String(error) });
+    }
+  });
+})();
+</script>
+</body>
 </html>`;
 }

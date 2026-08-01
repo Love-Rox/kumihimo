@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { checkDocument } from './diagnostics.js';
+import { exportMarkdown, exportPng, exportSvg, print } from './export.js';
 import { Preview } from './preview.js';
 import { registerCompletion } from './completion.js';
 import { registerFormatting } from './formatting.js';
@@ -119,6 +120,14 @@ export function activate(context: vscode.ExtensionContext): void {
       const active = vscode.window.activeTextEditor?.document;
       if (active?.languageId === LANGUAGE) Preview.refresh(active);
     }),
+
+    vscode.commands.registerCommand('kumihimo.exportSvg', () => void exportSvg()),
+
+    vscode.commands.registerCommand('kumihimo.exportPng', () => void exportPng()),
+
+    vscode.commands.registerCommand('kumihimo.exportMarkdown', () => void exportMarkdown()),
+
+    vscode.commands.registerCommand('kumihimo.print', () => void print(context)),
 
     vscode.commands.registerCommand('kumihimo.showPreview', () => {
       const editor = vscode.window.activeTextEditor;
