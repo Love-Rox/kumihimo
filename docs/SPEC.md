@@ -279,8 +279,8 @@ group stage "Stage" {
 }
 ```
 
-Represents a location, a rack or a subsystem. Drawn as a frame. Nesting is **one level** in
-v0.1.
+Represents a location, a rack or a subsystem. Drawn as a frame, and it can hold another
+group — see below.
 
 ---
 
@@ -981,5 +981,4 @@ More, including a file of deliberate faults, in [`examples/`](../examples/).
 
 - Rack elevations (`rack R1 42U { 40U: sw 3U }`) and layout by rack unit
 - Channel counts carried by one link (64-channel Dante and so on)
-- Groups nested more than one level deep
 - Automatic cable numbering
