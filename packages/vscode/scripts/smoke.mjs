@@ -314,8 +314,31 @@ for (const [pane, expect] of [
   if (!hasPane) throw new Error(`${pane} のペインがありません`);
   if (!hasContent) throw new Error(`${pane} に ${expect} がありません`);
 }
-if (/<script/i.test(rendered)) throw new Error('プレビューにスクリプトが入っています');
-console.log('  ○ スクリプトなしで切り替わる（radio + CSS）');
+// This used to assert the page had no script at all. It has one now — turning the drawing
+// into a PNG needs a canvas — so what is checked is the guarantee that actually mattered,
+// stated more precisely than "no script".
+//
+// The drawing comes from a file that arrived with somebody else's repository. Inline it as
+// `<svg>` and it can carry script; put the same bytes in an `<img>` and it cannot, whatever
+// else the page is allowed to do.
+if (/<svg[\s>]/i.test(rendered)) throw new Error('図が <img> ではなく <svg> で埋まっています');
+console.log('  ○ 図は <img> の中（<svg> を直接埋めていない）');
+
+// And the one script that does exist can only run if the CSP lets it, which means a nonce
+// on both. A script tag without one is a script the browser refuses — silently.
+const nonce = rendered.match(/script-src 'nonce-([A-Za-z0-9_-]+)'/)?.[1];
+if (!nonce) throw new Error('CSP が nonce を指定していません');
+for (const tag of rendered.match(/<script[^>]*>/gi) ?? []) {
+  if (!tag.includes(`nonce="${nonce}"`)) throw new Error(`nonce のない script: ${tag}`);
+}
+console.log(
+  `  ○ script は CSP の nonce つきのみ（${(rendered.match(/<script/gi) ?? []).length} 件）`,
+);
+
+// Tab switching still costs no script. It was radios and sibling selectors before there was
+// any script on the page, and there is no reason for that to become a script's job now.
+if (!/input\[name="pane"\]/.test(rendered)) throw new Error('タブが radio ではなくなっています');
+console.log('  ○ タブ切り替えは今もスクリプト不要（radio + CSS）');
 
 // The freeze this guards: every keystroke used to reload the whole webview — the document
 // torn down, the markup parsed again, a base64 data URI of the entire drawing decoded

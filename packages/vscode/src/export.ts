@@ -1,18 +1,25 @@
 /**
  * Getting a drawing out of the editor and onto paper.
  *
- * Two commands, and neither needs a script anywhere. The preview is deliberately built
- * with `enableScripts: false` — the SVG is compiled from a file that arrived with somebody
- * else's repository, and rendering it as an `<img>` rather than inline `<svg>` removes the
- * whole class of script-in-an-image rather than filtering it. Producing a PNG would mean a
- * canvas, which means a scripted webview, which means giving that back. The print page
- * carries the drawing as vector and prints as vector, so nothing is lost by not having one.
+ * Three commands: the drawing as SVG, the drawing as PNG, and everything on paper.
+ *
+ * The PNG goes through the preview panel, because a canvas is the only renderer available
+ * and the panel is where the drawing already is. That does not weaken what the panel
+ * guarantees. The thing that stops somebody else's drawing running here is that the SVG
+ * sits in an `<img>` — a browser refuses to run script in an image whatever else the page
+ * may do — not the scripts flag, which was belt as well as braces. The page's one script
+ * runs under a nonce and never touches the SVG as markup.
+ *
+ * Only the drawing is exported as an image. The schedules are text, and text belongs on
+ * the print page, where it stays selectable and reflows to the paper.
  */
 
-import { compile } from '@love-rox/kumihimo-core';
+import type { Diagram, Locale } from '@love-rox/kumihimo-core';
+import { SCHEDULES, SCHEDULE_KINDS, compile, formatCell, localise } from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
 import { editorLocale } from './locale.js';
+import { Preview } from './preview.js';
 import type { Table } from './tables.js';
 import { tablesOf } from './tables.js';
 
@@ -75,6 +82,138 @@ export async function exportSvg(): Promise<void> {
   });
   if (target === undefined) return;
   await writeChosen(target, svg);
+}
+
+/**
+ * The drawing, as a PNG.
+ *
+ * The preview has to be open, and is opened if it is not: this exports what the panel is
+ * showing, and there is nothing to read off a panel that does not exist. Twice the
+ * drawing's own size, which is what makes it usable in a document rather than a thumbnail.
+ */
+export async function exportPng(): Promise<void> {
+  const document = activeDocument();
+  if (document === undefined) return;
+
+  Preview.show(document);
+
+  const target = await vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.joinPath(document.uri, `../${stemOf(document)}.png`),
+    filters: { PNG: ['png'] },
+  });
+  if (target === undefined) return;
+
+  try {
+    const png = await Preview.toPng(2);
+    await vscode.workspace.fs.writeFile(target, png);
+    const open = vscode.l10n.t('Open');
+    const answer = await vscode.window.showInformationMessage(
+      vscode.l10n.t('Saved {0}', target.path.split('/').pop() ?? ''),
+      open,
+    );
+    if (answer === open) await vscode.env.openExternal(target);
+  } catch (error) {
+    void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+  }
+}
+
+/**
+ * Every schedule as Markdown tables.
+ *
+ * The format a schedule ends up pasted into more often than any other — an issue, a hand-
+ * over note, a wiki page — and the one that survives being read as plain text when nothing
+ * renders it. Cells escape their pipes; a cable labelled `A|B` would otherwise split its
+ * own row in two.
+ */
+export async function exportMarkdown(): Promise<void> {
+  const document = activeDocument();
+  if (document === undefined) return;
+
+  const { diagram, locale } = await compiled(document);
+  const target = await vscode.window.showSaveDialog({
+    defaultUri: vscode.Uri.joinPath(document.uri, `../${stemOf(document)}.md`),
+    filters: { Markdown: ['md'] },
+  });
+  if (target === undefined) return;
+
+  await writeChosen(target, markdown(stemOf(document), diagram, locale));
+}
+
+/**
+ * The schedules, as Markdown.
+ *
+ * Three things a table needs before it is worth pasting into a document.
+ *
+ * An **unheaded column continues the one before it** — that is what the registry means by
+ * a column with no heading, and it is how the port sits under its device in the editor.
+ * Markdown has no way to draw that, so the pair goes in one cell. Emitting a blank heading
+ * instead would leave a column nobody can name.
+ *
+ * A column **empty in every row is dropped**. On a sheet somebody scrolls, a column of
+ * dashes is width spent saying nothing.
+ *
+ * And `false` is **not a word anybody wants in a table**. A device that was never declared
+ * is worth marking; the seven that were are not worth seven `false`s.
+ *
+ * @param title - Name of the drawing, used as the heading.
+ * @param diagram - The resolved diagram.
+ * @param locale - Language for the headings and the names inside the rows.
+ * @returns A Markdown document.
+ */
+function markdown(title: string, diagram: Diagram, locale: Locale): string {
+  const ja = locale === 'ja';
+
+  const text = (value: unknown): string => {
+    if (value === false) return '';
+    if (value === true) return ja ? '未宣言' : 'undeclared';
+    // A cable labelled `A|B` would otherwise split its own row in two.
+    return formatCell(value).replace(/\|/g, '\\|');
+  };
+
+  const sections = SCHEDULE_KINDS.flatMap((kind) => {
+    const schedule = SCHEDULES[kind];
+    const rows = schedule.rows(diagram, locale);
+    // An empty schedule is left out. A heading with an empty table under it says "this was
+    // considered and there is nothing"; on a page somebody scrolls, it just says nothing.
+    if (rows.length === 0) return [];
+
+    // Group each headed column with the unheaded ones that follow it.
+    const groups: { head: string; keys: string[] }[] = [];
+    for (const column of schedule.columns) {
+      if (column.head !== undefined || groups.length === 0) {
+        groups.push({
+          head: column.head === undefined ? '' : localise(column.head, locale),
+          keys: [],
+        });
+      }
+      groups[groups.length - 1]?.keys.push(column.key);
+    }
+
+    const cellsOf = (row: Record<string, unknown>, group: { keys: string[] }): string => {
+      const parts = group.keys.map((key) => text(row[key])).filter((part) => part !== '');
+      // An id that only repeats the name it follows is dropped: `SDI sdi` and `XLR xlr` are
+      // a stutter. `SONY FX3 cam1` is not — that id is the word somebody types in the
+      // source, and it cannot be worked out from the name.
+      const [first, ...rest] = parts;
+      if (first === undefined) return '';
+      const head = first.toLowerCase();
+      return [first, ...rest.filter((part) => !head.startsWith(part.toLowerCase()))].join(' ');
+    };
+
+    const used = groups.filter((group) => rows.some((row) => cellsOf(row, group) !== ''));
+    if (used.length === 0) return [];
+
+    return [
+      `## ${localise(schedule.title, locale)}`,
+      '',
+      `| ${used.map((g) => g.head).join(' | ')} |`,
+      `| ${used.map(() => '---').join(' | ')} |`,
+      ...rows.map((row) => `| ${used.map((g) => cellsOf(row, g) || '—').join(' | ')} |`),
+      '',
+    ];
+  });
+
+  return [`# ${title}`, '', ...sections].join('\n');
 }
 
 /**

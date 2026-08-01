@@ -80,6 +80,16 @@
         "category": "kumihimo"
       },
       {
+        "command": "kumihimo.exportPng",
+        "title": "%command.exportPng%",
+        "category": "kumihimo"
+      },
+      {
+        "command": "kumihimo.exportMarkdown",
+        "title": "%command.exportMarkdown%",
+        "category": "kumihimo"
+      },
+      {
         "command": "kumihimo.print",
         "title": "%command.print%",
         "category": "kumihimo"

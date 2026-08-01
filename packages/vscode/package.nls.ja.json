@@ -7,5 +7,7 @@
   "config.format.align": "似た行が続くところで桁を揃えます。ラックの一覧は列を目で追って読むためです。切ると要素の間が1スペースになり、差分は見やすくなります。",
   "config.preview.delay": "入力が止まってからプレビューを描き直すまでの待ち時間（ミリ秒）。図全体の描き直しは1行の検査より重いので、診断の待ち時間より長めです。",
   "command.exportSvg": "図を SVG で書き出す",
-  "command.print": "図と表を印刷する"
+  "command.print": "図と表を印刷する",
+  "command.exportPng": "図を PNG で書き出す",
+  "command.exportMarkdown": "表を Markdown で書き出す"
 }

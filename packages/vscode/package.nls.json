@@ -7,5 +7,7 @@
   "config.format.align": "Line the columns up down a run of similar lines. A rack list is read by scanning a column. Off gives one space between everything, which diffs more cleanly.",
   "config.preview.delay": "How long to wait after typing stops before redrawing the preview, in milliseconds. Redrawing a whole diagram costs more than checking one line, so this is slower than the diagnostics delay.",
   "command.exportSvg": "Export the diagram as SVG",
-  "command.print": "Print the diagram and schedules"
+  "command.print": "Print the diagram and schedules",
+  "command.exportPng": "Export the diagram as PNG",
+  "command.exportMarkdown": "Export the schedules as Markdown"
 }
