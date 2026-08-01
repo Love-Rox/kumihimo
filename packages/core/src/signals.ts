@@ -69,7 +69,8 @@ export interface SignalType {
    *
    * Saying which it is here is also what lets the ends be worked out rather than guessed:
    * a plug mates with the opposite gender, so a port declared male takes a female cable
-   * end. A gendered type lists exactly two connectors, male first.
+   * end. A gendered type lists its connectors in **pairs, male first in each** — full-size
+   * XLR, then mini, then the four-pole mini. One pair or three, the rule reads the same.
    */
   gendered?: boolean;
 }
@@ -77,9 +78,9 @@ export interface SignalType {
 /**
  * The connector that goes into this one.
  *
- * For a gendered pair, the other of the two — which is the whole point of a gendered pair.
- * For anything else, the same name: a USB-C lead ends in a USB-C plug and goes into a
- * USB-C socket, and there is no opposite to reach for.
+ * For a gendered type, the other half of *this* pair. For anything else, the same name: a
+ * USB-C lead ends in a USB-C plug and goes into a USB-C socket, and there is no opposite to
+ * reach for.
  *
  * @param signal - The signal type the connector belongs to.
  * @param connector - The connector on the equipment.
@@ -87,7 +88,12 @@ export interface SignalType {
  */
 export function mateOf(signal: SignalType, connector: string): string {
   if (signal.gendered !== true) return connector;
-  return signal.connectors.find((c) => c !== connector) ?? connector;
+  const at = signal.connectors.indexOf(connector);
+  if (at < 0) return connector;
+  // The other half of this pair, not merely the next entry that differs. With one pair
+  // those were the same answer; with three they are not, and answering "XLR-F" for a mini
+  // plug asks somebody to buy a lead that does not exist.
+  return signal.connectors[at ^ 1] ?? connector;
 }
 
 /**
@@ -134,9 +140,18 @@ interface SignalSeed {
 
 const SEEDS: Record<string, SignalSeed> = {
   // ── video ───────────────────────────────────────────────────────────────
-  sdi: { category: 'video', label: 'SDI', connectors: ['BNC'] },
-  hdmi: { category: 'video', label: 'HDMI', connectors: ['HDMI'] },
-  dp: { category: 'video', label: 'DisplayPort', connectors: ['DisplayPort'] },
+  // DIN 1.0/2.3 is the small SDI shell on compact bodies and pocket converters. Same SDI,
+  // and the lead is DIN on one end and BNC on the other.
+  sdi: { category: 'video', label: 'SDI', connectors: ['BNC', 'DIN 1.0/2.3'] },
+  // Mini (Type C) and micro (Type D) are the same signal on a smaller shell. A lead with a
+  // micro end and a full-size end converts nothing, so these are connectors and not types:
+  // making them types would report a camera plugged into a switcher as a mismatch, which is
+  // the one thing a validator must never do to a connection that works.
+  //
+  // What it buys is the schedule. `HDMI Micro → HDMI` is a different lead from `HDMI → HDMI`,
+  // and turning up with the wrong one is the same lost afternoon as turning up with none.
+  hdmi: { category: 'video', label: 'HDMI', connectors: ['HDMI', 'HDMI Mini', 'HDMI Micro'] },
+  dp: { category: 'video', label: 'DisplayPort', connectors: ['DisplayPort', 'DisplayPort Mini'] },
   dvi: { category: 'video', label: 'DVI', connectors: ['DVI-D', 'DVI-I'] },
   vga: { category: 'video', label: 'VGA', connectors: ['D-sub 15'] },
   composite: { category: 'video', label: 'Composite', connectors: ['BNC', 'RCA'] },
@@ -147,9 +162,24 @@ const SEEDS: Record<string, SignalSeed> = {
   fiber: { category: 'video', label: 'Fiber', connectors: ['LC', 'SC', 'OpticalCON'] },
 
   // ── audio ───────────────────────────────────────────────────────────────
-  // The one gendered type. Male first, and the pair is a pair rather than a choice —
-  // every other multi-connector list here means "one of these".
-  xlr: { category: 'audio', label: 'XLR', connectors: ['XLR-M', 'XLR-F'], gendered: true },
+  // The one gendered type. The list is pairs rather than a choice — every other
+  // multi-connector list here means "one of these" — and each pair is male first.
+  //
+  // Mini XLR is the shell on bodypacks and lavaliers. Three-pole is full-size XLR made
+  // small and a TA3-to-XLR lead is an ordinary purchase; four-pole is not — it carries
+  // bias power on the extra pole and only ever mates with what it came with. Listing it
+  // is still worth it, because "TA4 on the transmitter" is exactly the fact that decides
+  // whether a spare lavalier fits, and a schedule that omits it invites the guess.
+  //
+  // The size qualifier goes in front here rather than behind, unlike `HDMI Mini`: the
+  // gender suffix owns the tail, and both `mateOf` and anybody reading the column find
+  // the gender by looking at the end.
+  xlr: {
+    category: 'audio',
+    label: 'XLR',
+    connectors: ['XLR-M', 'XLR-F', 'Mini XLR-M', 'Mini XLR-F', 'Mini XLR-4M', 'Mini XLR-4F'],
+    gendered: true,
+  },
   // Jack types are split by barrel size, because size is what decides whether the plug
   // goes in at all. One type listing both could never answer the question a drawing is for.
   //
@@ -176,7 +206,9 @@ const SEEDS: Record<string, SignalSeed> = {
   rs422: { category: 'control', label: 'RS-422', connectors: ['D-sub 9'], bidirectional: true },
   rs485: { category: 'control', label: 'RS-485', connectors: ['D-sub 9', 'XLR'] },
   dmx: { category: 'control', label: 'DMX', connectors: ['XLR-5', 'XLR-3'] },
-  midi: { category: 'control', label: 'MIDI', connectors: ['DIN-5'] },
+  // MIDI on 3.5mm (the Type A pinout) is what small gear ships now. Same MIDI, and the
+  // lead has a jack on one end and a DIN on the other.
+  midi: { category: 'control', label: 'MIDI', connectors: ['DIN-5', 'TRS 3.5mm'] },
   gpio: { category: 'control', label: 'GPIO', connectors: ['Terminal', 'D-sub'] },
   ir: { category: 'control', label: 'IR', connectors: [], wireless: true },
 
@@ -185,7 +217,8 @@ const SEEDS: Record<string, SignalSeed> = {
   usb: {
     category: 'network',
     label: 'USB',
-    connectors: ['USB-A', 'USB-B', 'USB-C'],
+    // Micro-B and Mini-B are the sockets on cameras, recorders and older control ports.
+    connectors: ['USB-A', 'USB-B', 'USB-C', 'USB Micro-B', 'USB Mini-B'],
     bidirectional: true,
   },
 

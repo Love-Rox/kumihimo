@@ -14,6 +14,7 @@ import { buildModel } from '../src/build.js';
 import { parse } from '../src/parser.js';
 import { renderDiagram } from '../src/render.js';
 import { adapterSchedule, cableSchedule, equipmentSchedule } from '../src/schedule.js';
+import { BUILTIN_SIGNALS } from '../src/signals.js';
 
 const SPLITTER = [
   'device phone "スマホ" as computer { io HS : trrs35 }',
@@ -351,7 +352,12 @@ describe('a moulded lead that belongs on the cable schedule', () => {
   });
 
   it('takes its connectors from the signals its ports carry', () => {
-    expect(cableSchedule(build(FAN).diagram)[0]?.connectors).toEqual(['XLR-M', 'XLR-F']);
+    // The lead is XLR at both ends, so the row offers XLR's shells and no others — the
+    // point being that a moulded lead takes its connectors from what its ports carry
+    // rather than from anything written on the lead itself.
+    expect(cableSchedule(build(FAN).diagram)[0]?.connectors).toEqual(
+      BUILTIN_SIGNALS['xlr']?.connectors,
+    );
   });
 
   it('leaves the parts list, rather than appearing on both', () => {

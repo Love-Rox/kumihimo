@@ -41,6 +41,10 @@ export const MESSAGES = {
   // ── parser ────────────────────────────────────────────────────────────────
   'parse.expected': { en: '{what} is required', ja: '{what}が必要です' },
   'parse.value': { en: 'A value is required', ja: '値が必要です' },
+  'parse.attr-unquoted': {
+    en: 'A value with a space in it goes in quotes: `{key}="{value} …"`',
+    ja: '空白を含む値は引用符で囲みます: `{key}="{value} …"`',
+  },
   'parse.port-name': { en: 'A port name is required', ja: 'ポート名が必要です' },
   'parse.arrow': { en: '`->` is required', ja: '`->` が必要です' },
   'parse.any-arrow': {

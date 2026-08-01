@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { buildModel } from '../src/build.js';
 import { parse } from '../src/parser.js';
 import { localise } from '../src/messages.js';
+import { BUILTIN_SIGNALS } from '../src/signals.js';
 import {
   SCHEDULES,
   SCHEDULE_KINDS,
   adapterSchedule,
   cableSchedule,
   equipmentSchedule,
+  readableSchedules,
   toTsv,
   wirelessSchedule,
 } from '../src/schedule.js';
@@ -50,8 +52,13 @@ describe('cableSchedule', () => {
   });
 
   it('carries the connectors to terminate with', () => {
+    // Every shell the signal comes in, for an export to sort and filter on. Reading it off
+    // `BUILTIN_SIGNALS` rather than restating the list keeps this a test of the schedule
+    // instead of a second copy of the vocabulary that has to be edited whenever a shell
+    // is added.
     const rows = cableSchedule(scheduleOf(SOURCE));
-    expect(rows[0]?.connectors).toEqual(['BNC']);
+    expect(rows[0]?.connectors).toEqual(BUILTIN_SIGNALS['sdi']?.connectors);
+    expect(rows[0]?.connectors).toContain('BNC');
   });
 
   it('leaves radio paths off, because nothing here is coiled', () => {
@@ -268,5 +275,49 @@ describe('the schedule registry', () => {
     expect(SCHEDULES.wireless.rows(diagram, 'ja')).toEqual(wirelessSchedule(diagram, 'ja'));
     expect(SCHEDULES.equipment.rows(diagram)).toEqual(equipmentSchedule(diagram));
     expect(SCHEDULES.adapter.rows(diagram, 'ja')).toEqual(adapterSchedule(diagram, 'ja'));
+  });
+});
+
+describe('readableSchedules', () => {
+  const SHOW = [
+    'device mic "SM58" as microphone { out OUT : xlr }',
+    'device dk  "卓"   as mixer      { in CH1 : xlr [connector=XLR-F]  out MAIN : xlr [connector=XLR-M] }',
+    'device sp  "SP"   as speaker    { in IN  : xlr [connector=XLR-F] }',
+    'mic.OUT -> dk.CH1 : xlr 10m "A-01"',
+    'dk.MAIN -> sp.IN  : xlr 15m "A-02"',
+  ].join('\n');
+
+  const cable = (locale: 'en' | 'ja' = 'ja') =>
+    readableSchedules(scheduleOf(SHOW), locale).find((sheet) => sheet.kind === 'cable');
+
+  it('leaves out a column the row beside it already decides', () => {
+    // Which shells XLR comes in is a fact about XLR, and the row says XLR. Every cable
+    // row would carry the same six names — the `SDI sdi` stutter one level up.
+    const column = SCHEDULES.cable.columns.find((c) => c.key === 'connectors');
+    expect(column?.dataOnly).toBe(true);
+    const sheet = cable();
+    expect(sheet?.head).not.toContain(localise(column!.head!, 'ja'));
+    expect(sheet?.rows.flat().join(' ')).not.toContain('Mini XLR');
+  });
+
+  it('keeps the ends this particular run terminates in', () => {
+    // The precise fact survives the column that was only ever a hint. A desk output
+    // declared male takes a female cable end, and that is worth a column.
+    const sheet = cable();
+    expect(sheet?.rows.find((row) => row[0] === 'A-02')).toContain('XLR-F');
+  });
+
+  it('still exports the column it does not print', () => {
+    // Dropped from the page, not from the data: a spreadsheet column nobody can get back
+    // is a different kind of loss from a page that is a little wider than it needs to be.
+    const tsv = toTsv(cableSchedule(scheduleOf(SHOW)), ['connectors']);
+    expect(tsv).toContain('Mini XLR-4F');
+  });
+
+  it('gives every sheet as many cells per row as it has headings', () => {
+    // A row longer than the head is a table that renders with a cell in no column at all.
+    for (const sheet of readableSchedules(scheduleOf(SHOW), 'en')) {
+      for (const row of sheet.rows) expect(row, sheet.kind).toHaveLength(sheet.head.length);
+    }
   });
 });

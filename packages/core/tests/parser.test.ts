@@ -182,6 +182,22 @@ describe('error recovery', () => {
     expect(document.statements).toHaveLength(2);
   });
 
+  it('says a value needs quotes rather than that `=` is missing', () => {
+    // `[connector=HDMI Micro]`. The value stops at the space, `Micro` reads as the next
+    // attribute name, and the complaint used to be about a `=` the author never meant to
+    // write. Most connector names have a space in them, so this is the ordinary slip.
+    const { diagnostics } = parse('device cam { out HDMI : hdmi [connector=HDMI Micro] }');
+    expect(diagnostics[0]?.message).toContain('connector="HDMI');
+    expect(diagnostics[0]?.message).not.toContain('`=`');
+  });
+
+  it('still takes a comma between two attributes', () => {
+    // The check is "no comma and not the end", so a list that separates properly has to
+    // keep working — otherwise the message above would fire on correct source.
+    const { diagnostics } = parse('a.X -> b.Y : sdi 2m [color=blue, ch=38]');
+    expect(diagnostics).toEqual([]);
+  });
+
   it('reports an unterminated string without losing later statements', () => {
     const { document, diagnostics } = parse('a.X -> b.Y : sdi "V-01\nc.X -> d.Y : xlr');
     expect(diagnostics.some((d) => d.code === 'parse-error')).toBe(true);

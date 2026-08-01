@@ -148,9 +148,51 @@ disagree about the same socket.
 list means "one of these" — `usb` is A or B or C — and there the cable end is the same name
 rather than an opposite.
 
+`xlr` lists **pairs, male first in each**: full size, mini XLR (TA3), and four-pole mini XLR
+(TA4). What mates is the other half of _that_ pair — answering `XLR-F` for a TA3 plug sends
+somebody out to buy a lead nobody sells. TA4 carries bias power on its extra pole and is not
+something that plugs into XLR at all; it is listed anyway, because "the transmitter is TA4"
+is exactly the fact that decides whether a spare lavalier fits, and a schedule that omits it
+invites the guess.
+
+`xlr` is also the one place the size word goes in front (`Mini XLR-M`). The tail belongs to
+the gender, and both `mateOf` and anybody reading the column look there to find it.
+
 A connector the type does not list is reported, and so is any attribute other than
 `connector`: a run's `[…]` list is kept on the model as free-form extra data, so an unknown
 key there survives for whoever wants it, but a port's is not.
+
+**A smaller shell is a connector, not a type.** Typing them would report a mismatch on a
+camera plugged into a switcher, which is a connection that works. The reason to write them is
+the schedule: `HDMI Micro → HDMI` is a different lead from `HDMI → HDMI`, and it is one you
+either packed or did not.
+
+| Type   | Shells                                                     |
+| ------ | ---------------------------------------------------------- |
+| `hdmi` | `HDMI` / `HDMI Mini` / `HDMI Micro`                        |
+| `dp`   | `DisplayPort` / `DisplayPort Mini`                         |
+| `usb`  | `USB-A` / `USB-B` / `USB-C` / `USB Micro-B` / `USB Mini-B` |
+| `sdi`  | `BNC` / `DIN 1.0/2.3`                                      |
+| `midi` | `DIN-5` / `TRS 3.5mm`                                      |
+| `xlr`  | `XLR` / `Mini XLR` (TA3) / `Mini XLR-4` (TA4)              |
+
+**An adapter that only changes the shell is an `adapter`.** A port declaration cannot say it,
+because it is a separate object. Written down, the cable goes back to being an ordinary
+HDMI-to-HDMI and the adapter appears once on the parts list — which is where it belongs,
+being a thing that can be lost.
+
+```khm
+adapter mh "micro-HDMI adapter" { in IN : hdmi [connector="HDMI Micro"]  out OUT : hdmi [connector=HDMI] }
+```
+
+This is split differently from the jacks in §8 (`trs` / `trs35`), and the reason is what you
+pack. Going from 3.5mm to 1/4″ needs **an adapter** — a part, and one that can be lost. Going
+to micro-HDMI needs **one cable with a micro end on it**, which the cable schedule already
+carries. The question is only whether the connector column answers it or the parts list does,
+and both already exist.
+
+There is a cost. A type holds whether or not anyone writes it; **a connector only holds once
+somebody does.** It is one line on the camera's port — but nothing notices if it is missing.
 
 A port spec takes four forms.
 

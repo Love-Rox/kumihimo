@@ -35,6 +35,31 @@ describe('mateOf', () => {
     expect(mateOf(usb, 'USB-C')).toBe('USB-C');
   });
 
+  it('stays inside its own pair when the type has several', () => {
+    // The rule used to be "the other entry", which was the same answer while there was one
+    // pair and the wrong one the moment there were three: a mini plug asked for a
+    // full-size socket, and nobody sells that lead.
+    const xlr = BUILTIN_SIGNALS['xlr']!;
+    expect(mateOf(xlr, 'Mini XLR-M')).toBe('Mini XLR-F');
+    expect(mateOf(xlr, 'Mini XLR-F')).toBe('Mini XLR-M');
+    expect(mateOf(xlr, 'Mini XLR-4F')).toBe('Mini XLR-4M');
+    // Still true for the pair that was always there.
+    expect(mateOf(xlr, 'XLR-M')).toBe('XLR-F');
+  });
+
+  it('lists a gendered type in pairs, male first in each', () => {
+    // What `mateOf` reads off the order, stated as the thing it is. An entry that slipped
+    // out of order would pair a plug with the wrong shell and nothing else would notice.
+    for (const signal of Object.values(BUILTIN_SIGNALS)) {
+      if (signal.gendered !== true) continue;
+      expect(signal.connectors.length % 2, signal.name).toBe(0);
+      for (let i = 0; i < signal.connectors.length; i += 2) {
+        expect(signal.connectors[i], signal.name).toMatch(/M$/);
+        expect(signal.connectors[i + 1], signal.name).toMatch(/F$/);
+      }
+    }
+  });
+
   it('marks only the type whose list is a pair', () => {
     // The list means "one of these" everywhere else, and two meanings in one field is a
     // trap for whoever reads a schedule having learned the other one.
@@ -106,6 +131,32 @@ describe('a connector written on a port', () => {
     // for whoever wants it. A port's is not, so a typo goes nowhere — and says so.
     const { diagnostics } = build(['device d as mixer { out A : xlr [conector=XLR-M] }']);
     expect(diagnostics[0]?.message).toContain('conector');
+  });
+
+  it('lets a small HDMI shell be a connector rather than a signal of its own', () => {
+    // Mini and micro are the same signal on a smaller shell, so a camera plugged into a
+    // switcher has to come out clean. Typing them would have reported a mismatch on a
+    // connection that works, which is the one thing this validator must never do.
+    //
+    // The reason to write them at all is the schedule: `HDMI Micro → HDMI` is a lead you
+    // either packed or did not.
+    const { diagram, diagnostics } = build([
+      'device cam "α7 IV"     as camera   { out HDMI  : hdmi [connector="HDMI Micro"] }',
+      'device sw  "ATEM Mini" as switcher { in  HDMI1 : hdmi [connector=HDMI] }',
+      'cam.HDMI -> sw.HDMI1 : hdmi 3m "V-01"',
+    ]);
+    expect(diagnostics).toEqual([]);
+    const [run] = cableSchedule(diagram);
+    expect(run?.fromConnector).toBe('HDMI Micro');
+    expect(run?.toConnector).toBe('HDMI');
+  });
+
+  it('still refuses a shell HDMI does not come in', () => {
+    const { diagnostics } = build(['device x "X" { out V : hdmi [connector="HDMI Nano"] }']);
+    // Naming all three is what makes the message useful: it reads as "you have the name
+    // slightly off" rather than as "mini is not a thing".
+    expect(diagnostics[0]?.message).toContain('HDMI Mini');
+    expect(diagnostics[0]?.message).toContain('HDMI Micro');
   });
 
   it('ignores a port connector belonging to another of a combo jack signals', () => {

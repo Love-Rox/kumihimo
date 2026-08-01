@@ -468,6 +468,16 @@ export interface ScheduleColumn {
    * "From" and then "" reads as one thing split across two cells, which is what it is.
    */
   head?: Localised;
+  /**
+   * Whether this column belongs to the spreadsheet only, and not to a page somebody reads.
+   *
+   * For a column that is decided entirely by another column beside it. The connectors a
+   * signal comes in are a property of the *signal*, so every SDI row carries the same list
+   * and the row already says SDI — the same stutter {@link readableSchedules} drops in
+   * `SDI sdi`, one level up. Nothing is lost: an export still carries it, and the ends this
+   * particular run terminates in have their own columns.
+   */
+  dataOnly?: boolean;
 }
 
 /** What a schedule is, and how to get it. */
@@ -538,7 +548,7 @@ export const SCHEDULES: Readonly<Record<ScheduleKind, ScheduleDefinition>> = {
       { key: 'signal' },
       { key: 'length', head: COL.length },
       { key: 'color', head: COL.colour },
-      { key: 'connectors', head: COL.connectors },
+      { key: 'connectors', head: COL.connectors, dataOnly: true },
       // What is on each end, where the ports said what they have. Separate from
       // `connectors`, which lists what the *type* is terminated with and cannot say which
       // end is which.
@@ -668,6 +678,7 @@ export function readableSchedules(
 
     const groups: { head: string; keys: string[] }[] = [];
     for (const column of schedule.columns) {
+      if (column.dataOnly === true) continue;
       if (column.head !== undefined || groups.length === 0) {
         groups.push({
           head: column.head === undefined ? '' : localise(column.head, locale),
