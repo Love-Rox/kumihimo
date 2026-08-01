@@ -400,3 +400,60 @@ describe('the key below the drawing', () => {
     expect(await renderDiagram(diagram, { legend: false })).not.toContain('>Signals<');
   });
 });
+
+describe('groups inside groups', () => {
+  const VENUE = [
+    'diagram "会場" { direction: LR }',
+    'group venue "幕張メッセ" {',
+    '  group stage "ステージ" { device cam "FX3" as camera { out SDI : sdi } }',
+    '  group rack  "ラック"   { device sw "ATEM" as switcher { in 1 : sdi  out PGM : sdi } }',
+    '}',
+    'group booth "中継車" { device rec "HyperDeck" as recorder { in SDI : sdi } }',
+    'cam.SDI -> sw.1    : sdi 30m "V-01"',
+    'sw.PGM  -> rec.SDI : sdi 50m "V-10"',
+  ].join('\n');
+
+  it('remembers which group each one sits in', async () => {
+    const { diagram } = await layoutOf(VENUE);
+    const by = Object.fromEntries(diagram.groups.map((g) => [g.id, g]));
+    expect(by['venue']?.parent).toBeUndefined();
+    expect(by['stage']?.parent).toBe('venue');
+    expect(by['rack']?.parent).toBe('venue');
+    expect(by['booth']?.parent).toBeUndefined();
+  });
+
+  it('draws the outer one around the inner ones', async () => {
+    // Built flat, an outer group had no children of its own and nothing to size itself
+    // from — so it came out with no width at all rather than around anything.
+    const { layout } = await layoutOf(VENUE);
+    const by = Object.fromEntries(layout.groups.map((g) => [g.id, g.bounds]));
+
+    const venue = by['venue']!;
+    expect(venue.width).toBeGreaterThan(0);
+    expect(venue.height).toBeGreaterThan(0);
+
+    for (const inner of ['stage', 'rack'] as const) {
+      const box = by[inner]!;
+      expect(box.x, `${inner}.x`).toBeGreaterThanOrEqual(venue.x);
+      expect(box.y, `${inner}.y`).toBeGreaterThanOrEqual(venue.y);
+      expect(box.x + box.width, `${inner} right`).toBeLessThanOrEqual(venue.x + venue.width);
+      expect(box.y + box.height, `${inner} bottom`).toBeLessThanOrEqual(venue.y + venue.height);
+    }
+  });
+
+  it('leaves a group that is nobody else’s child where it is', async () => {
+    const { layout } = await layoutOf(VENUE);
+    const by = Object.fromEntries(layout.groups.map((g) => [g.id, g.bounds]));
+    const venue = by['venue']!;
+    const booth = by['booth']!;
+    // Side by side, not one inside the other.
+    expect(booth.x >= venue.x + venue.width || venue.x >= booth.x + booth.width).toBe(true);
+  });
+
+  it('draws every name, however deep', async () => {
+    const { svg } = await compile(VENUE, { locale: 'ja' });
+    for (const name of ['幕張メッセ', 'ステージ', 'ラック', '中継車']) {
+      expect(svg, name).toContain(name);
+    }
+  });
+});

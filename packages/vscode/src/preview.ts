@@ -2,6 +2,7 @@ import { compile } from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
 import { editorLocale } from './locale.js';
+import { note, traced } from './trace.js';
 import type { Table } from './tables.js';
 import { tablesOf } from './tables.js';
 
@@ -168,7 +169,18 @@ export class Preview {
 
     this.#rendering = true;
     try {
-      await this.#draw(document);
+      // A render that never settles would hold this flag forever and the preview would
+      // quietly stop redrawing — which is what a freeze looks like from the outside.
+      // Nothing here is expected to take fifteen seconds; one that does is abandoned,
+      // written down, and the next keystroke is still allowed to draw.
+      await Promise.race([
+        this.#draw(document),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('render timed out after 15s')), 15_000),
+        ),
+      ]);
+    } catch (error) {
+      note(`render abandoned: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       this.#rendering = false;
     }
@@ -187,17 +199,12 @@ export class Preview {
     let html: string;
     try {
       const locale = editorLocale();
-      const { svg, diagram, diagnostics } = await compile(document.getText(), {
-        theme: resolveTheme(),
-        locale,
-      });
+      const { svg, diagram, diagnostics } = await traced('compile', () =>
+        compile(document.getText(), { theme: resolveTheme(), locale }),
+      );
       if (this.#disposed) return;
-      html = page(
-        svg,
-        tablesOf(diagram, locale),
-        diagnostics.length,
-        this.#panel.webview,
-        this.#nonce,
+      html = await traced('build html', () =>
+        page(svg, tablesOf(diagram, locale), diagnostics.length, this.#panel.webview, this.#nonce),
       );
     } catch (error) {
       if (this.#disposed) return;
@@ -209,9 +216,16 @@ export class Preview {
     // Assigning `html` reloads the webview — the document is torn down, the markup parsed
     // again, and the drawing decoded from its data URI again. An edit that does not change
     // the picture, which is most of them mid-word, should not cost that.
-    if (html === this.#shown) return;
+    if (html === this.#shown) {
+      note('unchanged, not redrawn');
+      return;
+    }
     this.#shown = html;
-    this.#panel.webview.html = html;
+    // The one step whose cost belongs to the editor rather than to us, and the one worth
+    // knowing about when a save feels slow.
+    await traced(`assign html (${Math.round(html.length / 1024)} kB)`, () => {
+      this.#panel.webview.html = html;
+    });
   }
 }
 

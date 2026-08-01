@@ -9,5 +9,7 @@
   "command.exportSvg": "図を SVG で書き出す",
   "command.print": "図と表を印刷する",
   "command.exportPng": "図を PNG で書き出す",
-  "command.exportMarkdown": "表を Markdown で書き出す"
+  "command.exportMarkdown": "表を Markdown で書き出す",
+  "config.trace": "プレビューの再描画にかかった時間を kumihimo 出力チャンネルに書き出します。",
+  "command.showTrace": "トレースログを表示"
 }

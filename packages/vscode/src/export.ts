@@ -15,7 +15,7 @@
  */
 
 import type { Diagram, Locale } from '@love-rox/kumihimo-core';
-import { SCHEDULES, SCHEDULE_KINDS, compile, formatCell, localise } from '@love-rox/kumihimo-core';
+import { compile, readableSchedules } from '@love-rox/kumihimo-core';
 import * as vscode from 'vscode';
 
 import { editorLocale } from './locale.js';
@@ -142,18 +142,10 @@ export async function exportMarkdown(): Promise<void> {
 /**
  * The schedules, as Markdown.
  *
- * Three things a table needs before it is worth pasting into a document.
- *
- * An **unheaded column continues the one before it** — that is what the registry means by
- * a column with no heading, and it is how the port sits under its device in the editor.
- * Markdown has no way to draw that, so the pair goes in one cell. Emitting a blank heading
- * instead would leave a column nobody can name.
- *
- * A column **empty in every row is dropped**. On a sheet somebody scrolls, a column of
- * dashes is width spent saying nothing.
- *
- * And `false` is **not a word anybody wants in a table**. A device that was never declared
- * is worth marking; the seven that were are not worth seven `false`s.
+ * The trimming — unheaded columns merged, repeated ids dropped, empty columns left out —
+ * belongs to the compiler, because a printed sheet, a Markdown file and a note all want
+ * exactly the same three things and it had been written twice before it was written once.
+ * What is left here is the syntax: pipes, and escaping the ones inside a cell.
  *
  * @param title - Name of the drawing, used as the heading.
  * @param diagram - The resolved diagram.
@@ -161,57 +153,17 @@ export async function exportMarkdown(): Promise<void> {
  * @returns A Markdown document.
  */
 function markdown(title: string, diagram: Diagram, locale: Locale): string {
-  const ja = locale === 'ja';
+  // A cable labelled `A|B` would otherwise split its own row in two.
+  const cell = (text: string) => text.replace(/\|/g, '\\|');
 
-  const text = (value: unknown): string => {
-    if (value === false) return '';
-    if (value === true) return ja ? '未宣言' : 'undeclared';
-    // A cable labelled `A|B` would otherwise split its own row in two.
-    return formatCell(value).replace(/\|/g, '\\|');
-  };
-
-  const sections = SCHEDULE_KINDS.flatMap((kind) => {
-    const schedule = SCHEDULES[kind];
-    const rows = schedule.rows(diagram, locale);
-    // An empty schedule is left out. A heading with an empty table under it says "this was
-    // considered and there is nothing"; on a page somebody scrolls, it just says nothing.
-    if (rows.length === 0) return [];
-
-    // Group each headed column with the unheaded ones that follow it.
-    const groups: { head: string; keys: string[] }[] = [];
-    for (const column of schedule.columns) {
-      if (column.head !== undefined || groups.length === 0) {
-        groups.push({
-          head: column.head === undefined ? '' : localise(column.head, locale),
-          keys: [],
-        });
-      }
-      groups[groups.length - 1]?.keys.push(column.key);
-    }
-
-    const cellsOf = (row: Record<string, unknown>, group: { keys: string[] }): string => {
-      const parts = group.keys.map((key) => text(row[key])).filter((part) => part !== '');
-      // An id that only repeats the name it follows is dropped: `SDI sdi` and `XLR xlr` are
-      // a stutter. `SONY FX3 cam1` is not — that id is the word somebody types in the
-      // source, and it cannot be worked out from the name.
-      const [first, ...rest] = parts;
-      if (first === undefined) return '';
-      const head = first.toLowerCase();
-      return [first, ...rest.filter((part) => !head.startsWith(part.toLowerCase()))].join(' ');
-    };
-
-    const used = groups.filter((group) => rows.some((row) => cellsOf(row, group) !== ''));
-    if (used.length === 0) return [];
-
-    return [
-      `## ${localise(schedule.title, locale)}`,
-      '',
-      `| ${used.map((g) => g.head).join(' | ')} |`,
-      `| ${used.map(() => '---').join(' | ')} |`,
-      ...rows.map((row) => `| ${used.map((g) => cellsOf(row, g) || '—').join(' | ')} |`),
-      '',
-    ];
-  });
+  const sections = readableSchedules(diagram, locale).flatMap((sheet) => [
+    `## ${sheet.title}`,
+    '',
+    `| ${sheet.head.map(cell).join(' | ')} |`,
+    `| ${sheet.head.map(() => '---').join(' | ')} |`,
+    ...sheet.rows.map((row) => `| ${row.map(cell).join(' | ')} |`),
+    '',
+  ]);
 
   return [`# ${title}`, '', ...sections].join('\n');
 }

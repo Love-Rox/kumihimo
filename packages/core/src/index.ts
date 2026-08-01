@@ -115,6 +115,7 @@ export type {
   ScheduleKind,
   ScheduleColumn,
   ScheduleDefinition,
+  ReadableSheet,
 } from './schedule.js';
 export {
   SCHEDULES,
@@ -124,6 +125,7 @@ export {
   equipmentSchedule,
   adapterSchedule,
   formatCell,
+  readableSchedules,
   toTsv,
 } from './schedule.js';
 

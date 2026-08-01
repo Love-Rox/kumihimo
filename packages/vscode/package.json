@@ -93,6 +93,11 @@
         "command": "kumihimo.print",
         "title": "%command.print%",
         "category": "kumihimo"
+      },
+      {
+        "command": "kumihimo.showTrace",
+        "title": "%command.showTrace%",
+        "category": "kumihimo"
       }
     ],
     "menus": {
@@ -148,6 +153,11 @@
           "type": "boolean",
           "default": true,
           "description": "%config.format.align%"
+        },
+        "kumihimo.trace": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.trace%"
         }
       }
     },

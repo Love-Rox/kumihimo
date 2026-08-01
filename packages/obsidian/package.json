@@ -1,0 +1,19 @@
+{
+  "name": "kumihimo-obsidian",
+  "version": "0.0.0",
+  "private": true,
+  "description": "AV signal flow diagrams (系統図) as text, in Obsidian",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@love-rox/kumihimo-core": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "jsdom": "^26.0.0",
+    "obsidian": "^1.7.2"
+  }
+}

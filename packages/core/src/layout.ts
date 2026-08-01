@@ -372,21 +372,34 @@ export async function layoutDiagram(
   }
 
   const grouped = new Set(diagram.groups.flatMap((g) => g.deviceIds));
+
+  /**
+   * Build one group and everything inside it.
+   *
+   * Recursive because groups nest: a venue holds a stage and a rack, and the stage holds
+   * the cameras. Built flat, the outer one had no children of its own, nothing to size
+   * itself from, and came out at NaN by NaN.
+   */
+  const toGroupNode = (group: (typeof diagram.groups)[number]): ElkNode => ({
+    id: `grp:${group.id}`,
+    layoutOptions: {
+      'elk.padding': `[top=${m.groupPadding + 14},left=${m.groupPadding},bottom=${m.groupPadding},right=${m.groupPadding}]`,
+      // Spacing does not inherit into a child graph, and without it devices inside a
+      // group end up close enough that cable labels have nowhere to sit.
+      'elk.spacing.nodeNode': String(m.nodeSpacing),
+      'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
+      'elk.spacing.edgeEdge': '12',
+      'elk.spacing.edgeNode': '16',
+    },
+    children: [
+      ...group.deviceIds.filter((id) => specs.has(id)).map(toElkNode),
+      ...diagram.groups.filter((g) => g.parent === group.id).map(toGroupNode),
+    ],
+    edges: edgesByContainer.get(`grp:${group.id}`) ?? [],
+  });
+
   const children: ElkNode[] = [
-    ...diagram.groups.map((group) => ({
-      id: `grp:${group.id}`,
-      layoutOptions: {
-        'elk.padding': `[top=${m.groupPadding + 14},left=${m.groupPadding},bottom=${m.groupPadding},right=${m.groupPadding}]`,
-        // Spacing does not inherit into a child graph, and without it devices inside a
-        // group end up close enough that cable labels have nowhere to sit.
-        'elk.spacing.nodeNode': String(m.nodeSpacing),
-        'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
-        'elk.spacing.edgeEdge': '12',
-        'elk.spacing.edgeNode': '16',
-      },
-      children: group.deviceIds.filter((id) => specs.has(id)).map(toElkNode),
-      edges: edgesByContainer.get(`grp:${group.id}`) ?? [],
-    })),
+    ...diagram.groups.filter((group) => group.parent === undefined).map(toGroupNode),
     ...diagram.devices.filter((d) => !grouped.has(d.id)).map((d) => toElkNode(d.id)),
   ];
 

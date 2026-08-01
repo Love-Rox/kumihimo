@@ -28,5 +28,6 @@
   "Open": "開く",
   "Saved {0}": "{0} を保存しました",
   "Open the preview first.": "先にプレビューを開いてください。",
-  "The preview did not answer.": "プレビューが応答しませんでした。"
+  "The preview did not answer.": "プレビューが応答しませんでした。",
+  "Tracing is on. Reproduce the problem, then copy this log.": "トレースを有効にしました。現象を再現してから、このログをコピーしてください。"
 }

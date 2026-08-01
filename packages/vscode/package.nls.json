@@ -9,5 +9,7 @@
   "command.exportSvg": "Export the diagram as SVG",
   "command.print": "Print the diagram and schedules",
   "command.exportPng": "Export the diagram as PNG",
-  "command.exportMarkdown": "Export the schedules as Markdown"
+  "command.exportMarkdown": "Export the schedules as Markdown",
+  "config.trace": "Write what each preview redraw cost to the kumihimo output channel.",
+  "command.showTrace": "Show the trace log"
 }
