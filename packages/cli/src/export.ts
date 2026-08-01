@@ -5,43 +5,51 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
-import type { CompileOptions, Diagnostic } from '@love-rox/kumihimo-core';
+import type {
+  CompileOptions,
+  Diagnostic,
+  Diagram,
+  Locale,
+  ScheduleKind,
+} from '@love-rox/kumihimo-core';
 import {
-  adapterSchedule,
+  SCHEDULES,
+  SCHEDULE_KINDS,
   buildModel,
-  cableSchedule,
-  equipmentSchedule,
   loadDocument,
   renderDiagram,
   toDrawio,
   toTsv,
-  wirelessSchedule,
 } from '@love-rox/kumihimo-core';
 
 import { createFileResolver } from './resolver.js';
 
+/** What a drawing can be turned into that is not a schedule. */
+type PictureFormat = 'svg' | 'drawio';
+
 /** Formats {@link runExport} can produce. */
-export type ExportFormat = 'svg' | 'drawio' | 'cable' | 'wireless' | 'equipment' | 'adapter';
+export type ExportFormat = PictureFormat | ScheduleKind;
 
-/** Every format the CLI accepts, for help text and validation. */
-export const EXPORT_FORMATS: readonly ExportFormat[] = [
-  'svg',
-  'drawio',
-  'cable',
-  'wireless',
-  'equipment',
-  'adapter',
-];
+/**
+ * Every format the CLI accepts, for help text and validation.
+ *
+ * The schedules come from the registry rather than being listed again here. A schedule
+ * added to the language and missing from this list is one the CLI cannot export, and
+ * nothing would have said so.
+ */
+export const EXPORT_FORMATS: readonly ExportFormat[] = ['svg', 'drawio', ...SCHEDULE_KINDS];
 
-/** File extension each format is normally written with. */
+/**
+ * File extension each format is normally written with.
+ *
+ * Built rather than listed: every schedule is a TSV, and a new one appearing with no
+ * extension would be written to a file with none.
+ */
 export const EXPORT_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
   svg: '.svg',
   drawio: '.drawio',
-  cable: '.tsv',
-  wireless: '.tsv',
-  equipment: '.tsv',
-  adapter: '.tsv',
-};
+  ...Object.fromEntries(SCHEDULE_KINDS.map((kind) => [kind, '.tsv'])),
+} as Readonly<Record<ExportFormat, string>>;
 
 /** How to run an export. */
 export interface ExportCommandOptions extends CompileOptions {
@@ -59,34 +67,25 @@ export interface ExportCommandResult {
   written?: string;
 }
 
-const CABLE_COLUMNS = [
-  'label',
-  'fromDevice',
-  'from',
-  'toDevice',
-  'to',
-  'signalLabel',
-  'length',
-  'color',
-  'connectors',
-  'adapter',
-  'note',
-] as const;
-
-const WIRELESS_COLUMNS = [
-  'label',
-  'fromDevice',
-  'from',
-  'toDevice',
-  'to',
-  'signalLabel',
-  'carrierLabel',
-  'frequency',
-  'note',
-] as const;
-
-const EQUIPMENT_COLUMNS = ['id', 'label', 'kind', 'group', 'ports', 'meta', 'implicit'] as const;
-const ADAPTER_COLUMNS = ['adapter', 'count', 'links'] as const;
+/**
+ * One schedule as TSV, straight off the registry.
+ *
+ * Every column the rows carry, in the order the registry lists them. A terminal export is
+ * the one place that wants all of them: it is what gets pasted into a spreadsheet, and a
+ * column dropped here is one nobody can get back.
+ *
+ * @param kind - Which schedule.
+ * @param diagram - The resolved diagram.
+ * @param locale - Language for the names inside the rows.
+ * @returns A TSV document with a header row.
+ */
+function tsvOf(kind: ScheduleKind, diagram: Diagram, locale: Locale | undefined): string {
+  const schedule = SCHEDULES[kind];
+  return toTsv(
+    schedule.rows(diagram, locale),
+    schedule.columns.map((column) => column.key),
+  );
+}
 
 /**
  * Export a `.khm` file in the requested format.
@@ -113,28 +112,14 @@ export async function runExport(
   const diagnostics = [...loaded.diagnostics, ...built.diagnostics];
   const { diagram } = built;
 
-  // A switch rather than the ternary chain this was: with six formats the chain had run
-  // out of room, and the next one added would have gone in wherever it fit.
-  let content: string;
-  switch (format) {
-    case 'svg':
-      content = await renderDiagram(diagram, options);
-      break;
-    case 'drawio':
-      content = await toDrawio(diagram, options);
-      break;
-    case 'cable':
-      content = toTsv(cableSchedule(diagram, options.locale), CABLE_COLUMNS);
-      break;
-    case 'wireless':
-      content = toTsv(wirelessSchedule(diagram, options.locale), WIRELESS_COLUMNS);
-      break;
-    case 'equipment':
-      content = toTsv(equipmentSchedule(diagram), EQUIPMENT_COLUMNS);
-      break;
-    default:
-      content = toTsv(adapterSchedule(diagram, options.locale), ADAPTER_COLUMNS);
-  }
+  // Pictures are their own thing; every schedule goes through the registry, which knows
+  // its rows and its columns. Adding one to the language adds it here with no edit.
+  const content =
+    format === 'svg'
+      ? await renderDiagram(diagram, options)
+      : format === 'drawio'
+        ? await toDrawio(diagram, options)
+        : tsvOf(format, diagram, options.locale);
 
   const result: ExportCommandResult = { content, diagnostics };
 

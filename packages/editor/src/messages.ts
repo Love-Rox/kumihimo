@@ -29,32 +29,6 @@ const UI = {
   noDiagram: { en: 'No diagram yet', ja: 'まだ図がありません' },
   noRows: { en: 'Nothing here', ja: '該当なし' },
 
-  // Cable schedule.
-  colNumber: { en: 'No.', ja: '番号' },
-  colFrom: { en: 'From', ja: '送出' },
-  colTo: { en: 'To', ja: '受け' },
-  colSignal: { en: 'Signal', ja: '信号' },
-  colLength: { en: 'Length', ja: '長さ' },
-  colConnectors: { en: 'Connectors', ja: 'コネクタ' },
-  colAdapter: { en: 'Adapter', ja: '変換部材' },
-  colNote: { en: 'Note', ja: '備考' },
-
-  // Wireless schedule. A radio path is checked by a different person for a different
-  // reason — two paths on one channel, not enough cable to reach — so it is its own sheet.
-  colFrequency: { en: 'Frequency', ja: '周波数' },
-  colCarrier: { en: 'Over', ja: '乗り物' },
-
-  // Equipment schedule.
-  colDevice: { en: 'Device', ja: '機器' },
-  colKind: { en: 'Kind', ja: '種別' },
-  colGroup: { en: 'Location', ja: '設置' },
-  colPorts: { en: 'Ports', ja: 'ポート数' },
-
-  // Adapter schedule.
-  colPart: { en: 'Part', ja: '部材' },
-  colCount: { en: 'Qty', ja: '数量' },
-  colLinks: { en: 'Runs', ja: '対象' },
-
   // Download failures.
   svgLoadFailed: {
     en: 'The SVG could not be loaded as an image',

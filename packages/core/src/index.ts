@@ -107,12 +107,23 @@ export { linkStroke, renderSvg, renderDiagram } from './render.js';
 export type { StrokeSpec, Theme } from './theme.js';
 export { THEMES, DEFAULT_THEME, lookupTheme, strokeFor } from './theme.js';
 
-export type { CableRow, WirelessRow, EquipmentRow, AdapterRow } from './schedule.js';
+export type {
+  CableRow,
+  WirelessRow,
+  EquipmentRow,
+  AdapterRow,
+  ScheduleKind,
+  ScheduleColumn,
+  ScheduleDefinition,
+} from './schedule.js';
 export {
+  SCHEDULES,
+  SCHEDULE_KINDS,
   cableSchedule,
   wirelessSchedule,
   equipmentSchedule,
   adapterSchedule,
+  formatCell,
   toTsv,
 } from './schedule.js';
 

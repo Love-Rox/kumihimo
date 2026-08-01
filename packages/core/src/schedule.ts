@@ -7,7 +7,7 @@
  * of a link rather than decoration on a picture.
  */
 
-import type { Locale } from './messages.js';
+import type { Locale, Localised } from './messages.js';
 import { DEFAULT_LOCALE, localise } from './messages.js';
 import type { Diagram, Link } from './model.js';
 
@@ -399,4 +399,161 @@ export function toTsv<T extends object>(rows: readonly T[], columns: readonly (k
     columns.map(String).join('\t'),
     ...rows.map((row) => columns.map((column) => cell(row[column])).join('\t')),
   ].join('\n');
+}
+
+/**
+ * Which schedules exist.
+ *
+ * Named here rather than repeated as a union in every surface that shows one.
+ */
+export type ScheduleKind = 'cable' | 'wireless' | 'equipment' | 'adapter';
+
+/** One column of a schedule. */
+export interface ScheduleColumn {
+  /** Property to read off the row. */
+  key: string;
+  /**
+   * Heading, or absent for a column that continues the one before it.
+   *
+   * A port sits under its device's heading rather than getting one of its own, because
+   * "From" and then "" reads as one thing split across two cells, which is what it is.
+   */
+  head?: Localised;
+}
+
+/** What a schedule is, and how to get it. */
+export interface ScheduleDefinition {
+  /** What the sheet is called. */
+  title: Localised;
+  /** Every column the rows carry, in the order a sheet would print them. */
+  columns: readonly ScheduleColumn[];
+  /**
+   * Compute the rows.
+   *
+   * Typed loosely on purpose: the four row shapes have nothing in common, and a caller
+   * driving the table off {@link ScheduleDefinition.columns} reads them by key anyway.
+   * A caller that wants a shape calls {@link cableSchedule} and friends directly.
+   */
+  rows: (diagram: Diagram, locale?: Locale) => readonly Record<string, unknown>[];
+}
+
+const COL = {
+  number: { en: 'No.', ja: '番号' },
+  from: { en: 'From', ja: '送出' },
+  to: { en: 'To', ja: '受け' },
+  signal: { en: 'Signal', ja: '信号' },
+  length: { en: 'Length', ja: '長さ' },
+  colour: { en: 'Colour', ja: '色' },
+  connectors: { en: 'Connectors', ja: 'コネクタ' },
+  adapter: { en: 'Adapter', ja: '変換部材' },
+  carrier: { en: 'Over', ja: '乗り物' },
+  frequency: { en: 'Channel', ja: 'チャンネル' },
+  note: { en: 'Note', ja: '備考' },
+  device: { en: 'Device', ja: '機器' },
+  kind: { en: 'Kind', ja: '種別' },
+  group: { en: 'Location', ja: '設置' },
+  ports: { en: 'Ports', ja: 'ポート数' },
+  part: { en: 'Part', ja: '部材' },
+  count: { en: 'Qty', ja: '数' },
+  between: { en: 'Between', ja: 'つながる先' },
+  declared: { en: 'Declared', ja: '宣言' },
+} as const satisfies Record<string, Localised>;
+
+/**
+ * Every schedule, its columns and what they are called.
+ *
+ * One place, because there are four surfaces showing these — the CLI, the VS Code pane,
+ * the live editor and the site — and adding the wireless sheet meant editing a column list
+ * and a set of headings in each of them. A heading that disagrees between two of them is a
+ * heading somebody will read as naming two different things.
+ *
+ * The registry says what exists and what it is called. **How it looks stays with each
+ * surface**: a terminal wants the port ids and a web page does not, and forcing one answer
+ * on both would be worse than the duplication it removed.
+ */
+export const SCHEDULES: Readonly<Record<ScheduleKind, ScheduleDefinition>> = {
+  cable: {
+    title: { en: 'Cable schedule', ja: 'ケーブル表' },
+    columns: [
+      { key: 'label', head: COL.number },
+      // Each name is followed by the id behind it, unheaded — the drawn name is what a
+      // person reads, and the id is what survives being sorted, filtered and scripted in
+      // whatever the sheet gets pasted into.
+      { key: 'fromDevice', head: COL.from },
+      { key: 'from' },
+      { key: 'toDevice', head: COL.to },
+      { key: 'to' },
+      { key: 'signalLabel', head: COL.signal },
+      { key: 'signal' },
+      { key: 'length', head: COL.length },
+      { key: 'color', head: COL.colour },
+      { key: 'connectors', head: COL.connectors },
+      { key: 'adapter', head: COL.adapter },
+      { key: 'note', head: COL.note },
+    ],
+    rows: (diagram, locale) =>
+      cableSchedule(diagram, locale) as unknown as Record<string, unknown>[],
+  },
+  wireless: {
+    title: { en: 'Wireless schedule', ja: '無線表' },
+    // No length and no connector, because a radio path has neither. What it has is a
+    // channel somebody has to co-ordinate, and what it rides on when `over` said so.
+    columns: [
+      { key: 'label', head: COL.number },
+      { key: 'fromDevice', head: COL.from },
+      { key: 'from' },
+      { key: 'toDevice', head: COL.to },
+      { key: 'to' },
+      { key: 'signalLabel', head: COL.signal },
+      { key: 'signal' },
+      { key: 'carrierLabel', head: COL.carrier },
+      { key: 'carrier' },
+      { key: 'frequency', head: COL.frequency },
+      { key: 'note', head: COL.note },
+    ],
+    rows: (diagram, locale) =>
+      wirelessSchedule(diagram, locale) as unknown as Record<string, unknown>[],
+  },
+  equipment: {
+    title: { en: 'Equipment list', ja: '機材表' },
+    columns: [
+      { key: 'label', head: COL.device },
+      { key: 'id' },
+      { key: 'kind', head: COL.kind },
+      { key: 'group', head: COL.group },
+      { key: 'ports', head: COL.ports },
+      { key: 'meta', head: COL.note },
+      // A device that only exists because a link named it is a gap in the drawing, not a
+      // thing to order. It has to reach the sheet, or the sheet quietly asks for it.
+      { key: 'implicit', head: COL.declared },
+    ],
+    rows: (diagram) => equipmentSchedule(diagram) as unknown as Record<string, unknown>[],
+  },
+  adapter: {
+    title: { en: 'Parts list', ja: '部材表' },
+    columns: [
+      { key: 'adapter', head: COL.part },
+      { key: 'count', head: COL.count },
+      { key: 'links', head: COL.between },
+    ],
+    rows: (diagram, locale) =>
+      adapterSchedule(diagram, locale) as unknown as Record<string, unknown>[],
+  },
+};
+
+/** Every schedule kind, for a caller that offers all of them. */
+export const SCHEDULE_KINDS = Object.keys(SCHEDULES) as readonly ScheduleKind[];
+
+/**
+ * One value as text.
+ *
+ * Exported because three surfaces had written their own, and they disagreed: an array of
+ * connectors came out `XLR-M / XLR-F` in one and `XLR-M,XLR-F` in another, off the same row.
+ *
+ * @param value - Whatever the row carried.
+ * @returns The text for a cell. Tabs and newlines are flattened so a value can never break
+ *   the row structure of a TSV.
+ */
+export function formatCell(value: unknown): string {
+  return cell(value);
 }
