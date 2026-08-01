@@ -366,3 +366,35 @@ describe('a moulded lead that belongs on the cable schedule', () => {
     ]);
   });
 });
+
+describe('`as cable` has already answered the question', () => {
+  const DONGLE = [
+    'device pc "PC" as computer { out USB : usb }',
+    'adapter dg "USB-HDMI 変換アダプタ" as cable {',
+    '  in  USB  : usb',
+    '  out HDMI : hdmi',
+    '}',
+    'device mon "モニター" as display { in HDMI : hdmi }',
+    'pc.USB   -> dg.USB   : usb',
+    'dg.HDMI  -> mon.HDMI : hdmi',
+  ];
+
+  it('is not told to write itself as `via`', () => {
+    // The report says "this is one cable rather than a junction — write it as `via`". An
+    // author who wrote `as cable` has said that already, in the way that also gives the
+    // part a row and a number of its own.
+    expect(build(DONGLE).diagnostics).toEqual([]);
+  });
+
+  it('still says so without it', () => {
+    const plain = DONGLE.map((l) => l.replace(' as cable', ''));
+    expect(build(plain).diagnostics.map((d) => d.code)).toContain('invalid-value');
+  });
+
+  it('lands on the cable schedule either way it is written', () => {
+    const rows = cableSchedule(build(DONGLE).diagram);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.fromDevice).toBe('USB-HDMI 変換アダプタ');
+    expect(adapterSchedule(build(DONGLE).diagram)).toEqual([]);
+  });
+});

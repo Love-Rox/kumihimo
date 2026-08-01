@@ -23,14 +23,60 @@ export function registerFormatting(context: vscode.ExtensionContext): void {
 
         // Nothing to do is better said with no edit at all: an edit that replaces the
         // document with itself still moves the cursor and dirties the file.
-        if (formatted === document.getText()) return [];
+        const original = document.getText();
+        if (formatted === original) return [];
 
-        const whole = new vscode.Range(
-          document.positionAt(0),
-          document.positionAt(document.getText().length),
-        );
-        return [vscode.TextEdit.replace(whole, formatted)];
+        return [minimalEdit(document, original, formatted)];
       },
     }),
   );
+}
+
+/**
+ * One edit covering only the lines that actually changed.
+ *
+ * Replacing the whole document is a line of code and a bad idea. The editor invalidates
+ * everything and re-tokenises it, folds collapse, and the change event that comes back out
+ * sets this extension's own diagnostics and preview redrawing again — on save, when several
+ * things are already competing for the same moment. Aligning one block in a long file
+ * should cost that block.
+ *
+ * Line-based because the formatter is: it lays out whole lines, so the first and last lines
+ * that differ bound everything it did.
+ *
+ * @param document - The document being formatted.
+ * @param original - Its current text.
+ * @param formatted - What it should say.
+ * @returns An edit spanning the changed lines and nothing else.
+ */
+function minimalEdit(
+  document: vscode.TextDocument,
+  original: string,
+  formatted: string,
+): vscode.TextEdit {
+  const before = original.split('\n');
+  const after = formatted.split('\n');
+
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) {
+    start += 1;
+  }
+
+  let fromEnd = 0;
+  while (
+    fromEnd < before.length - start &&
+    fromEnd < after.length - start &&
+    before[before.length - 1 - fromEnd] === after[after.length - 1 - fromEnd]
+  ) {
+    fromEnd += 1;
+  }
+
+  const lastBefore = before.length - fromEnd;
+  const range = new vscode.Range(
+    new vscode.Position(start, 0),
+    // The end of the last changed line, not the start of the next: taking the newline with
+    // it would delete a line the formatter did not touch when the change reaches the end.
+    new vscode.Position(lastBefore - 1, before[lastBefore - 1]?.length ?? 0),
+  );
+  return vscode.TextEdit.replace(range, after.slice(start, after.length - fromEnd).join('\n'));
 }
