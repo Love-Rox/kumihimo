@@ -15,18 +15,20 @@ import {
   renderDiagram,
   toDrawio,
   toTsv,
+  wirelessSchedule,
 } from '@love-rox/kumihimo-core';
 
 import { createFileResolver } from './resolver.js';
 
 /** Formats {@link runExport} can produce. */
-export type ExportFormat = 'svg' | 'drawio' | 'cable' | 'equipment' | 'adapter';
+export type ExportFormat = 'svg' | 'drawio' | 'cable' | 'wireless' | 'equipment' | 'adapter';
 
 /** Every format the CLI accepts, for help text and validation. */
 export const EXPORT_FORMATS: readonly ExportFormat[] = [
   'svg',
   'drawio',
   'cable',
+  'wireless',
   'equipment',
   'adapter',
 ];
@@ -36,6 +38,7 @@ export const EXPORT_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
   svg: '.svg',
   drawio: '.drawio',
   cable: '.tsv',
+  wireless: '.tsv',
   equipment: '.tsv',
   adapter: '.tsv',
 };
@@ -63,12 +66,22 @@ const CABLE_COLUMNS = [
   'toDevice',
   'to',
   'signalLabel',
-  'medium',
   'length',
-  'frequency',
   'color',
   'connectors',
   'adapter',
+  'note',
+] as const;
+
+const WIRELESS_COLUMNS = [
+  'label',
+  'fromDevice',
+  'from',
+  'toDevice',
+  'to',
+  'signalLabel',
+  'carrierLabel',
+  'frequency',
   'note',
 ] as const;
 
@@ -100,16 +113,28 @@ export async function runExport(
   const diagnostics = [...loaded.diagnostics, ...built.diagnostics];
   const { diagram } = built;
 
-  const content =
-    format === 'svg'
-      ? await renderDiagram(diagram, options)
-      : format === 'drawio'
-        ? await toDrawio(diagram, options)
-        : format === 'cable'
-          ? toTsv(cableSchedule(diagram, options.locale), CABLE_COLUMNS)
-          : format === 'equipment'
-            ? toTsv(equipmentSchedule(diagram), EQUIPMENT_COLUMNS)
-            : toTsv(adapterSchedule(diagram, options.locale), ADAPTER_COLUMNS);
+  // A switch rather than the ternary chain this was: with six formats the chain had run
+  // out of room, and the next one added would have gone in wherever it fit.
+  let content: string;
+  switch (format) {
+    case 'svg':
+      content = await renderDiagram(diagram, options);
+      break;
+    case 'drawio':
+      content = await toDrawio(diagram, options);
+      break;
+    case 'cable':
+      content = toTsv(cableSchedule(diagram, options.locale), CABLE_COLUMNS);
+      break;
+    case 'wireless':
+      content = toTsv(wirelessSchedule(diagram, options.locale), WIRELESS_COLUMNS);
+      break;
+    case 'equipment':
+      content = toTsv(equipmentSchedule(diagram), EQUIPMENT_COLUMNS);
+      break;
+    default:
+      content = toTsv(adapterSchedule(diagram, options.locale), ADAPTER_COLUMNS);
+  }
 
   const result: ExportCommandResult = { content, diagnostics };
 

@@ -773,6 +773,26 @@ mixer.WIFI <-> ap.WIFI : wifi [freq="5GHz"]
 Frequency is the wireless equivalent of a cable length: the fact needed on site to make the
 link work, and the one that causes a clash when two systems share it.
 
+### Schedules
+
+Radio paths are on the **wireless schedule**, not the cable schedule. They were on the
+cable schedule once, on the reasoning that they are part of the system and somebody has to
+check the frequency — which is true, and is an argument for listing them, not for listing
+them there. That sheet is what somebody packs a van from, and a row with no length, no
+connector and nothing to coil reads as a cable that was never measured.
+
+The two sheets are read by different people looking for different things: enough cable to
+reach, against two paths on one channel.
+
+```
+kumihimo export show.khm cable    --stdout   # what to pull
+kumihimo export show.khm wireless --stdout   # what to co-ordinate
+```
+
+The wireless schedule has an **over** column, filled when `over` named a carrier that is
+not the signal itself. NDI over Wi-Fi is an NDI row riding on Wi-Fi: the name belongs to
+the payload and the frequency to the carrier, which is why they are separate columns.
+
 ### Drawing
 
 A radio path gets a **broadcast mark** and a long, airy dash. It stays dashed even when its

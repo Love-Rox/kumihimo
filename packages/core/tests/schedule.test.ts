@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { buildModel } from '../src/build.js';
 import { parse } from '../src/parser.js';
-import { adapterSchedule, cableSchedule, equipmentSchedule, toTsv } from '../src/schedule.js';
+import {
+  adapterSchedule,
+  cableSchedule,
+  equipmentSchedule,
+  toTsv,
+  wirelessSchedule,
+} from '../src/schedule.js';
 
 const SOURCE = `
 group rack "ラック" {
@@ -24,9 +30,10 @@ function scheduleOf(source: string) {
 }
 
 describe('cableSchedule', () => {
-  it('lists every link with its endpoints resolved to drawn names', () => {
+  it('lists every cable with its endpoints resolved to drawn names', () => {
     const rows = cableSchedule(scheduleOf(SOURCE));
-    expect(rows).toHaveLength(3);
+    // Two, not three. The source has three links and one of them is a radio path.
+    expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       label: 'V-10',
       from: 'sw.PGM',
@@ -34,7 +41,6 @@ describe('cableSchedule', () => {
       to: 'rec.SDI',
       toDevice: 'レコーダー',
       signal: 'sdi',
-      medium: 'cable',
       length: '2m',
       color: '#2563eb',
     });
@@ -45,11 +51,12 @@ describe('cableSchedule', () => {
     expect(rows[0]?.connectors).toEqual(['BNC']);
   });
 
-  it('records a radio path as wireless, with frequency instead of length', () => {
+  it('leaves radio paths off, because nothing here is coiled', () => {
+    // The sheet is what somebody packs a van from. A row with no length, no connector and
+    // nothing to pull reads as a cable that was never measured.
     const rows = cableSchedule(scheduleOf(SOURCE));
-    const radio = rows.find((r) => r.medium === 'wireless');
-    expect(radio?.frequency).toBe('ch 38');
-    expect(radio?.length).toBeUndefined();
+    expect(rows.map((r) => r.from)).not.toContain('mic.RF');
+    expect(rows.every((r) => r.connectors.length > 0)).toBe(true);
   });
 
   it('notes why a run was flagged', () => {
@@ -128,7 +135,8 @@ describe('toTsv', () => {
     const tsv = toTsv(cableSchedule(scheduleOf(SOURCE)), ['label', 'from', 'to', 'length']);
     const lines = tsv.split('\n');
     expect(lines[0]).toBe('label\tfrom\tto\tlength');
-    expect(lines).toHaveLength(4);
+    // A header and the two cables. The radio path is on its own sheet.
+    expect(lines).toHaveLength(3);
     expect(lines[1]).toBe('V-10\tsw.PGM\trec.SDI\t2m');
   });
 
@@ -141,5 +149,55 @@ describe('toTsv', () => {
   it('never lets a value break the row structure', () => {
     const tsv = toTsv([{ a: 'x\ty\nz' }], ['a']);
     expect(tsv.split('\n')).toHaveLength(2);
+  });
+});
+
+describe('wirelessSchedule', () => {
+  it('has the radio path the cable schedule no longer carries', () => {
+    const rows = wirelessSchedule(scheduleOf(SOURCE));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      from: 'mic.RF',
+      fromDevice: 'マイク',
+      to: 'rx.RF',
+      toDevice: '受信機',
+      signal: 'uhf',
+      frequency: 'ch 38',
+    });
+  });
+
+  it('says what the signal is riding on, when that is a different thing', () => {
+    // NDI over Wi-Fi: the name belongs to the payload, the frequency to the carrier, which
+    // is the whole reason they are separate columns.
+    const rows = wirelessSchedule(
+      scheduleOf(
+        [
+          'device cam "カメラ" as camera { out W : ndi }',
+          'device ap "AP" as router { io W : ndi }',
+          'cam.W -> ap.W : ndi over wifi [ch=36]',
+        ].join('\n'),
+      ),
+    );
+    expect(rows[0]).toMatchObject({ signal: 'ndi', carrier: 'wifi', frequency: 'ch 36' });
+  });
+
+  it('says nothing about a carrier when the signal is its own', () => {
+    // "uhf, riding on uhf" is noise. The column answers "what is it going over", which
+    // needs no answer here.
+    expect(wirelessSchedule(scheduleOf(SOURCE))[0]?.carrier).toBeUndefined();
+  });
+
+  it('is empty for a diagram with nothing in the air', () => {
+    const wired =
+      'device a "A" as camera { out O : sdi }\ndevice b "B" as recorder { in I : sdi }\na.O -> b.I : sdi 2m "V-01"';
+    expect(wirelessSchedule(scheduleOf(wired))).toEqual([]);
+  });
+
+  it('carries a number when one was written, since RF paths get numbered too', () => {
+    const numbered = SOURCE.replace(
+      'mic.RF  -> rx.RF   : uhf [ch=38]',
+      'mic.RF -> rx.RF : uhf [ch=38] "RF-01"',
+    );
+    expect(wirelessSchedule(scheduleOf(numbered))[0]?.label).toBe('RF-01');
   });
 });

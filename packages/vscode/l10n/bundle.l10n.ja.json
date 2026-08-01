@@ -1,6 +1,7 @@
 {
   "Diagram": "図",
   "Cables": "ケーブル表",
+  "Wireless": "無線表",
   "Equipment": "機器表",
   "Adapters": "変換部材",
   "No.": "番号",
@@ -9,6 +10,8 @@
   "Signal": "信号",
   "Length": "長さ",
   "Connectors": "コネクタ",
+  "Over": "乗り物",
+  "Channel": "チャンネル",
   "Note": "備考",
   "Name": "名称",
   "Kind": "種別",

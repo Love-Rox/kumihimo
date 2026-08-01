@@ -35,10 +35,14 @@ const UI = {
   colTo: { en: 'To', ja: '受け' },
   colSignal: { en: 'Signal', ja: '信号' },
   colLength: { en: 'Length', ja: '長さ' },
-  colFrequency: { en: 'Frequency', ja: '周波数' },
   colConnectors: { en: 'Connectors', ja: 'コネクタ' },
   colAdapter: { en: 'Adapter', ja: '変換部材' },
   colNote: { en: 'Note', ja: '備考' },
+
+  // Wireless schedule. A radio path is checked by a different person for a different
+  // reason — two paths on one channel, not enough cable to reach — so it is its own sheet.
+  colFrequency: { en: 'Frequency', ja: '周波数' },
+  colCarrier: { en: 'Over', ja: '乗り物' },
 
   // Equipment schedule.
   colDevice: { en: 'Device', ja: '機器' },

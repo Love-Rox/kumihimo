@@ -12,7 +12,8 @@ kumihimo build studio.khm -o studio.svg   # draw it
 kumihimo check studio.khm                 # validate only
 kumihimo build studio.khm --watch         # redraw on save
 kumihimo export studio.khm drawio         # editable draw.io file
-kumihimo export studio.khm cable --stdout # cable schedule as TSV
+kumihimo export studio.khm cable --stdout    # cable schedule as TSV
+kumihimo export studio.khm wireless --stdout # radio paths and their channels
 ```
 
 Diagnostics are printed against the line that caused them, with the offending span

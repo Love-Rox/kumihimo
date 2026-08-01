@@ -1,5 +1,5 @@
 /**
- * Cable, equipment and adapter schedules, rendered as tables.
+ * Cable, wireless, equipment and adapter schedules, rendered as tables.
  */
 
 import type { ReactNode } from 'react';
@@ -10,13 +10,14 @@ import {
   adapterSchedule,
   cableSchedule,
   equipmentSchedule,
+  wirelessSchedule,
 } from '@love-rox/kumihimo-core';
 
 import type { UiKey } from './messages.js';
 import { t } from './messages.js';
 
 /** Which schedule to show. */
-export type ScheduleKind = 'cable' | 'equipment' | 'adapter';
+export type ScheduleKind = 'cable' | 'wireless' | 'equipment' | 'adapter';
 
 /** Props accepted by {@link ScheduleTable}. */
 export interface ScheduleTableProps {
@@ -50,9 +51,19 @@ const COLUMNS: Record<ScheduleKind, Column[]> = {
     { key: 'to' },
     { key: 'signalLabel', head: 'colSignal' },
     { key: 'length', head: 'colLength' },
-    { key: 'frequency', head: 'colFrequency' },
     { key: 'connectors', head: 'colConnectors' },
     { key: 'adapter', head: 'colAdapter' },
+    { key: 'note', head: 'colNote' },
+  ],
+  wireless: [
+    { key: 'label', head: 'colNumber' },
+    { key: 'fromDevice', head: 'colFrom' },
+    { key: 'from' },
+    { key: 'toDevice', head: 'colTo' },
+    { key: 'to' },
+    { key: 'signalLabel', head: 'colSignal' },
+    { key: 'carrierLabel', head: 'colCarrier' },
+    { key: 'frequency', head: 'colFrequency' },
     { key: 'note', head: 'colNote' },
   ],
   equipment: [
@@ -102,9 +113,11 @@ export function ScheduleTable({
   const rows: Record<string, unknown>[] =
     kind === 'cable'
       ? (cableSchedule(diagram, locale) as unknown as Record<string, unknown>[])
-      : kind === 'equipment'
-        ? (equipmentSchedule(diagram) as unknown as Record<string, unknown>[])
-        : (adapterSchedule(diagram, locale) as unknown as Record<string, unknown>[]);
+      : kind === 'wireless'
+        ? (wirelessSchedule(diagram, locale) as unknown as Record<string, unknown>[])
+        : kind === 'equipment'
+          ? (equipmentSchedule(diagram) as unknown as Record<string, unknown>[])
+          : (adapterSchedule(diagram, locale) as unknown as Record<string, unknown>[]);
 
   if (rows.length === 0) {
     return <p className="khm-schedule khm-schedule--empty">{t('noRows', locale)}</p>;

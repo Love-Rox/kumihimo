@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 import { buildModel } from '../src/build.js';
 import { parse } from '../src/parser.js';
 import { renderDiagram } from '../src/render.js';
-import { cableSchedule } from '../src/schedule.js';
+import { cableSchedule, wirelessSchedule } from '../src/schedule.js';
 
 const STUDIO = [
   'device cam "PTZ" as camera   { out WIFI : wifi }',
@@ -60,21 +60,26 @@ describe('what it says', () => {
 
 describe('the carrier decides the physics', () => {
   it('gives the same signal a channel through the air and a length down a cable', () => {
-    const rows = cableSchedule(build(STUDIO).diagram);
+    // The two hops carry the same payload and land on different sheets, which is the
+    // clearest statement of what `over` does: the carrier decides, not the payload.
+    const { diagram } = build(STUDIO);
 
-    expect(rows[0]).toMatchObject({ signal: 'ndi', medium: 'wireless', frequency: 'ch 36' });
-    expect(rows[0]?.length).toBeUndefined();
+    const air = wirelessSchedule(diagram);
+    expect(air).toHaveLength(1);
+    expect(air[0]).toMatchObject({ signal: 'ndi', carrier: 'wifi', frequency: 'ch 36' });
 
-    expect(rows[1]).toMatchObject({ signal: 'ndi', medium: 'cable', length: '10m' });
-    expect(rows[1]?.frequency).toBeUndefined();
+    const cables = cableSchedule(diagram);
+    expect(cables[0]).toMatchObject({ signal: 'ndi', length: '10m' });
   });
 
   it('does not put a connector on a radio hop', () => {
     // `ndi` lists RJ45. Read off the payload, the drawing claimed an RJ45 on the hop
-    // through the air — a connector nobody will find on it.
-    const rows = cableSchedule(build(STUDIO).diagram);
-    expect(rows[0]?.connectors).toEqual([]);
-    expect(rows[1]?.connectors).toEqual(['RJ45']);
+    // through the air — a connector nobody will find on it. Now the hop is not among the
+    // cables at all, which is the same claim made once rather than twice.
+    const { diagram } = build(STUDIO);
+    const cables = cableSchedule(diagram);
+    expect(cables.map((r) => r.from)).not.toContain('cam.WIFI');
+    expect(cables[0]?.connectors).toEqual(['RJ45']);
   });
 
   it('judges whether the ends can meet by the carrier', () => {
