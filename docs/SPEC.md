@@ -843,6 +843,10 @@ as a cable.
 
 ### Validation
 
+- **How many things arrive at one end is a question about sockets.** Two cables do not go
+  into one, and that is reported — but a radio has no socket, so an access point with five
+  laptops on it, or one receiver taking two radio mics, is not overbooked. The carrier
+  decides, as it does everywhere else.
 - **Wireless does not connect directly to wired.** A transmitter or receiver is required.
   That is a powered box, so `via` cannot fix it; place it as a **device**.
 - **A cable length on a radio path is a diagnostic.** It catches a copy-and-paste.

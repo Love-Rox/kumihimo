@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildModel } from '../src/build.js';
 import { compile } from '../src/compile.js';
+import { parse } from '../src/parser.js';
 import { BUILTIN_SIGNALS } from '../src/signals.js';
 
 const WIRELESS = `
@@ -122,5 +124,61 @@ describe('wireless rendering', () => {
   it('shows the frequency where a cable would show its length', async () => {
     const { svg } = await compile('a.X -> b.Y : wifi [freq="5GHz"]');
     expect(svg).toContain('5GHz');
+  });
+});
+
+describe('how many things can arrive at one end', () => {
+  const build = (lines: readonly string[]) => {
+    const parsed = parse(lines.join('\n'));
+    const built = buildModel(parsed.document);
+    return { ...built, diagnostics: [...parsed.diagnostics, ...built.diagnostics] };
+  };
+
+  it('lets an access point carry as many as reach it', () => {
+    // Two cables do not go into one socket. A radio has no socket, and an access point
+    // with five laptops on it is not overbooked — it is an access point.
+    const { diagnostics } = build([
+      'device ap "AP" as router { io W : wifi }',
+      ...[1, 2, 3, 4, 5].map((n) => `device pc${n} "PC${n}" { io W : ndi }`),
+      ...[1, 2, 3, 4, 5].map((n) => `pc${n}.W -> ap.W : ndi over wifi`),
+    ]);
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('lets two radio mics reach one receiver', () => {
+    // The same thing without `over`: the signal is its own carrier and it is still air.
+    const { diagnostics } = build([
+      'device rx "RX" as interface  { in  W : uhf }',
+      'device m1 "M1" as microphone { out W : uhf }',
+      'device m2 "M2" as microphone { out W : uhf }',
+      'm1.W -> rx.W : uhf [ch=1]',
+      'm2.W -> rx.W : uhf [ch=2]',
+    ]);
+    expect(diagnostics).toEqual([]);
+  });
+
+  it('still refuses two cables into one socket', () => {
+    // The rule this relaxes is a fact about sockets, and it has to keep holding for them.
+    const { diagnostics } = build([
+      'device sw "SW" as switcher { in 1 : sdi }',
+      'device a "A" as camera { out O : sdi }',
+      'device b "B" as camera { out O : sdi }',
+      'a.O -> sw.1 : sdi 5m',
+      'b.O -> sw.1 : sdi 5m',
+    ]);
+    expect(diagnostics.map((d) => d.code)).toContain('port-overbooked');
+  });
+
+  it('goes by the carrier, not by the payload', () => {
+    // `ndi over lan` is a cable however wireless-adjacent NDI sounds, so two of them into
+    // one socket is still two cables into one socket.
+    const { diagnostics } = build([
+      'device sw "SW" as router { in 1 : lan }',
+      'device a "A" as camera { out L : ndi }',
+      'device b "B" as camera { out L : ndi }',
+      'a.L -> sw.1 : ndi over lan 5m "N-01"',
+      'b.L -> sw.1 : ndi over lan 5m "N-02"',
+    ]);
+    expect(diagnostics.map((d) => d.code)).toContain('port-overbooked');
   });
 });

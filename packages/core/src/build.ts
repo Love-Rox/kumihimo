@@ -728,7 +728,12 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       }
       seenPairs.add(key);
 
-      if (stmt.arrow === '->') {
+      // Two cables do not go into one socket — but this is a fact about sockets, and a
+      // radio has none. An access point with five laptops on it is not overbooked, it is
+      // an access point. The carrier decides, as it does everywhere else: what reaches
+      // this end is a wire or it is the air.
+      const throughAir = (carrier ?? signals[signalName ?? ''] ?? toSignal).wireless === true;
+      if (stmt.arrow === '->' && !throughAir) {
         const count = (inboundCount.get(toPort.id) ?? 0) + 1;
         inboundCount.set(toPort.id, count);
         if (count > 1) {
