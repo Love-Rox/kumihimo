@@ -148,3 +148,47 @@ describe('the drawing', () => {
     expect(wired).not.toContain('a 9 9 0 0 0');
   });
 });
+
+describe('a port that declares the carrier', () => {
+  // Reported from use: `ndi over wifi` into a port declared `wifi` was told to put in a
+  // transmitter — the access point it was already plugged into. The check compared the
+  // payload against the carrier, found air meeting copper, and asked for the thing that
+  // was there. `over` says those two belong together; a socket for the carrier is the
+  // right socket.
+  const AP = [
+    'device pc  "PC" as computer { out WIFI : ndi }',
+    'device ap  "AP" as router   { io  WIFI : wifi  io LAN : lan }',
+    'device rec "REC" as recorder { in LAN : ndi }',
+    'pc.WIFI -> ap.WIFI : ndi over wifi',
+    'ap.LAN  -> rec.LAN : ndi over lan 10m "N-01"',
+  ];
+
+  it('is right rather than mismatched', () => {
+    expect(build(AP).diagnostics).toEqual([]);
+  });
+
+  it('still wants a receiver when nothing says they belong together', () => {
+    // Without `over`, `ndi` into a `wifi` socket is exactly the mistake the check exists
+    // for, and it has to keep catching it.
+    const bare = AP.map((l) => l.replace(' over wifi', ''));
+    expect(build(bare).diagnostics.map((d) => d.code)).toContain('signal-mismatch');
+  });
+
+  it('still judges an end that is neither the payload nor the carrier', () => {
+    // `over wifi` does not make every socket acceptable — only a socket for the carrier.
+    const wrong = [
+      'device pc "PC" as computer { out WIFI : ndi }',
+      'device r  "R"  as recorder { in  SDI  : sdi }',
+      'pc.WIFI -> r.SDI : ndi over wifi',
+    ];
+    expect(build(wrong).diagnostics.map((d) => d.code)).toContain('signal-mismatch');
+  });
+
+  it('leaves the drawing naming the payload', () => {
+    // The end resolves to the payload for the *check* only. What the run is called, and
+    // what colour it takes, still come from what is riding.
+    const { diagram } = build(AP);
+    expect(diagram.links[0]?.signal.name).toBe('ndi');
+    expect(diagram.links[0]?.carrier?.name).toBe('wifi');
+  });
+});
