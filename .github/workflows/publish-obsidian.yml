@@ -86,125 +86,22 @@ jobs:
           VERSION: ${{ steps.version.outputs.current }}
         run: |
           set -euo pipefail
-          rm -rf mirror && mkdir -p mirror/src mirror/scripts
+          # A script rather than shell in here. Three releases failed in a row on the
+          # version of this that lived in YAML — a token scope, an absent `packageManager`,
+          # and an apostrophe inside a single-quoted `node -e` that ended it mid-word —
+          # and none of the three was visible by reading it. As a script it runs in CI on
+          # every commit, and the smoke test checks what it produced.
+          node packages/obsidian/scripts/assemble.mjs mirror
 
-          # The built plugin, and what the directory reads, at the root where it reads it.
-          cp packages/obsidian/dist/main.js       mirror/main.js
-          cp packages/obsidian/manifest.json      mirror/manifest.json
-          cp packages/obsidian/styles.css         mirror/styles.css
-          cp packages/obsidian/README.md          mirror/README.md
-          cp packages/obsidian/LICENSE            mirror/LICENSE
-
-          # And the source it was built from. The directory refuses a repository that has
-          # only the bundle in it — closed source is not accepted — and it is right to: a
-          # 1.5 MB minified file is not something anybody can read before trusting it.
-          cp packages/obsidian/src/*.ts           mirror/src/
-          cp packages/obsidian/scripts/*.mjs      mirror/scripts/
-          cp packages/obsidian/tsconfig.json      mirror/tsconfig.json
-
-          # The mirror builds and signs its own release. `attest-build-provenance` records
-          # against the repository that runs it, so attesting from here would have put the
-          # provenance on the monorepo — where nobody checking the plugin would look for it.
-          mkdir -p mirror/.github/workflows
-          cp .github/workflows/mirror-release.yml mirror/.github/workflows/release.yml
-
-          # A package.json that works here rather than only inside the monorepo: the
-          # compiler comes from npm at the version this build actually used, so somebody
-          # can clone this, install, build, and get the file that is attached to the
-          # release.
-          CORE=$(node -p "require('./packages/core/package.json').version")
-          node -e '
-            const fs = require("node:fs");
-            const src = JSON.parse(fs.readFileSync("packages/obsidian/package.json", "utf8"));
-            const root = JSON.parse(fs.readFileSync("package.json", "utf8"));
-            fs.writeFileSync("mirror/package.json", JSON.stringify({
-              name: "obsidian-kumihimo",
-              version: src.version,
-              description: src.description,
-              license: "MIT",
-              private: true,
-              // Which pnpm, because `pnpm/action-setup` refuses to guess and there is no
-              // monorepo root here to read it from. Without it the mirror's own workflow
-              // cannot even install.
-              packageManager: root.packageManager,
-              scripts: { build: src.scripts.build, test: src.scripts.test, typecheck: src.scripts.typecheck },
-              // Exact, not a range. A caret means somebody building this next year gets
-              // a different compiler than the one the release was built with, and then the
-              // bundle they produce is not the bundle that was attested.
-              dependencies: { "@love-rox/kumihimo-core": process.env.CORE },
-              // TypeScript comes from the monorepo root here, so it has to be named
-              // explicitly there — a repository that says it can be built has to be
-              // buildable, `typecheck` included.
-              // TypeScript and the Node types come from the monorepo root here, so they
-              // have to be named explicitly there — a repository that says it can be
-              // built has to be buildable, `typecheck` included.
-              devDependencies: {
-                ...src.devDependencies,
-                typescript: root.devDependencies.typescript,
-                "@types/node": root.devDependencies["@types/node"],
-              },
-            }, null, 2) + "\n");
-          '
-
-          # The package's tsconfig extends `../../tsconfig.base.json`, a path that means
-          # nothing once the package is the whole repository. Rewrite the one line rather
-          # than ship a file that cannot resolve — checked by building the assembled folder
-          # on its own, which is the only way to know.
-          cp tsconfig.base.json mirror/tsconfig.base.json
-          node -e '
-            const fs = require("node:fs");
-            const path = "mirror/tsconfig.json";
-            const text = fs.readFileSync(path, "utf8").replace("../../tsconfig.base.json", "./tsconfig.base.json");
-            fs.writeFileSync(path, text);
-          '
-
-          cat > mirror/.gitignore <<'EOF'
-          node_modules/
-          dist/
-          EOF
-
-          # A lockfile, generated by installing what was just written. Without one the
-          # reviewer cannot install, so `obsidian` and the compiler resolve to `any` — and
-          # every line that touches either is reported as an unsafe call. One missing file
-          # produced a hundred and twenty warnings about code that types perfectly well.
+          # The lockfile, generated from what was just written. Without one the reviewer
+          # cannot install, so `obsidian` and the compiler resolve to `any` — and every
+          # line touching either is reported as an unsafe call. One missing file produced a
+          # hundred and twenty warnings about code that types perfectly well.
           ( cd mirror && pnpm install --ignore-workspace --lockfile-only )
-          test -f mirror/pnpm-lock.yaml || { echo '::error::lockfile が作られませんでした'; exit 1; }
-
-          # Where it came from, so nobody edits the copy and wonders why it reverts.
-          cat > mirror/CONTRIBUTING.md <<'EOF'
-          # Contributing
-
-          This repository is generated, and everything in it is built from
-          [Love-Rox/kumihimo](https://github.com/Love-Rox/kumihimo) under `packages/obsidian`
-          — where the plugin lives beside the compiler it uses. It is mirrored here because
-          Obsidian's community directory reads `manifest.json` from the root of a repository,
-          which a monorepo cannot offer.
-
-          The source is here and it builds:
-
-          ```sh
-          pnpm install
-          pnpm build
-          ```
-
-          That produces the `main.js` attached to the matching release, from the compiler
-          version pinned in `package.json`.
-
-          Open issues and pull requests against the monorepo. Changes made here are
-          overwritten by the next release.
-          EOF
-
-          # The build syncs the manifest from package.json; if that ever stops happening,
-          # Obsidian would look for a release tag that does not exist and the plugin would
-          # simply fail to install.
-          shipped=$(node -p "require('./mirror/manifest.json').version")
-          if [ "$shipped" != "$VERSION" ]; then
-            echo "::error::manifest.json は $shipped、package.json は $VERSION。同期されていません"
-            exit 1
-          fi
+          test -f mirror/pnpm-lock.yaml
 
           echo "組み立てたもの ($VERSION):"
-          ls -la mirror
+          find mirror -type f -not -path '*/node_modules/*' | sort
 
       - if: steps.version.outputs.publish == 'true'
         name: Push to the plugin repository
