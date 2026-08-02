@@ -95,6 +95,15 @@ A theme can also be passed on the command line with `-t/--theme`, but a `diagram
 in the source wins: the drawing knows how it is meant to look, the caller only knows a
 default.
 
+### Which way it flows
+
+`direction` takes `LR` or `TB` and nothing else, in any case. `RL` and `BT` are reported
+rather than quietly laid out the other way.
+
+`-d/--direction` follows the same rule as the theme — a default the source overrides. There
+is no per-group direction: a group is a frame drawn around devices the surrounding layout
+placed, not a layout of its own.
+
 ---
 
 ## 5. `device` — a piece of equipment
@@ -156,7 +165,7 @@ is exactly the fact that decides whether a spare lavalier fits, and a schedule t
 invites the guess.
 
 `xlr` is also the one place the size word goes in front (`Mini XLR-M`). The tail belongs to
-the gender, and both `mateOf` and anybody reading the column look there to find it.
+the gender, and that is where both the reader and the pairing look to find it.
 
 A connector the type does not list is reported, and so is any attribute other than
 `connector`: a run's `[…]` list is kept on the model as free-form extra data, so an unknown

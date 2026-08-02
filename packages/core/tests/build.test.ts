@@ -93,6 +93,48 @@ describe('forward references', () => {
   });
 });
 
+describe('which way the layout flows', () => {
+  const SHOW =
+    'device a as camera { out O : sdi }\ndevice b as display { in I : sdi }\na.O -> b.I : sdi';
+  const of = (source: string, options = {}) => buildModel(parse(source).document, options).diagram;
+
+  it('reads left to right unless told otherwise', () => {
+    expect(of(SHOW).direction).toBe('LR');
+  });
+
+  it('takes the caller default when the source says nothing', () => {
+    // `-d` had nowhere to arrive and did nothing at all: it was passed as an `options` bag
+    // that no build option ever declared, so it type-checked and vanished.
+    expect(of(SHOW, { direction: 'TB' }).direction).toBe('TB');
+  });
+
+  it('lets the source win over the caller', () => {
+    // The rule the theme already follows: the drawing knows how it is meant to read, the
+    // caller only knows a default.
+    expect(of(`diagram { direction: LR }\n${SHOW}`, { direction: 'TB' }).direction).toBe('LR');
+  });
+
+  it('reads the written value in any case', () => {
+    expect(of(`diagram { direction: tb }\n${SHOW}`).direction).toBe('TB');
+  });
+
+  it('reports a direction it cannot lay out, rather than picking one quietly', () => {
+    const { diagram, diagnostics } = buildModel(
+      parse(`diagram { direction: RL }\n${SHOW}`).document,
+    );
+    expect(diagnostics.map((d) => d.code)).toContain('invalid-value');
+    expect(diagnostics[0]?.message).toContain('RL');
+    // And a drawing still comes out — the default rather than nothing.
+    expect(diagram.direction).toBe('LR');
+  });
+
+  it('keeps direction off the loose options bag', () => {
+    // `options` carries what the build did not understand. Direction is understood, and a
+    // copy sitting there too is a second answer waiting to disagree with the first.
+    expect(of(`diagram { direction: TB }\n${SHOW}`).options['direction']).toBeUndefined();
+  });
+});
+
 describe('direction checking', () => {
   const decls = `
     device a as generic { out OUT : sdi  in IN : sdi }

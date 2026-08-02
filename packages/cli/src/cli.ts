@@ -9,10 +9,30 @@ import { fileURLToPath } from 'node:url';
 
 import { Command } from 'commander';
 
+import type { FlowDirection } from '@love-rox/kumihimo-core';
+
 import { runBuild, runCheck, runFormat } from './commands.js';
 import { resolveLocale } from './locale.js';
 import type { ExportFormat } from './export.js';
 import { EXPORT_EXTENSIONS, EXPORT_FORMATS, runExport } from './export.js';
+
+/**
+ * Read `-d`, or stop.
+ *
+ * An unrecognised direction used to be passed on and silently ignored, which is the worst
+ * of the three possible outcomes: the drawing comes out the other way round and nothing
+ * says why. `LR` and `TB` only, spelled in any case, the same as in the source.
+ *
+ * @param written - What was typed after `-d`, if anything.
+ * @returns The direction, or `undefined` when none was asked for.
+ */
+function flowDirection(written?: string): FlowDirection | undefined {
+  if (written === undefined) return undefined;
+  const value = written.toUpperCase();
+  if (value === 'LR' || value === 'TB') return value;
+  console.error(`direction は LR か TB のいずれかです: ${written}`);
+  process.exit(1);
+}
 
 /** Default output path: the input with its extension swapped for `.svg`. */
 function defaultOutput(file: string): string {
@@ -57,7 +77,7 @@ program
   .option('-w, --watch', 'ファイルを監視して変更のたびに再生成する')
   .action(async (file: string, options: Record<string, unknown>) => {
     const out = (options['out'] as string | undefined) ?? defaultOutput(file);
-    const direction = options['direction'] as string | undefined;
+    const direction = flowDirection(options['direction'] as string | undefined);
     const theme = options['theme'] as string | undefined;
     const locale = resolveLocale(options['lang'] as string | undefined);
 
@@ -70,7 +90,7 @@ program
           color: options['color'] !== false,
           locale,
           ...(theme ? { theme } : {}),
-          ...(direction ? { options: { direction } } : {}),
+          ...(direction ? { direction } : {}),
         });
         if (result.report) console.log(result.report);
         console.log(`→ ${result.written}`);
