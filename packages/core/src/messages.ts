@@ -88,6 +88,10 @@ export const MESSAGES = {
     en: 'direction is LR or TB: {value}',
     ja: 'direction は LR か TB のいずれかです: {value}',
   },
+  'value.order': {
+    en: 'order is `fixed`: {value}',
+    ja: 'order に書けるのは `fixed` です: {value}',
+  },
   'value.category': { en: 'Unknown category: {value}', ja: '未知のカテゴリ: {value}' },
   'value.colour': { en: 'Not a colour: {value}', ja: '色として解釈できません: {value}' },
   'value.width': {

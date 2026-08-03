@@ -614,3 +614,52 @@ describe('a link that crosses a group boundary', () => {
     ).toBeGreaterThan(8);
   });
 });
+
+describe('the order devices are written in', () => {
+  const SHOW = [
+    'group rack "ラック" {',
+    '  device a "A" as camera { out O : sdi }',
+    '  device b "B" as camera { out O : sdi }',
+    '  device c "C" as camera { out O : sdi }',
+    '}',
+    'device rec "R" as recorder { in 1..3 : sdi }',
+    // Wired so that untangling wants a different order than the one written.
+    'a.O -> rec.3 : sdi 2m',
+    'b.O -> rec.1 : sdi 2m',
+    'c.O -> rec.2 : sdi 2m',
+  ].join('\n');
+
+  const downward = async (source: string) => {
+    const { layout } = await layoutOf(source);
+    return layout.devices
+      .filter((d) => ['a', 'b', 'c'].includes(d.id))
+      .sort((p, q) => p.bounds.y - q.bounds.y)
+      .map((d) => d.id)
+      .join(',');
+  };
+
+  it('is rearranged by default, to untangle the cables', async () => {
+    // Which is right when the order is incidental — and it usually is.
+    expect(await downward(SHOW)).toBe('b,c,a');
+  });
+
+  it('is kept when the diagram asks for it', async () => {
+    // A rack list is read top to bottom, and a drawing that reshuffles it to save two
+    // crossings is describing a different rack.
+    expect(await downward(`diagram { order: fixed }\n${SHOW}`)).toBe('a,b,c');
+  });
+
+  it('reports an order it cannot follow rather than ignoring it', async () => {
+    const { diagram, diagnostics } = buildModel(parse('diagram { order: loose }').document);
+    expect(diagnostics.map((d) => d.code)).toContain('invalid-value');
+    expect(diagnostics[0]?.message).toContain('loose');
+    expect(diagram.ordered).toBeUndefined();
+  });
+
+  it('keeps `order` off the loose options bag once it is understood', async () => {
+    // One answer rather than two, the same as `direction`.
+    const { diagram } = buildModel(parse('diagram { order: fixed }').document);
+    expect(diagram.ordered).toBe(true);
+    expect(diagram.options['order']).toBeUndefined();
+  });
+});
