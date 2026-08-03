@@ -212,6 +212,17 @@ export interface Diagram {
   title?: string;
   /** Direction the layout flows. */
   direction: FlowDirection;
+  /**
+   * Whether devices are placed in the order they were written.
+   *
+   * Off by default, because untangling the cables is usually what somebody wants. On when
+   * the order *is* the information — a rack list is read top to bottom, and a drawing that
+   * reshuffles it to save two crossings is describing a different rack.
+   *
+   * Whole-diagram rather than per-group, because that is the only shape the layout engine
+   * allows: its interactive placement may not be used at one level without every level.
+   */
+  ordered?: boolean;
   /** Remaining `diagram` block options, unparsed. */
   options: Record<string, string>;
   /** Every device, including implicit ones, in declaration order. */

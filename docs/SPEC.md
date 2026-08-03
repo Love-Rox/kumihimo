@@ -71,6 +71,7 @@ are allowed** — a connection may name a device declared further down the file.
 ```khm
 diagram "Studio A" {
   direction: LR      # LR (left to right, default) | TB (top to bottom)
+  order: fixed       # place devices as written; omitted, the layout rearranges them
   theme: light       # light (default) | dark | mono | blueprint
   spacing: 60        # gap between nodes, px
 }
@@ -94,6 +95,20 @@ helps nobody.
 A theme can also be passed on the command line with `-t/--theme`, but a `diagram { theme: … }`
 in the source wins: the drawing knows how it is meant to look, the caller only knows a
 default.
+
+### The order things are written in
+
+`order: fixed` places devices **in the order they were written**. Omitted, the layout
+rearranges them to untangle the cables — usually what somebody wants, and wrong when the
+order _is_ the information. A rack list is read top to bottom, and a drawing that reshuffles
+it to save two crossings is describing a different rack.
+
+**It applies to the whole diagram**, not to one group. The layout engine's placement-aware
+processor may not run at one level of the hierarchy without running at every level, and a
+graph with one ordered group and one ordinary one is refused outright. A switch that cannot
+be local should not be spelled as though it is.
+
+Anything other than `fixed` is reported.
 
 ### Which way it flows
 

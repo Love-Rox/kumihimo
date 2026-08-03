@@ -393,23 +393,37 @@ export async function layoutDiagram(
    * the cameras. Built flat, the outer one had no children of its own, nothing to size
    * itself from, and came out at NaN by NaN.
    */
-  const toGroupNode = (group: (typeof diagram.groups)[number]): ElkNode => ({
-    id: `grp:${group.id}`,
-    layoutOptions: {
-      'elk.padding': `[top=${m.groupPadding + 14},left=${m.groupPadding},bottom=${m.groupPadding},right=${m.groupPadding}]`,
-      // Spacing does not inherit into a child graph, and without it devices inside a
-      // group end up close enough that cable labels have nowhere to sit.
-      'elk.spacing.nodeNode': String(m.nodeSpacing),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
-      'elk.spacing.edgeEdge': '12',
-      'elk.spacing.edgeNode': '16',
-    },
-    children: [
+  const toGroupNode = (group: (typeof diagram.groups)[number]): ElkNode => {
+    const children: ElkNode[] = [
       ...group.deviceIds.filter((id) => specs.has(id)).map(toElkNode),
       ...diagram.groups.filter((g) => g.parent === group.id).map(toGroupNode),
-    ],
-    edges: edgesByContainer.get(`grp:${group.id}`) ?? [],
-  });
+    ];
+
+    // Declaration order handed over as coordinates rather than hoped for as a tie-break.
+    if (diagram.ordered === true) {
+      children.forEach((child, i) => {
+        child.y = i * (m.nodeSpacing + 1);
+      });
+    }
+
+    return {
+      id: `grp:${group.id}`,
+      layoutOptions: {
+        'elk.padding': `[top=${m.groupPadding + 14},left=${m.groupPadding},bottom=${m.groupPadding},right=${m.groupPadding}]`,
+        // Spacing does not inherit into a child graph, and without it devices inside a
+        // group end up close enough that cable labels have nowhere to sit.
+        'elk.spacing.nodeNode': String(m.nodeSpacing),
+        'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
+        'elk.spacing.edgeEdge': '12',
+        'elk.spacing.edgeNode': '16',
+        ...(diagram.ordered === true
+          ? { 'elk.layered.crossingMinimization.strategy': 'INTERACTIVE' }
+          : {}),
+      },
+      children,
+      edges: edgesByContainer.get(`grp:${group.id}`) ?? [],
+    };
+  };
 
   const children: ElkNode[] = [
     ...diagram.groups.filter((group) => group.parent === undefined).map(toGroupNode),
@@ -428,6 +442,17 @@ export async function layoutDiagram(
       'elk.spacing.edgeEdge': '12',
       'elk.spacing.edgeNode': '16',
       'elk.padding': '[top=24,left=24,bottom=24,right=24]',
+      // `diagram { order: fixed }`. Crossing minimisation reorders a layer freely — three
+      // cameras written a, b, c come out b, c, a if that saves a crossing, which is right
+      // when the order is incidental and wrong when the order *is* the drawing.
+      //
+      // Whole-diagram rather than per-group, because that is the only shape ELK allows: the
+      // interactive processor may not run at one level of the hierarchy without running at
+      // every level, and a graph with one ordered group and one ordinary one is refused
+      // outright. A switch that cannot be local should not be spelled as though it is.
+      ...(diagram.ordered === true
+        ? { 'elk.layered.crossingMinimization.strategy': 'INTERACTIVE' }
+        : {}),
     },
     children,
     edges: edgesByContainer.get('root') ?? [],

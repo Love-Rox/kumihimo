@@ -140,6 +140,7 @@ class Collector {
   readonly compats: CompatDecl[] = [];
   title?: string;
   direction: FlowDirection = 'LR';
+  ordered = false;
   readonly options: Record<string, string> = {};
 
   constructor(private readonly bag: DiagnosticBag) {}
@@ -158,6 +159,19 @@ class Collector {
                 this.bag.report(
                   'invalid-value',
                   'value.direction',
+                  { value: option.value.value },
+                  option.span,
+                );
+              }
+            } else if (option.key === 'order') {
+              // `fixed` — place devices in the order they were written. Kept off the loose
+              // options bag once understood, so there is one answer rather than two.
+              if (option.value.value.toLowerCase() === 'fixed') {
+                this.ordered = true;
+              } else {
+                this.bag.report(
+                  'invalid-value',
+                  'value.order',
                   { value: option.value.value },
                   option.span,
                 );
@@ -867,6 +881,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
 
   const diagram: Diagram = {
     direction: collector.direction,
+    ...(collector.ordered ? { ordered: true } : {}),
     options: collector.options,
     devices: table.order.map((id) => table.byId.get(id)!),
     groups: collector.groups,
