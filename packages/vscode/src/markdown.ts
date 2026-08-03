@@ -18,7 +18,7 @@
  */
 
 import type { Diagnostic, Locale } from '@love-rox/kumihimo-core';
-import { LOCALES, compile, readableSchedules } from '@love-rox/kumihimo-core';
+import { LOCALES, compile, legibleScale, readableSchedules } from '@love-rox/kumihimo-core';
 
 /** Fences that open a diagram. Both spellings, the same as in Obsidian. */
 const LANGUAGES = ['kumihimo', 'khm'];
@@ -134,7 +134,16 @@ async function draw(pre: Element, source: string, locale: Locale): Promise<void>
   if (drawn.nodeName === 'parsererror') {
     figure.textContent = svg;
   } else {
-    figure.appendChild(document.importNode(drawn, true));
+    const element = document.importNode(drawn, true) as unknown as SVGSVGElement;
+    // `max-width: 100%` fits a wide drawing to the column by scaling it, and scaling has no
+    // floor: a 924px diagram in a 560px note came out at 61%, with the port names at 6px.
+    // Stop shrinking where the smallest label stops being readable and let the box scroll
+    // from there — a drawing somebody has to scroll is better than one nobody can read.
+    const width = Number(drawn.getAttribute('width'));
+    if (Number.isFinite(width) && width > 0) {
+      element.style.minWidth = `${Math.round(width * legibleScale())}px`;
+    }
+    figure.appendChild(element);
   }
   root.appendChild(figure);
 

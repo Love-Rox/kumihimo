@@ -11,7 +11,7 @@ import { Command } from 'commander';
 
 import type { FlowDirection } from '@love-rox/kumihimo-core';
 
-import { runBuild, runCheck, runFormat } from './commands.js';
+import { STDIN, runBuild, runCheck, runFormat } from './commands.js';
 import { resolveLocale } from './locale.js';
 import type { ExportFormat } from './export.js';
 import { EXPORT_EXTENSIONS, EXPORT_FORMATS, runExport } from './export.js';
@@ -66,8 +66,9 @@ program
 program
   .command('build', { isDefault: true })
   .description('.khm を SVG に変換する')
-  .argument('<file>', '入力する .khm ファイル')
+  .argument('<file>', '入力する .khm ファイル。`-` で標準入力')
   .option('-o, --out <path>', '出力先の SVG。省略時は入力と同じ場所')
+  .option('--stdout', 'ファイルに書かず SVG を標準出力に流す')
   .option('-d, --direction <dir>', 'レイアウト方向を上書きする (LR / TB)')
   .option('-t, --theme <name>', 'カラーテーマ (light / dark / mono / blueprint)')
   .option('--no-legend', '凡例を描かない')
@@ -76,7 +77,17 @@ program
   .option('--no-color', '色を付けない')
   .option('-w, --watch', 'ファイルを監視して変更のたびに再生成する')
   .action(async (file: string, options: Record<string, unknown>) => {
-    const out = (options['out'] as string | undefined) ?? defaultOutput(file);
+    // A pipe has no name to derive an output path from, so it has to be told where to go.
+    // Guessing `<stdin>.svg` in the working directory would be a file nobody asked for.
+    const piped = file === STDIN;
+    const toStdout = options['stdout'] === true;
+    if (piped && !toStdout && options['out'] === undefined) {
+      console.error('標準入力から読むときは --stdout か -o が要ります');
+      process.exit(1);
+    }
+    const out = toStdout
+      ? undefined
+      : ((options['out'] as string | undefined) ?? defaultOutput(file));
     const direction = flowDirection(options['direction'] as string | undefined);
     const theme = options['theme'] as string | undefined;
     const locale = resolveLocale(options['lang'] as string | undefined);
@@ -84,7 +95,7 @@ program
     const once = async (): Promise<number> => {
       try {
         const result = await runBuild(file, {
-          out,
+          ...(out === undefined ? {} : { out }),
           legend: options['legend'] !== false,
           strict: options['strict'] === true,
           color: options['color'] !== false,
@@ -92,6 +103,13 @@ program
           ...(theme ? { theme } : {}),
           ...(direction ? { direction } : {}),
         });
+        if (toStdout) {
+          // The drawing goes to stdout so it can be piped; the report goes to stderr so it
+          // does not end up inside the SVG somebody is redirecting to a file.
+          process.stdout.write(result.svg);
+          if (result.report) console.error(result.report);
+          return result.exitCode;
+        }
         if (result.report) console.log(result.report);
         console.log(`→ ${result.written}`);
         return result.exitCode;

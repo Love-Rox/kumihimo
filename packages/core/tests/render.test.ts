@@ -4,7 +4,7 @@ import { buildModel } from '../src/build.js';
 import { compile } from '../src/compile.js';
 import { layoutDiagram } from '../src/layout.js';
 import { parse } from '../src/parser.js';
-import { renderDiagram } from '../src/render.js';
+import { legibleScale, renderDiagram } from '../src/render.js';
 import { THEMES } from '../src/theme.js';
 
 const STUDIO = `
@@ -536,5 +536,28 @@ describe('a drawing that runs top to bottom', () => {
       return (await layoutDiagram(diagram)).devices[0]!.bounds.width;
     };
     expect(await widthOf(wide)).toBe(await widthOf(plain));
+  });
+});
+
+describe('how small a drawing may be made', () => {
+  it('stops where the smallest label stops being readable', () => {
+    // A page fits a wide drawing to its column by scaling, and scaling has no floor of its
+    // own: a 924px diagram in a 560px note came out at 61%, taking the port names from 10px
+    // to 6px. The smallest thing drawn is three under the base size, so 8px lands at 0.8.
+    expect(legibleScale()).toBeCloseTo(0.8, 5);
+    expect(924 * legibleScale()).toBeCloseTo(739.2, 1);
+  });
+
+  it('never asks for more than the drawing already is', () => {
+    // Small type is already legible at full size; the answer is "do not grow it", not a
+    // scale above one that would blow a small diagram up to fill the column.
+    expect(legibleScale({ fontSize: 11 })).toBe(1);
+    expect(legibleScale({ fontSize: 9 })).toBe(1);
+  });
+
+  it('follows the type size it was rendered at', () => {
+    // Bigger type survives more shrinking, and the floor has to know that or it is a
+    // constant pretending to be a measurement.
+    expect(legibleScale({ fontSize: 20 })).toBeLessThan(legibleScale({ fontSize: 14 }));
   });
 });

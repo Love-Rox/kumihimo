@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import type { Diagnostic, DiagnosticCode, Severity } from '@love-rox/kumihimo-core';
 import { describe, expect, it } from 'vitest';
 
-import { runBuild, runCheck } from '../src/commands.js';
+import { Readable } from 'node:stream';
+
+import { STDIN, runBuild, runCheck } from '../src/commands.js';
 import { runExport } from '../src/export.js';
 import { resolveLocale } from '../src/locale.js';
 import { formatDiagnostic, formatReport, summarize } from '../src/format.js';
@@ -79,6 +81,42 @@ describe('runBuild', () => {
     await runBuild(path, { out: alone });
     await runBuild(path, { out: asked, direction: 'TB' });
     expect(await readFile(asked, 'utf8')).toBe(await readFile(alone, 'utf8'));
+  });
+
+  it('reads a diagram from a pipe', async () => {
+    // `-`, the convention every other command line uses. MPE and anything else that renders
+    // a fenced block by running a command has a string and no file to hand it over in.
+    const stdin = process.stdin;
+    Object.defineProperty(process, 'stdin', {
+      value: Readable.from([Buffer.from(CLEAN, 'utf8')]),
+      configurable: true,
+    });
+    try {
+      const dir = await mkdtemp(join(tmpdir(), 'kumihimo-'));
+      const out = join(dir, 'piped.svg');
+      const result = await runBuild(STDIN, { out });
+      expect(result.exitCode).toBe(0);
+      expect(await readFile(out, 'utf8')).toContain('カメラ');
+    } finally {
+      Object.defineProperty(process, 'stdin', { value: stdin, configurable: true });
+    }
+  });
+
+  it('names the pipe in what it reports, rather than a path that does not exist', async () => {
+    // The report says where a fault is. `<stdin>` is honest; a resolved path in the working
+    // directory would send somebody looking for a file nobody wrote.
+    const stdin = process.stdin;
+    Object.defineProperty(process, 'stdin', {
+      value: Readable.from([Buffer.from(BROKEN, 'utf8')]),
+      configurable: true,
+    });
+    try {
+      const result = await runBuild(STDIN, {});
+      expect(result.diagnostics.length).toBeGreaterThan(0);
+      expect(result.written).toBeUndefined();
+    } finally {
+      Object.defineProperty(process, 'stdin', { value: stdin, configurable: true });
+    }
   });
 
   it('creates the output directory when it does not exist', async () => {
