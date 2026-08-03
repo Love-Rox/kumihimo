@@ -1,5 +1,12 @@
 # @love-rox/kumihimo-cli
 
+## 0.9.3
+
+### Patch Changes
+
+- Updated dependencies [c51f79b]
+  - @love-rox/kumihimo-core@0.9.3
+
 ## 0.9.2
 
 ### Patch Changes
