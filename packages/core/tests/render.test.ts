@@ -457,3 +457,84 @@ describe('groups inside groups', () => {
     }
   });
 });
+
+describe('a drawing that runs top to bottom', () => {
+  const SHOW = [
+    'diagram { direction: TB }',
+    'device cam "カメラ" as camera   { out SDI : sdi }',
+    'device sw  "卓"     as switcher { in 1 : sdi  out PGM : sdi }',
+    'device rec "収録"   as recorder { in SDI : sdi }',
+    'cam.SDI -> sw.1    : sdi 10m "V-01"',
+    'sw.PGM  -> rec.SDI : sdi 5m  "V-02"',
+  ].join('\n');
+
+  /** Every `<text>` in the drawing, stripped to what it says. */
+  const words = (svg: string): string[] =>
+    [...svg.matchAll(/<text[^>]*>(.*?)<\/text>/gs)].map((m) => m[1]!.replace(/<[^>]*>/g, ''));
+
+  it('names its ports, the same as one that runs left to right', async () => {
+    // It did not. A vertical drawing got a dot for every port and no name beside any of
+    // them, because the renderer only had a branch for the two horizontal faces. The box
+    // knew which port was which and the drawing would not say.
+    const { svg } = await compile(SHOW, { locale: 'ja' });
+    for (const name of ['SDI', '1', 'PGM']) expect(words(svg), name).toContain(name);
+
+    const across = await compile(SHOW.replace('direction: TB', 'direction: LR'), { locale: 'ja' });
+    expect(words(svg).sort()).toEqual(words(across.svg).sort());
+  });
+
+  it('keeps a port name inside its own box, clear of the header', async () => {
+    // Below the header band on the top edge, above the bottom edge on the other — a name
+    // printed over the device's own title is not a name anybody can read.
+    const { diagram } = buildModel(parse(SHOW).document);
+    const layout = await layoutDiagram(diagram);
+    const svg = await renderDiagram(diagram, { locale: 'ja' });
+
+    const labels = [...svg.matchAll(/<text[^>]*x="([\d.]+)"[^>]*y="([\d.]+)"[^>]*font-size="10"/g)];
+    const ports = layout.devices.flatMap((d) => d.ports);
+
+    let inside = 0;
+    for (const [, sx, sy] of labels) {
+      const x = Number(sx);
+      const y = Number(sy);
+      const box = layout.devices.find(
+        (d) =>
+          x >= d.bounds.x &&
+          x <= d.bounds.x + d.bounds.width &&
+          y >= d.bounds.y &&
+          y <= d.bounds.y + d.bounds.height,
+      )?.bounds;
+      // Cable numbers sit between boxes and belong to none; a port name belongs to one.
+      if (box === undefined) continue;
+      inside += 1;
+      expect(y, `${x},${y} が見出しに重なる`).toBeGreaterThan(box.y + 28);
+      expect(y, `${x},${y} が箱からはみ出す`).toBeLessThan(box.y + box.height);
+    }
+    // Every port, not "at least one" — what went wrong was that all of them were missing.
+    expect(inside).toBe(ports.length);
+  });
+
+  it('widens a column to fit the name written under it', async () => {
+    // Sixteen inputs across the top edge, each with a name beneath the dot. Measured off
+    // the dots rather than the text, so the claim is about spacing and not about a font.
+    const { diagram } = buildModel(
+      parse('diagram { direction: TB }\ndevice dk "卓" as mixer { in CH[1..16] : xlr }').document,
+    );
+    const layout = await layoutDiagram(diagram);
+    const xs = layout.devices[0]!.ports.map((p) => p.center.x).sort((a, b) => a - b);
+    const gaps = xs.slice(1).map((x, i) => x - xs[i]!);
+    expect(Math.min(...gaps)).toBeGreaterThan(24);
+  });
+
+  it('does not widen every input column to fit an output name', async () => {
+    // `MAIN_L` and `MAIN_R` are wide and there are two of them. Sixteen inputs do not each
+    // need room for a name none of them carries.
+    const wide = 'device dk "卓" as mixer { in CH[1..16] : xlr  out MAIN_L, MAIN_R : xlr }';
+    const plain = 'device dk "卓" as mixer { in CH[1..16] : xlr  out L, R : xlr }';
+    const widthOf = async (ports: string) => {
+      const { diagram } = buildModel(parse(`diagram { direction: TB }\n${ports}`).document);
+      return (await layoutDiagram(diagram)).devices[0]!.bounds.width;
+    };
+    expect(await widthOf(wide)).toBe(await widthOf(plain));
+  });
+});

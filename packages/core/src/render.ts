@@ -379,6 +379,20 @@ export function renderSvg(
             `text-anchor="${inward ? 'start' : 'end'}" ` +
             `font-family="${escape(fontFamily)}">${escape(port.name)}</text>`,
         );
+      } else {
+        // Top to bottom. The name cannot sit beside the dot the way it does on a side —
+        // there is nothing beside it but the next port — so it goes directly beneath, or
+        // above for the bottom edge, sharing the dot's x. Clear of the header band, which
+        // the top edge runs along, and clear of the cable, which arrives vertically.
+        //
+        // Without this branch a vertical drawing had dots and no names at all: the box knew
+        // which port was which and the drawing did not say.
+        body.push(
+          `<text x="${n(port.center.x)}" ` +
+            `y="${n(port.side === 'NORTH' ? y + headerHeight + 12 : y + h - 8)}" ` +
+            `font-size="${fontSize - 3}" fill="${theme.muted}" text-anchor="middle" ` +
+            `font-family="${escape(fontFamily)}">${escape(port.name)}</text>`,
+        );
       }
     }
   }

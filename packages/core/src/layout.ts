@@ -287,9 +287,22 @@ function measureDevice(
 
   // Top-to-bottom: inputs along the top edge, outputs along the bottom. Gaps widen the
   // box here rather than lengthening it, since the strips run across.
-  const columns = Math.max(leading.length, trailing.length, 1);
-  const widestGap = Math.max(leadingGaps.at(-1) ?? 0, trailingGaps.at(-1) ?? 0);
-  const width = Math.max(m.minDeviceWidth, labelWidth, columns * m.portPitch + 24 + widestGap);
+  // A column has to be wide enough for the name written under it, not merely for the dot.
+  // The horizontal branch has always measured port labels; this one did not, because it was
+  // not drawing any — so `CH15` and `CH16` would have landed on top of each other the moment
+  // the labels appeared.
+  //
+  // Measured per edge and then compared, rather than one slot wide enough for both: two
+  // outputs called `MAIN_L` and `MAIN_R` would otherwise widen all sixteen input columns to
+  // fit a name none of them carries.
+  const edgeWidth = (list: { name: string }[], gaps: number[]): number =>
+    list.length * Math.max(m.portPitch, portLabelWidth(list) + 8) + 24 + (gaps.at(-1) ?? 0);
+  const width = Math.max(
+    m.minDeviceWidth,
+    labelWidth,
+    edgeWidth(leading, leadingGaps),
+    edgeWidth(trailing, trailingGaps),
+  );
   const height = m.headerHeight + 44;
   const place = (
     list: { id: string; name: string }[],
