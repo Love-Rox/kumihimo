@@ -1,6 +1,6 @@
 {
   "name": "@love-rox/kumihimo-vue",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Vue 3 component and composable rendering kumihimo AV signal flow diagrams (系統図)",
   "keywords": [
     "av",
