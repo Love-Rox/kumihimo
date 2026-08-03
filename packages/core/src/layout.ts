@@ -365,15 +365,35 @@ export async function layoutDiagram(
   // everything on the root silently yields group-relative points for the links that
   // happen to stay inside one group.
   const groupOf = new Map<string, string>();
+  const parentOf = new Map<string, string | undefined>();
   for (const group of diagram.groups) {
+    parentOf.set(group.id, group.parent);
     for (const id of group.deviceIds) groupOf.set(id, group.id);
   }
 
+  /** Every group containing a device, outermost first. */
+  const chainOf = (deviceId: string): string[] => {
+    const chain: string[] = [];
+    for (let id = groupOf.get(deviceId); id !== undefined; id = parentOf.get(id)) {
+      chain.unshift(id);
+    }
+    return chain;
+  };
+
   const edgesByContainer = new Map<string, ElkExtendedEdge[]>();
   for (const link of diagram.links) {
-    const a = groupOf.get(link.from.deviceId);
-    const b = groupOf.get(link.to.deviceId);
-    const container = a !== undefined && a === b ? `grp:${a}` : 'root';
+    // The lowest group holding both ends, not merely "the same immediate group". A camera
+    // inside `devices > cameras` running to a switcher inside `devices` shares `devices`,
+    // and ELK lays the edge out there whatever we say — so an edge parked on the root came
+    // back in the group's coordinates and was drawn a whole group's origin away from the
+    // boxes it joins. Present as a line that is simply not there.
+    const from = chainOf(link.from.deviceId);
+    const to = chainOf(link.to.deviceId);
+    let shared: string | undefined;
+    for (let i = 0; i < Math.min(from.length, to.length) && from[i] === to[i]; i += 1) {
+      shared = from[i];
+    }
+    const container = shared === undefined ? 'root' : `grp:${shared}`;
     const edge: ElkExtendedEdge = {
       id: `edge:${link.id}`,
       sources: [`port:${link.from.deviceId}.${link.from.portName}`],
