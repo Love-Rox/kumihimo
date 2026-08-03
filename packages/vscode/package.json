@@ -35,7 +35,7 @@
     "notices": "node scripts/build-notices.mjs",
     "package": "pnpm build && pnpm exec vsce package --no-dependencies",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node scripts/smoke.mjs"
+    "test": "pnpm build && node scripts/smoke.mjs && node scripts/smoke-markdown.mjs"
   },
   "dependencies": {
     "@love-rox/kumihimo-core": "workspace:*"
@@ -44,6 +44,7 @@
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.28.1",
+    "happy-dom": "^20.11.1",
     "ovsx": "^1.0.2"
   },
   "l10n": "./l10n",
@@ -166,6 +167,12 @@
         "language": "kumihimo",
         "path": "./snippets/kumihimo.json"
       }
+    ],
+    "markdown.previewScripts": [
+      "./dist/markdown.js"
+    ],
+    "markdown.previewStyles": [
+      "./media/markdown.css"
     ]
   },
   "activationEvents": [],

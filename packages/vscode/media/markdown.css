@@ -1,0 +1,91 @@
+/*
+ * How a diagram sits in the Markdown preview.
+ *
+ * Everything is drawn from VS Code's own variables, so a drawing in a note looks like it
+ * belongs to the editor around it rather than to the extension that made it. The SVG carries
+ * its own colours — the theme is chosen when it is compiled — so nothing here touches them.
+ */
+
+.kumihimo {
+  margin: 1em 0;
+}
+
+.kumihimo-diagram {
+  /* A wide rack overflows sideways inside its own box rather than pushing the page out. */
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.kumihimo-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.kumihimo-diagnostics {
+  list-style: none;
+  margin: 0.6em 0 0;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.kumihimo-diagnostics li {
+  display: flex;
+  gap: 0.5em;
+  align-items: baseline;
+  padding: 0.2em 0;
+}
+
+.kumihimo-severity {
+  flex: none;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 0.04em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.kumihimo-diagnostics li[data-severity='error'] .kumihimo-severity {
+  color: var(--vscode-errorForeground);
+}
+
+.kumihimo-diagnostics li[data-severity='warning'] .kumihimo-severity {
+  color: var(--vscode-editorWarning-foreground);
+}
+
+.kumihimo details {
+  margin-top: 0.6em;
+}
+
+.kumihimo summary {
+  cursor: pointer;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+}
+
+/* Folded away by default: the drawing is what somebody opened the note for, and four tables
+   ahead of it would push it off the screen. */
+.kumihimo details > table {
+  margin-top: 0.4em;
+  border-collapse: collapse;
+  /* A schedule is wide. It scrolls in place rather than stretching the note. */
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.kumihimo details th,
+.kumihimo details td {
+  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  padding: 0.25em 0.6em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.kumihimo details th {
+  font-weight: 600;
+  background: var(--vscode-editorWidget-background);
+}
+
+.kumihimo-error {
+  color: var(--vscode-errorForeground);
+  white-space: pre-wrap;
+}

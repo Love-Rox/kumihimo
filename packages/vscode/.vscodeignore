@@ -6,12 +6,16 @@ tsconfig.json
 .gitignore
 *.vsix
 
-# The listing fetches these from the repository by absolute URL, so shipping them in
-# the package would be 210 kB nobody downloads for a reason.
+# The listing fetches the screenshots from the repository by absolute URL, so shipping them
+# in the package would be 210 kB nobody downloads for a reason. The Markdown preview's
+# stylesheet is a different matter — VS Code loads it out of the installed extension, and
+# without it the diagrams in a note arrive unstyled.
 media/**
+!media/markdown.css
 
 # The bundle is the extension; nothing else in dist is needed at runtime.
 dist/**/*.map
 
-# Kept: dist/extension.cjs, syntaxes/, language-configuration.json, README.md,
-# CHANGELOG.md, LICENSE, THIRD-PARTY-NOTICES.txt.
+# Kept: dist/extension.cjs, dist/markdown.js, media/markdown.css, syntaxes/,
+# language-configuration.json, README.md, CHANGELOG.md, LICENSE,
+# THIRD-PARTY-NOTICES.txt.

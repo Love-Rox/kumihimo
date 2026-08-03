@@ -62,6 +62,13 @@ Every name offered is one the compiler accepts, because both read the same list 
 connectors are shown beside each type, which is how `trs` (1/4") and `trs35` (3.5mm) are
 told apart at the point of choosing.
 
+**Diagrams in your Markdown.** A ` ```kumihimo ` block in any `.md` file is drawn in VS
+Code's own Markdown preview, with the schedules folded up underneath and any faults listed
+beside it. ` ```khm ` opens one too. A note that documents a rig shows the rig.
+
+The drawing follows the preview's light or dark, and a `diagram { theme: … }` inside the
+block still wins — a diagram that names its own look is saying something about that diagram.
+
 **Syntax highlighting** and the usual bracket and comment handling for `.khm`.
 
 **Format Document.** `⇧⌥F`, or format on save. Indents by nesting, normalises spacing, and
