@@ -612,6 +612,8 @@ describe('a link that crosses a group boundary', () => {
     expect(
       Math.hypot(edge.points[0]!.x - inner.bounds.x, edge.points[0]!.y - inner.bounds.y),
     ).toBeGreaterThan(8);
+  });
+});
 
 describe('the order devices are written in', () => {
   const SHOW = [
