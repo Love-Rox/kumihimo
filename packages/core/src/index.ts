@@ -102,7 +102,7 @@ export type {
 export { estimateTextWidth, layoutDiagram } from './layout.js';
 
 export type { RenderOptions } from './render.js';
-export { linkStroke, renderSvg, renderDiagram } from './render.js';
+export { legibleScale, linkStroke, renderSvg, renderDiagram } from './render.js';
 
 export type { StrokeSpec, Theme } from './theme.js';
 export { THEMES, DEFAULT_THEME, lookupTheme, strokeFor } from './theme.js';

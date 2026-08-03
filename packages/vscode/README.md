@@ -62,12 +62,18 @@ Every name offered is one the compiler accepts, because both read the same list 
 connectors are shown beside each type, which is how `trs` (1/4") and `trs35` (3.5mm) are
 told apart at the point of choosing.
 
-**Diagrams in your Markdown.** A ` ```kumihimo ` block in any `.md` file is drawn in VS
-Code's own Markdown preview, with the schedules folded up underneath and any faults listed
-beside it. ` ```khm ` opens one too. A note that documents a rig shows the rig.
+**Diagrams in your Markdown.** A ` ```kumihimo ` block in any `.md` file is drawn in
+**VS Code's built-in Markdown preview**, with the schedules folded up underneath and any
+faults listed beside it. ` ```khm ` opens one too. A note that documents a rig shows the rig.
 
 The drawing follows the preview's light or dark, and a `diagram { theme: … }` inside the
 block still wins — a diagram that names its own look is saying something about that diagram.
+
+> **The built-in preview specifically.** _Markdown Preview Enhanced_ is a separate renderer
+> and does not read the contribution this uses, so a block stays a code block there and says
+> nothing about why. If it has taken over `⇧⌘V`, open the built-in one from the palette with
+> **Markdown: Open Preview**. A diagram can also be produced from a fence by running the
+> command-line tool — see [the CLI](https://github.com/Love-Rox/kumihimo#readme).
 
 **Syntax highlighting** and the usual bracket and comment handling for `.khm`.
 

@@ -11,7 +11,7 @@
  */
 
 import type { Diagnostic } from '@love-rox/kumihimo-core';
-import { compile, readableSchedules } from '@love-rox/kumihimo-core';
+import { compile, legibleScale, readableSchedules } from '@love-rox/kumihimo-core';
 import {
   MarkdownRenderChild,
   Plugin,
@@ -115,6 +115,17 @@ class DiagramBlock extends MarkdownRenderChild {
     // Obsidian ships the sanitiser precisely so a plugin does not have to decide.
     const figure = root.createDiv({ cls: 'kumihimo-diagram' });
     figure.appendChild(sanitizeHTMLToDom(svg));
+
+    // `max-width: 100%` fits a wide drawing to the note by scaling it, and scaling has no
+    // floor of its own: a 924px diagram in a 560px column comes out at 61%, taking the port
+    // names from 10px to 6px. Stop shrinking where the smallest label stops being readable
+    // and let the box scroll from there — a drawing somebody has to scroll is better than
+    // one nobody can read.
+    const drawn = figure.querySelector('svg');
+    const width = Number(drawn?.getAttribute('width'));
+    if (drawn !== null && Number.isFinite(width) && width > 0) {
+      drawn.style.minWidth = `${Math.round(width * legibleScale())}px`;
+    }
 
     if (diagnostics.length > 0) {
       const list = root.createEl('ul', { cls: 'kumihimo-diagnostics' });

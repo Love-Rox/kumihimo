@@ -36,6 +36,35 @@ export interface RenderOptions extends LayoutOptions {
 const DEFAULT_FONT =
   "system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', sans-serif";
 
+/**
+ * The smallest a label may become before it stops being a label.
+ *
+ * Eight pixels. Below that a port name is a grey smudge that says a name is there without
+ * saying which — worse than a drawing that has to be scrolled, because scrolling is a thing
+ * somebody can do about it.
+ */
+const MIN_LEGIBLE_TEXT = 8;
+
+/**
+ * How far a drawing may be scaled down and still be readable.
+ *
+ * A page that fits a wide diagram into a narrow column does it by scaling, and scaling has no
+ * floor of its own: a 924px drawing in a 560px note comes out at 61%, which takes the port
+ * names from 10px to 6px. Every surface that embeds a drawing needs the same answer, and it
+ * is the renderer that knows it, because the renderer chose the type size.
+ *
+ * Multiply by the drawing's own width to get the width to stop shrinking at, and let the box
+ * around it scroll from there.
+ *
+ * @param options - The same options the drawing was rendered with, for the font size.
+ * @returns A scale in `(0, 1]`.
+ */
+export function legibleScale(options: Pick<RenderOptions, 'fontSize'> = {}): number {
+  // The smallest thing drawn is a port name, three under the base size.
+  const smallest = (options.fontSize ?? 13) - 3;
+  return Math.min(1, MIN_LEGIBLE_TEXT / smallest);
+}
+
 /** Escape text for inclusion in XML character data or an attribute value. */
 function escape(text: string): string {
   return text

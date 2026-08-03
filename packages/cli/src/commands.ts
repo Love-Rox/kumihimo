@@ -51,6 +51,29 @@ function exitCodeFor(diagnostics: readonly Diagnostic[], strict: boolean): numbe
   return strict && warnings > 0 ? 1 : 0;
 }
 
+/** The name a diagram read from a pipe is reported under. */
+export const STDIN = '-';
+
+/**
+ * Read the source, from a file or from standard input.
+ *
+ * `-` for standard input, the convention every other command line uses. Imports inside it
+ * resolve against the working directory, which is the only thing a pipe can be relative to.
+ *
+ * @param file - A path, or `-`.
+ * @returns The text and the path diagnostics should be reported against.
+ */
+async function readSource(file: string): Promise<{ path: string; source: string }> {
+  if (file !== STDIN) {
+    const path = resolve(file);
+    return { path, source: await readFile(path, 'utf8') };
+  }
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  return { path: resolve('<stdin>.khm'), source: Buffer.concat(chunks).toString('utf8') };
+}
+
 /**
  * Compile a `.khm` file and optionally write the SVG.
  *
@@ -62,8 +85,7 @@ export async function runBuild(
   file: string,
   options: BuildCommandOptions = {},
 ): Promise<BuildCommandResult> {
-  const path = resolve(file);
-  const source = await readFile(path, 'utf8');
+  const { path, source } = await readSource(file);
   const { svg, diagnostics } = await compile(source, {
     resolver: createFileResolver(),
     path,
