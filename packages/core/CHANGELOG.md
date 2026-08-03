@@ -1,5 +1,54 @@
 # @love-rox/kumihimo-core
 
+## 0.9.4
+
+### Patch Changes
+
+- 9ffc0e6: A vertical drawing names its ports.
+
+  `direction: TB` produced a dot for every port and a name beside none of them. The renderer
+  had a branch for the two horizontal faces and nothing for the other two, so a top-to-bottom
+  diagram came out with twelve labels where a left-to-right one had sixteen — the box knew
+  which port was which and the drawing would not say.
+
+  The name goes directly beneath the dot on the top edge and directly above it on the bottom,
+  sharing the dot's x: there is nothing beside a port on a horizontal edge but the next port,
+  so the trick that works on the sides does not transfer. Clear of the header band the top edge
+  runs along, and clear of the cable, which arrives vertically.
+
+  **The columns are measured now.** The horizontal branch has always sized a box around its
+  port labels; the vertical one never did, because it was not drawing any — so `CH15` and
+  `CH16` would have landed on top of each other the moment the names appeared. Measured per
+  edge rather than once for both, because `MAIN_L` and `MAIN_R` on the bottom should not widen
+  all sixteen input columns to fit a name none of them carries. A sixteen-in mixer with those
+  two outputs comes out 587px rather than 781.
+
+  A left-to-right drawing is unchanged, byte for byte.
+
+- f2fb391: `-d/--direction` now turns the drawing.
+
+  It was in `--help`, it validated nothing, and it did nothing at all. The value arrived as
+  `{ options: { direction } }` — a property no build option ever declared, so it type-checked,
+  was spread into the compile call, and fell on the floor. The drawing came out the way it
+  would have anyway, and nothing said why.
+
+  `BuildOptions` now carries `direction`, and it follows the rule the theme already follows: a
+  `diagram { direction: … }` in the source wins, because the drawing knows how it is meant to
+  read and the caller only knows a default.
+
+  ```sh
+  kumihimo show.khm -d TB      # a source that says nothing now lays out top to bottom
+  ```
+
+  An unrecognised value stops rather than being ignored. `-d RL` used to be dropped silently,
+  which is the worst of the three outcomes available: the drawing comes out the other way round
+  and there is nothing to read about it.
+
+  The CLI tests never caught this because none of them looked at the shape of what came out.
+  Two now do, comparing the same diagram laid out both ways rather than asserting a fixed size
+  — a four-input switcher is a tall box, so "wider than high" is a fact about the node and not
+  about the direction.
+
 ## 0.9.3
 
 ### Patch Changes
