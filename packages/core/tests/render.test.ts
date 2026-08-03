@@ -561,3 +561,56 @@ describe('how small a drawing may be made', () => {
     expect(legibleScale({ fontSize: 20 })).toBeLessThan(legibleScale({ fontSize: 14 }));
   });
 });
+
+describe('a link that crosses a group boundary', () => {
+  // A camera two groups deep, running to a switcher one group deep. They share `devices`,
+  // and ELK lays the edge out in that group's coordinates whatever it is told — so an edge
+  // parked on the root came back offset by the group's origin and was drawn a long way from
+  // both boxes. On the page that reads as a line that was simply never drawn.
+  const NESTED = [
+    'device far "Far" as recorder { in SDI : sdi }',
+    'group outer "Outer" {',
+    '  device sw "SW" as switcher { in 1 : sdi  out PGM : sdi }',
+    '  group inner "Inner" {',
+    '    device cam "Cam" as camera { out SDI : sdi }',
+    '  }',
+    '}',
+    'cam.SDI -> sw.1    : sdi 5m "V-01"',
+    'sw.PGM  -> far.SDI : sdi 5m "V-02"',
+  ].join('\n');
+
+  it('joins the boxes it says it joins', async () => {
+    const { layout } = await layoutOf(NESTED);
+    const portAt = (device: string, name: string) => {
+      const box = layout.devices.find((d) => d.id === device)!;
+      return box.ports.find((p) => p.name === name)!.center;
+    };
+
+    for (const [id, from, to] of [
+      ['cam.SDI->sw.1', portAt('cam', 'SDI'), portAt('sw', '1')],
+      ['sw.PGM->far.SDI', portAt('sw', 'PGM'), portAt('far', 'SDI')],
+    ] as const) {
+      const edge = layout.edges.find((e) => e.id.startsWith(id));
+      expect(edge, id).toBeDefined();
+      const start = edge!.points[0]!;
+      const end = edge!.points.at(-1)!;
+      // Within a few pixels of the dot: the route may leave at a slight angle, but it has
+      // to leave from the port rather than from wherever the group happens to sit.
+      expect(Math.hypot(start.x - from.x, start.y - from.y), `${id} の始点`).toBeLessThan(8);
+      expect(Math.hypot(end.x - to.x, end.y - to.y), `${id} の終点`).toBeLessThan(8);
+    }
+  });
+
+  it('puts the edge on the group that holds both ends', async () => {
+    // Not "the same immediate group" — that sent every link between nesting levels to the
+    // root, where its coordinates meant something else.
+    const { layout } = await layoutOf(NESTED);
+    const inner = layout.groups.find((g) => g.id === 'inner')!;
+    const edge = layout.edges.find((e) => e.id.startsWith('cam.SDI->sw.1'))!;
+    // If the container were wrong, the start would land near the inner group's origin
+    // rather than on the camera's port.
+    expect(
+      Math.hypot(edge.points[0]!.x - inner.bounds.x, edge.points[0]!.y - inner.bounds.y),
+    ).toBeGreaterThan(8);
+  });
+});
