@@ -38,3 +38,24 @@ const result = await build({
 
 const bytes = Object.values(result.metafile.outputs)[0]?.bytes ?? 0;
 console.log(`dist/extension.cjs  ${(bytes / 1024 / 1024).toFixed(2)} MB`);
+
+// The Markdown preview's script, which is a different program in a different place: it runs
+// in the preview's webview rather than in the extension host, so it is a browser build and
+// cannot share the bundle above. `vscode` is not reachable from there at all.
+//
+// An IIFE rather than a module — VS Code adds the tag itself, without `type="module"`.
+const preview = await build({
+  entryPoints: [resolve(here, '../src/markdown.ts')],
+  outfile: resolve(here, '../dist/markdown.js'),
+  bundle: true,
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2022',
+  minify: !watch,
+  sourcemap: watch,
+  logLevel: 'info',
+  metafile: true,
+});
+
+const previewBytes = Object.values(preview.metafile.outputs)[0]?.bytes ?? 0;
+console.log(`dist/markdown.js    ${(previewBytes / 1024 / 1024).toFixed(2)} MB`);
