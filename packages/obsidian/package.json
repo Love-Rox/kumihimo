@@ -1,6 +1,6 @@
 {
   "name": "kumihimo-obsidian",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "private": true,
   "description": "AV signal flow diagrams (系統図) as text, in Obsidian",
   "scripts": {
