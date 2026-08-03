@@ -1,5 +1,12 @@
 # @love-rox/kumihimo-cli
 
+## 0.10.1
+
+### Patch Changes
+
+- Updated dependencies [c5a582b]
+  - @love-rox/kumihimo-core@0.10.1
+
 ## 0.10.0
 
 ### Minor Changes
