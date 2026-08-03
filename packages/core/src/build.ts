@@ -56,6 +56,14 @@ export interface BuildOptions {
    * wants another language later does not have to build the diagram again.
    */
   locale?: Locale;
+  /**
+   * Which way the layout flows when the source does not say.
+   *
+   * A `diagram { direction: … }` in the source wins, the same way it does for the theme:
+   * the drawing knows how it is meant to read, the caller only knows a default. Without
+   * this the CLI's `-d` had nowhere to arrive and quietly did nothing.
+   */
+  direction?: FlowDirection;
 }
 
 /**
@@ -500,6 +508,9 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
   const bag = new DiagnosticBag(options.severities ?? {}, locale);
 
   const collector = new Collector(bag);
+  // The caller's default, in place before the source is read, so a `direction` written in
+  // the file simply overwrites it and wins without needing a rule of its own.
+  if (options.direction !== undefined) collector.direction = options.direction;
   collector.collect(document.statements);
 
   const signals = buildSignals(collector.signals, bag);

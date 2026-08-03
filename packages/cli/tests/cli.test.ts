@@ -42,6 +42,45 @@ describe('runBuild', () => {
     expect(result.report).toContain('Nothing to report');
   });
 
+  it('lays the drawing out the way `-d` asked', async () => {
+    // `-d` was documented in `--help` and did nothing: it arrived as an `options` bag no
+    // build option declared, so it type-checked and was dropped. Nothing noticed, because
+    // nothing here looked at the shape of what came out.
+    const bare = CLEAN.replace('diagram "テスト" { direction: LR }', '');
+    const { dir, path } = await withFile(bare);
+
+    const wide = join(dir, 'lr.svg');
+    const tall = join(dir, 'tb.svg');
+    await runBuild(path, { out: wide });
+    await runBuild(path, { out: tall, direction: 'TB' });
+
+    const box = async (file: string) => {
+      const m = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(await readFile(file, 'utf8'));
+      return { w: Number(m?.[1]), h: Number(m?.[2]) };
+    };
+    const lr = await box(wide);
+    const tb = await box(tall);
+
+    // The two compared against each other, not against a fixed size: a four-input switcher
+    // is a tall box, so "wider than high" is not true of the LR drawing and asserting it
+    // would be testing the node rather than the layout. What direction decides is which way
+    // the *chain* runs, and that shows up as one drawing being wider and the other taller
+    // than the same diagram laid out the other way.
+    expect(lr.w).toBeGreaterThan(tb.w);
+    expect(tb.h).toBeGreaterThan(lr.h);
+  });
+
+  it('lets a diagram that names its own direction keep it', async () => {
+    // `CLEAN` says LR. A caller asking for TB is supplying a default, not an instruction —
+    // so the drawing has to come out byte for byte the same as with no override at all.
+    const { dir, path } = await withFile(CLEAN);
+    const asked = join(dir, 'asked.svg');
+    const alone = join(dir, 'alone.svg');
+    await runBuild(path, { out: alone });
+    await runBuild(path, { out: asked, direction: 'TB' });
+    expect(await readFile(asked, 'utf8')).toBe(await readFile(alone, 'utf8'));
+  });
+
   it('creates the output directory when it does not exist', async () => {
     const { dir, path } = await withFile(CLEAN);
     const out = join(dir, 'nested', 'deep', 'out.svg');
