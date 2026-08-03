@@ -629,24 +629,57 @@ describe('the order devices are written in', () => {
     'c.O -> rec.2 : sdi 2m',
   ].join('\n');
 
-  const downward = async (source: string) => {
-    const { layout } = await layoutOf(source);
+  /**
+   * The devices in the order they are drawn across the layer.
+   *
+   * Across the flow, which is the axis a layer is stacked along: down the page for `LR`,
+   * across it for `TB`. Reading `y` for both is how this shipped ordering nothing at all in
+   * a top-to-bottom drawing.
+   */
+  const acrossLayer = async (source: string, direction: 'LR' | 'TB') => {
+    const { layout } = await layoutOf(`diagram { direction: ${direction} }\n${source}`);
     return layout.devices
       .filter((d) => ['a', 'b', 'c'].includes(d.id))
-      .sort((p, q) => p.bounds.y - q.bounds.y)
+      .sort((p, q) => (direction === 'LR' ? p.bounds.y - q.bounds.y : p.bounds.x - q.bounds.x))
       .map((d) => d.id)
       .join(',');
   };
 
-  it('is rearranged by default, to untangle the cables', async () => {
-    // Which is right when the order is incidental — and it usually is.
-    expect(await downward(SHOW)).toBe('b,c,a');
-  });
+  for (const direction of ['LR', 'TB'] as const) {
+    it(`is rearranged by default, to untangle the cables (${direction})`, async () => {
+      // Which is right when the order is incidental — and it usually is.
+      expect(await acrossLayer(SHOW, direction)).toBe('b,c,a');
+    });
 
-  it('is kept when the diagram asks for it', async () => {
-    // A rack list is read top to bottom, and a drawing that reshuffles it to save two
-    // crossings is describing a different rack.
-    expect(await downward(`diagram { order: fixed }\n${SHOW}`)).toBe('a,b,c');
+    it(`is kept when the diagram asks for it (${direction})`, async () => {
+      // A rack list is read top to bottom, and a drawing that reshuffles it to save two
+      // crossings is describing a different rack.
+      expect(await acrossLayer(`diagram { order: fixed }\n${SHOW}`, direction)).toBe('a,b,c');
+    });
+  }
+
+  it('orders the groups inside a group too, not only the devices', async () => {
+    // The report this came from nests two levels; the outer group's children are groups.
+    const { layout } = await layoutOf(
+      [
+        'diagram { direction: TB; order: fixed }',
+        'group outer "Outer" {',
+        '  group first "First"  { device a "A" as camera { out O : sdi } }',
+        '  group second "Second" { device b "B" as camera { out O : sdi } }',
+        '  group third "Third"  { device c "C" as camera { out O : sdi } }',
+        '}',
+        'device r "R" as recorder { in 1..3 : sdi }',
+        'a.O -> r.3 : sdi 2m',
+        'b.O -> r.1 : sdi 2m',
+        'c.O -> r.2 : sdi 2m',
+      ].join('\n'),
+    );
+    const order = layout.groups
+      .filter((g) => ['first', 'second', 'third'].includes(g.id))
+      .sort((p, q) => p.bounds.x - q.bounds.x)
+      .map((g) => g.id)
+      .join(',');
+    expect(order).toBe('first,second,third');
   });
 
   it('reports an order it cannot follow rather than ignoring it', async () => {
@@ -661,5 +694,176 @@ describe('the order devices are written in', () => {
     const { diagram } = buildModel(parse('diagram { order: fixed }').document);
     expect(diagram.ordered).toBe(true);
     expect(diagram.options['order']).toBeUndefined();
+  });
+});
+
+describe('a whole show, ordered', () => {
+  // The diagram this came from. Nothing smaller reproduced it: two nesting levels, five
+  // sibling groups and twenty-one links are what it takes for the layout to want a
+  // different order than the one written, and `order: fixed` shipped doing nothing about
+  // it in a top-to-bottom drawing. Long, and the only thing that catches it.
+  const SHOW = [
+    'diagram "ミノ駆動さんイベント" {',
+    '    order: fixed',
+    '    direction: TB',
+    '}',
+    '',
+    'model obsbott2 "OBSBOT Tail 2" as camera {',
+    '    out USB1 : usb',
+    '    in  USB2 : usbpd',
+    '    io  WiFi : wifi | ndi',
+    '    io  LAN  : lan | ndi',
+    '    out HDMI : hdmi',
+    '    out SDI  : sdi',
+    '}',
+    '',
+    'model nw_switcher "Network Switcher" as switcher {',
+    '    io LAN [1..10] : lan',
+    '}',
+    '',
+    'model rwptx "RØDE Wireless Pro Transmitter" as microphone {',
+    '    out Wireless : bluetooth',
+    '}',
+    '',
+    'model dm2tx "DJI Mic 2 Transmitter" as microphone {',
+    '    out Wireless : bluetooth',
+    '}',
+    '',
+    'model dm2rx "DJI Mic 2 Reciever" as interface {',
+    '    in  Wireless1 : bluetooth',
+    '    in  Wireless2 : bluetooth',
+    '    out USB       : usb',
+    '    out Pin       : trrs35',
+    '}',
+    '',
+    'model sonya73 "Sony α7 III" as camera {',
+    '    out HDMI : hdmi',
+    '    io  USB  : usb | usbpd',
+    '}',
+    '',
+    'group actors "演者" {',
+    '    group mino "ミノ駆動" {',
+    '        device pro1 from rwptx "RØDE Wireless Pro 1"',
+    '        device pc1 "ミノ駆動 PC" { out WiFi : ndi }',
+    '    }',
+    '    group rocky "rocky" {',
+    '        device pro2 from rwptx "RØDE Wireless Pro 2"',
+    '        device pc2 "rocky PC" { in WiFi : ndi }',
+    '    }',
+    '    group kotone "ことね" {',
+    '        device dm21 from dm2tx "DJI Mic 2 1"',
+    '        device pc4 "ことね PC" { in WiFi : ndi }',
+    '    }',
+    '    group kumamoto "くまもと" {',
+    '        device dm22 from dm2tx "DJI Mic 2 2"',
+    '        device pc3 "くまもと PC" { in WiFi : ndi }',
+    '    }',
+    '    group sasapiyo "ささぴよ" {',
+    '        device dm23 from dm2tx "DJI Mic 2 3"',
+    '        device pc5 "ささぴよ PC" { in WiFi : ndi }',
+    '    }',
+    '}',
+    '',
+    'group network "ネットワーク" {',
+    '    device ethernet_switch from nw_switcher "ネットワークスイッチ"',
+    '    device ux "UniFi Express" as switcher {',
+    '        io WiFi : wifi',
+    '        io LAN  : lan',
+    '        io WAN  : lan',
+    '    }',
+    '}',
+    '',
+    'group monitors "モニター" {',
+    '    device monitor1 "ミニモニター" { in HDMI : hdmi }',
+    '    device monitor2 "返しモニター" { in HDMI : hdmi }',
+    '}',
+    '',
+    'group devices "収録機材類" {',
+    ' device rcv "RØDECaster Video" as switcher {',
+    '     in HDMI [1..4] : hdmi',
+    '     gap',
+    '     io USB [1..2] : usb',
+    '     in USB [4..5] : usb',
+    '     gap',
+    '     in COMBO [1..2] : trs | xlr',
+    '     gap',
+    '     in Wireless [1..2] : bluetooth',
+    '     gap',
+    '     in USB-PD : usb',
+    '',
+    '     out HDMIOUT [1..2] : hdmi',
+    '     gap',
+    '     out Master_L, Master_R : trs',
+    '     gap',
+    '     out Headphones [1..2] : trrs',
+    '',
+    '     gap',
+    '     io WiFi : wifi',
+    '     io LAN  : lan',
+    ' }',
+    ' device dm2r from dm2rx "DJI Mic 2 Receiver"',
+    ' group cameras "カメラ" {',
+    '     device obsbott2 from obsbott2 "OBSBOT Tail 2"',
+    '     device a73 from sonya73 "Sony α7 III"',
+    '     device dop3 "DJI OSMO Pocket 3" as camera {',
+    '         in  Wireless : bluetooth',
+    '         out USB      : usb',
+    '     }',
+    ' }',
+    '}',
+    '',
+    'adapter trrs_split "TRRS 分岐ケーブル" as cable ?m {',
+    '    in  TRRS_35      : trrs35',
+    '    out TRS_L, TRS_R : trs',
+    '}',
+    '',
+    'adapter usb_hdmi "USB-HDMI 変換アダプタ" as cable ?m {',
+    '    in  USB  : usb',
+    '    out HDMI : hdmi',
+    '}',
+    '',
+    'pro1.Wireless -> rcv.Wireless1',
+    'pro2.Wireless -> rcv.Wireless2',
+    'dm21.Wireless -> dm2r.Wireless1',
+    'dm22.Wireless -> dm2r.Wireless2',
+    'dm23.Wireless -> dop3.Wireless',
+    'dm2r.Pin         -> trrs_split.TRRS_35',
+    'trrs_split.TRS_L -> rcv.COMBO1         : trs',
+    'trrs_split.TRS_R -> rcv.COMBO2         : trs',
+    'dop3.USB      -> usb_hdmi.USB',
+    'usb_hdmi.HDMI -> rcv.HDMI1    : hdmi',
+    'rcv.LAN <-> ethernet_switch.LAN1 : lan',
+    'ethernet_switch.LAN2 <-> ux.LAN : ndi over lan',
+    'pc1.WiFi <-> ux.WiFi  : ndi over wifi',
+    'ux.WiFi  <-> pc2.WiFi : ndi over wifi',
+    'ux.WiFi  <-> pc3.WiFi : ndi over wifi',
+    'ux.WiFi  <-> pc4.WiFi : ndi over wifi',
+    'ux.WiFi  <-> pc5.WiFi : ndi over wifi',
+    'obsbott2.WiFi <-> ux.WiFi   : ndi over wifi',
+    'a73.HDMI  ->  rcv.HDMI2 : hdmi',
+    'rcv.HDMIOUT1 -> monitor1.HDMI : hdmi',
+    'rcv.HDMIOUT2 -> monitor2.HDMI : hdmi',
+  ].join('\n');
+
+  it('keeps the cameras in the order they were written', async () => {
+    const { diagram } = buildModel(parse(SHOW).document);
+    const layout = await layoutDiagram(diagram);
+    const cameras = diagram.groups.find((g) => g.id === 'cameras')!.deviceIds;
+    const drawn = layout.devices
+      .filter((d) => cameras.includes(d.id))
+      .sort((p, q) => p.bounds.x - q.bounds.x)
+      .map((d) => d.id);
+    expect(drawn).toEqual(cameras);
+  });
+
+  it('keeps the groups inside a group in the order they were written', async () => {
+    const { diagram } = buildModel(parse(SHOW).document);
+    const layout = await layoutDiagram(diagram);
+    const inside = diagram.groups.filter((g) => g.parent === 'actors').map((g) => g.id);
+    const drawn = layout.groups
+      .filter((g) => inside.includes(g.id))
+      .sort((p, q) => p.bounds.x - q.bounds.x)
+      .map((g) => g.id);
+    expect(drawn).toEqual(inside);
   });
 });

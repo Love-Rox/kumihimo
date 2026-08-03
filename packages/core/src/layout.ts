@@ -420,9 +420,16 @@ export async function layoutDiagram(
     ];
 
     // Declaration order handed over as coordinates rather than hoped for as a tie-break.
+    //
+    // Across the flow, not along it: a left-to-right drawing stacks a layer vertically and a
+    // top-to-bottom one spreads it horizontally. Setting `y` in a `TB` diagram moves a box
+    // *along* the flow, which the layering recomputes and throws away — so the option read
+    // as doing nothing at all, which is how it shipped.
     if (diagram.ordered === true) {
       children.forEach((child, i) => {
-        child.y = i * (m.nodeSpacing + 1);
+        const across = i * (m.nodeSpacing + 1);
+        if (horizontal) child.y = across;
+        else child.x = across;
       });
     }
 
