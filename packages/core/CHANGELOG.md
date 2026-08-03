@@ -1,5 +1,77 @@
 # @love-rox/kumihimo-core
 
+## 0.10.0
+
+### Minor Changes
+
+- 3c87357: `diagram { order: fixed }` places devices in the order they were written.
+
+  Crossing minimisation reorders a layer freely: three cameras written a, b, c come out b, c, a
+  if that saves a crossing. Right when the order is incidental — and it usually is. Wrong when
+  the order _is_ the drawing. A rack list is read top to bottom, and one reshuffled to save two
+  crossings is describing a different rack.
+
+  ```khm
+  diagram { order: fixed }
+  ```
+
+  Off by default, because untangling the cables is what somebody wants most of the time and
+  only the author knows when it is not.
+
+  **Whole-diagram, not per-group**, and that is not a shortcut. The layout engine's
+  placement-aware processor may not run at one level of the hierarchy without running at every
+  level: a graph with one group asking to keep its order and one ordinary group beside it is
+  refused outright. Spelling it `group rack [order=fixed]` would read as local and would not
+  be, so it is written where it acts. That was tried first and thrown away.
+
+  Anything other than `fixed` is reported rather than ignored, and `order` is kept off the
+  loose options bag once understood — one answer rather than two, the same as `direction`.
+
+### Patch Changes
+
+- 60d697b: A drawing stops shrinking before it stops being readable, and the command line takes a pipe.
+
+  **Scaling had no floor.** A page fits a wide diagram into its column with `max-width: 100%`,
+  which scales without limit: a 924px drawing in a 560px note came out at 61%, taking the port
+  names from 10px to 6px. The box around it already scrolled — it just never got the chance,
+  because the drawing shrank to fit instead.
+
+  `legibleScale()` says how far a drawing may be scaled and still be read. The renderer chose
+  the type size, so the renderer is what knows: the smallest label is three under the base
+  size, and eight pixels is where a name stops being a name. Both the VS Code Markdown preview
+  and the Obsidian plugin now stop there and let the box scroll from there on.
+
+  Measured in a browser at a 560px column: 61% → **80%**, smallest text 6.1px → **8px**, the
+  box scrolls, the page does not.
+
+  **`-` and `--stdout`.** `kumihimo - --stdout` reads a diagram from standard input and writes
+  the SVG to standard output, with the report on standard error so a redirect gives an SVG and
+  nothing else. Imports resolve against the working directory. This is what a tool that renders
+  a fenced block by running a command needs, and it is what a pipeline wants anyway.
+
+  **The VS Code README now says which preview.** The Markdown support is a contribution the
+  built-in preview reads; _Markdown Preview Enhanced_ is a separate renderer and ignores it, so
+  a block stays a block there and says nothing about why. That cost an afternoon to find and
+  was not written down anywhere.
+
+- 49c614d: A link between nesting levels is drawn where its ends are.
+
+  A camera inside `収録機材類 > カメラ` running to a switcher inside `収録機材類` came out with
+  no line between them. The line was there — a whole group's origin away from both boxes, which
+  on the page is indistinguishable from a line that was never drawn.
+
+  An edge was parked on a group only when both devices were in **the same immediate group**,
+  and on the root otherwise. ELK lays an edge out in the coordinate system of the lowest node
+  holding both of its ends, whatever it is told to put it on, so the points came back relative
+  to `収録機材類` and were used as absolute. The offset measured exactly that group's origin.
+
+  The container is now the lowest group holding both ends, walking each device's chain of
+  enclosing groups and taking the deepest they share. Twenty-one links in the report that found
+  this now all start and end on the ports they name.
+
+  Only nesting was affected: a link inside one group, or between top-level devices, was already
+  right. It arrived with nested groups and had nothing testing it.
+
 ## 0.9.4
 
 ### Patch Changes

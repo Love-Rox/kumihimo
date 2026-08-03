@@ -1,6 +1,6 @@
 {
   "name": "@love-rox/kumihimo-cli",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "description": "Command line interface for kumihimo AV signal flow diagrams (系統図)",
   "keywords": [
     "av",
