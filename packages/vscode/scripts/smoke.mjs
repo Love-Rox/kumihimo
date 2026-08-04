@@ -27,7 +27,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 const published = [];
 const commands = new Map();
-const completion = { provider: undefined };
+const completion = { provider: undefined, selector: undefined };
 const formatting = { provider: undefined };
 const asked = new Set();
 const listeners = {
@@ -97,7 +97,8 @@ const vscode = {
       delete: () => {},
       dispose: () => {},
     }),
-    registerCompletionItemProvider: (_selector, provider) => {
+    registerCompletionItemProvider: (selector, provider) => {
+      completion.selector = selector;
       completion.provider = provider;
       return { dispose() {} };
     },
@@ -227,9 +228,9 @@ vscode.env.language = 'en';
 
 // Completions. Not "does a list come back" — whether the right list comes back for where
 // the cursor is, since a provider that offers signal types everywhere is worse than none.
-const suggest = (text) => {
+const suggest = (text, languageId = 'kumihimo') => {
   const lines = text.split('\n');
-  const stub = { lineAt: (n) => ({ text: lines[n] ?? '' }) };
+  const stub = { languageId, lineAt: (n) => ({ text: lines[n] ?? '' }) };
   const position = { line: lines.length - 1, character: lines.at(-1).length };
   return completion.provider.provideCompletionItems(stub, position).map((c) => c.label);
 };
@@ -558,3 +559,43 @@ console.log(`  ○ マニフェストの ${new Set(keys).size} キーが両方�
 
 console.log('\nスモークテスト成功');
 Module._load = original;
+
+// The same names inside a note. A fenced block is a diagram VS Code calls Markdown, and a
+// provider bound to the language id never saw it.
+console.log('\nMarkdown の囲み:');
+{
+  // The selector, not only the provider. Calling the provider directly proves it answers;
+  // it says nothing about whether VS Code ever asks — and binding it to `kumihimo` alone is
+  // exactly the shape that withheld every name inside a note.
+  const languages = [completion.selector].flat().map((s) => s.language);
+  const ok = languages.includes('markdown') && languages.includes('kumihimo');
+  console.log(
+    `  ${ok ? '○' : '×'} ${'両方の言語に登録されている'.padEnd(18)} ${languages.join(', ')}`,
+  );
+  if (!ok) throw new Error(`補完の登録先: ${languages.join(', ')}`);
+}
+const md = (body) => ['# Note', '', '```kumihimo', ...body].join('\n');
+for (const [text, expected, what] of [
+  [md(['device d { in A : ']), 'trs35', '囲みの中では型が出る'],
+  [['# Note', '', '```khm', 'device d "x" as '].join('\n'), 'mixer', '`khm` の囲みでも出る'],
+]) {
+  const labels = suggest(text, 'markdown');
+  const ok = labels.includes(expected);
+  console.log(`  ${ok ? '○' : '×'} ${what.padEnd(22)} ${labels.length} 件`);
+  if (!ok) throw new Error(`${what}: ${expected} が候補にありません`);
+}
+
+// And nowhere else in the note. A provider that offers signal types while somebody writes a
+// sentence is worse than one that offers nothing at all.
+for (const [text, what] of [
+  [['# Note', '', 'device d { in A : '].join('\n'), '囲みの外では出さない'],
+  [['# Note', '', '```ts', 'const a : '].join('\n'), '別の言語の囲みでは出さない'],
+  [
+    ['```kumihimo', 'device d { out O : sdi }', '```', '', 'device d { in A : '].join('\n'),
+    '閉じた後は出さない',
+  ],
+]) {
+  const labels = suggest(text, 'markdown');
+  console.log(`  ${labels.length === 0 ? '○' : '×'} ${what.padEnd(22)} ${labels.length} 件`);
+  if (labels.length > 0) throw new Error(`${what}: ${labels.length} 件出ています`);
+}

@@ -67,6 +67,16 @@
         "language": "kumihimo",
         "scopeName": "source.kumihimo",
         "path": "./syntaxes/kumihimo.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.kumihimo.codeblock",
+        "path": "./syntaxes/markdown-kumihimo.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.kumihimo": "kumihimo"
+        }
       }
     ],
     "commands": [

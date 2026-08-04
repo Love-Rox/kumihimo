@@ -17,7 +17,11 @@ import * as vscode from 'vscode';
 export function registerCompletion(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
-      { language: 'kumihimo' },
+      // Markdown as well as `.khm`. A fenced block is a kumihimo diagram that VS Code calls
+      // Markdown, and a provider bound to the language id never sees it — the names were
+      // offered while writing a diagram in a file and withheld while writing the same
+      // diagram in a note about it.
+      [{ language: 'kumihimo' }, { language: 'markdown' }],
       { provideCompletionItems: complete },
       // Where a name is expected, the character before it says which names.
       ':',
@@ -34,10 +38,39 @@ function before(document: vscode.TextDocument, position: vscode.Position): strin
   return document.lineAt(position.line).text.slice(0, position.character);
 }
 
+/** Fences that open a diagram, the same two the preview draws. */
+const FENCES = /^\s*(?:```+|~~~+)\s*(kumihimo|khm)\b/;
+
+/** Any fence at all, so the one that closes ours is recognised as closing it. */
+const FENCE = /^\s*(?:```+|~~~+)/;
+
+/**
+ * Whether the cursor is inside a kumihimo block.
+ *
+ * Counted from the top of the file rather than searched backwards, because a fence only
+ * means anything in sequence: ```` ```khm ```` inside a ```` ```md ```` example is a line of
+ * prose, and the only way to know is to have read what came before it.
+ *
+ * @param document - The Markdown file.
+ * @param position - Where the cursor is.
+ * @returns Whether suggestions belong here.
+ */
+function insideDiagram(document: vscode.TextDocument, position: vscode.Position): boolean {
+  let open = false;
+  for (let line = 0; line < position.line; line += 1) {
+    const text = document.lineAt(line).text;
+    if (!FENCE.test(text)) continue;
+    open = open ? false : FENCES.test(text);
+  }
+  return open;
+}
+
 function complete(
   document: vscode.TextDocument,
   position: vscode.Position,
 ): vscode.CompletionItem[] {
+  if (document.languageId === 'markdown' && !insideDiagram(document, position)) return [];
+
   const line = before(document, position);
 
   // `[color=` and `[…, color=` — jacket colours, before the general attribute case.
