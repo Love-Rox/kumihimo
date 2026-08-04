@@ -1,6 +1,6 @@
 {
   "name": "@love-rox/kumihimo-rehype",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "rehype plugin rendering kumihimo code blocks into inline SVG signal flow diagrams",
   "keywords": [
     "av",
