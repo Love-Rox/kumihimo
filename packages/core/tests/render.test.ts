@@ -856,6 +856,29 @@ describe('a whole show, ordered', () => {
     expect(drawn).toEqual(cameras);
   });
 
+  it('keeps the top-level groups in the order they were written', async () => {
+    // The one level that was never handed the order: every group inside was right while the
+    // groups themselves came out in an order of their own. Compared inside a layer, because
+    // two boxes at different depths of the flow have no order to disagree about.
+    const { diagram } = buildModel(parse(SHOW).document);
+    const layout = await layoutDiagram(diagram);
+    const top = diagram.groups.filter((g) => g.parent === undefined).map((g) => g.id);
+    const placed = layout.groups.filter((g) => top.includes(g.id));
+    const layers = new Map<number, typeof placed>();
+    for (const g of placed) {
+      const layer = Math.round(g.bounds.y / 60);
+      layers.set(layer, [...(layers.get(layer) ?? []), g]);
+    }
+    let compared = 0;
+    for (const [, sameLayer] of layers) {
+      if (sameLayer.length < 2) continue;
+      compared += 1;
+      const drawn = [...sameLayer].sort((p, q) => p.bounds.x - q.bounds.x).map((g) => g.id);
+      expect(drawn).toEqual(top.filter((id) => drawn.includes(id)));
+    }
+    expect(compared, '比べられる層がなければ何も主張していない').toBeGreaterThan(0);
+  });
+
   it('keeps the groups inside a group in the order they were written', async () => {
     const { diagram } = buildModel(parse(SHOW).document);
     const layout = await layoutDiagram(diagram);
