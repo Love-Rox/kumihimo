@@ -47,7 +47,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "test": "vitest run",
+    "test": "vitest run && pnpm build && node scripts/smoke-mpe.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
