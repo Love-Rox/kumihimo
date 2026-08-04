@@ -1,5 +1,11 @@
 # @love-rox/kumihimo-vue
 
+## 0.11.0
+
+### Patch Changes
+
+- @love-rox/kumihimo-core@0.11.0
+
 ## 0.10.1
 
 ### Patch Changes

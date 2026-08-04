@@ -1,5 +1,12 @@
 # @love-rox/kumihimo-editor
 
+## 0.11.0
+
+### Patch Changes
+
+- @love-rox/kumihimo-core@0.11.0
+- @love-rox/kumihimo-react@0.11.0
+
 ## 0.10.1
 
 ### Patch Changes
