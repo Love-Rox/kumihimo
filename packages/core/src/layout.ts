@@ -118,6 +118,14 @@ interface Metrics {
   fontSize: number;
 }
 
+/**
+ * Distance between two consecutive `order: fixed` hints.
+ *
+ * Wide enough that no box can span it, because the hint is compared against boxes that have
+ * width. Nothing is drawn at these coordinates — the layout replaces them.
+ */
+const ORDER_RANK_STEP = 10_000;
+
 function resolveMetrics(options: LayoutOptions): Metrics {
   const portPitch = options.portPitch ?? 22;
   return {
@@ -413,25 +421,51 @@ export async function layoutDiagram(
    * the cameras. Built flat, the outer one had no children of its own, nothing to size
    * itself from, and came out at NaN by NaN.
    */
+  /**
+   * Where a thing was written, for putting children back in the order they were typed.
+   *
+   * Groups and devices are held in separate lists, so building a node's children by
+   * concatenating the two puts every group before every device whatever the source said.
+   * Invisible until `order: fixed` promises otherwise.
+   *
+   * A device invented by a connection has no span; those sort last, which is where a thing
+   * nobody declared belongs.
+   */
+  const writtenAt = (id: string): number => {
+    const thing =
+      diagram.groups.find((g) => g.id === id) ?? diagram.devices.find((d) => d.id === id);
+    return thing?.span?.start.offset ?? Number.MAX_SAFE_INTEGER;
+  };
+
+  /**
+   * Declaration order handed to the layout as coordinates, across the flow.
+   *
+   * A rank rather than a position: the layout compares these to decide who goes first and
+   * then computes real coordinates from scratch, so only the sequence matters. The step is
+   * far wider than any box because a box has extent — spaced by a node gap, two groups
+   * several hundred pixels wide overlapped each other's hints and the top level came out in
+   * an order of its own while every group inside it was right.
+   */
+  const placeInOrder = (nodes: ElkNode[]): void => {
+    if (diagram.ordered !== true) return;
+    nodes.sort((a, b) => writtenAt(a.id.slice(4)) - writtenAt(b.id.slice(4)));
+    nodes.forEach((node, i) => {
+      const rank = i * ORDER_RANK_STEP;
+      if (horizontal) node.y = rank;
+      else node.x = rank;
+    });
+  };
+
   const toGroupNode = (group: (typeof diagram.groups)[number]): ElkNode => {
     const children: ElkNode[] = [
       ...group.deviceIds.filter((id) => specs.has(id)).map(toElkNode),
       ...diagram.groups.filter((g) => g.parent === group.id).map(toGroupNode),
     ];
 
-    // Declaration order handed over as coordinates rather than hoped for as a tie-break.
-    //
     // Across the flow, not along it: a left-to-right drawing stacks a layer vertically and a
     // top-to-bottom one spreads it horizontally. Setting `y` in a `TB` diagram moves a box
-    // *along* the flow, which the layering recomputes and throws away — so the option read
-    // as doing nothing at all, which is how it shipped.
-    if (diagram.ordered === true) {
-      children.forEach((child, i) => {
-        const across = i * (m.nodeSpacing + 1);
-        if (horizontal) child.y = across;
-        else child.x = across;
-      });
-    }
+    // *along* the flow, which the layering recomputes and throws away.
+    placeInOrder(children);
 
     return {
       id: `grp:${group.id}`,
@@ -456,6 +490,10 @@ export async function layoutDiagram(
     ...diagram.groups.filter((group) => group.parent === undefined).map(toGroupNode),
     ...diagram.devices.filter((d) => !grouped.has(d.id)).map((d) => toElkNode(d.id)),
   ];
+  // The top level too. It was the one place the order was never handed over, so a file whose
+  // groups read 演者, ネットワーク, モニター, 収録機材類 drew them in another order entirely
+  // while every group inside them was right.
+  placeInOrder(children);
 
   const graph: ElkNode = {
     id: 'root',
