@@ -1,5 +1,13 @@
 # @love-rox/kumihimo-astro
 
+## 0.11.1
+
+### Patch Changes
+
+- Updated dependencies [8c11552]
+  - @love-rox/kumihimo-core@0.11.1
+  - @love-rox/kumihimo-rehype@0.11.1
+
 ## 0.11.0
 
 ### Patch Changes
