@@ -62,7 +62,9 @@ Every name offered is one the compiler accepts, because both read the same list 
 connectors are shown beside each type, which is how `trs` (1/4") and `trs35` (3.5mm) are
 told apart at the point of choosing.
 
-**Diagrams in your Markdown.** A ` ```kumihimo ` block in any `.md` file is drawn in
+**Diagrams in your Markdown.** A ` ```kumihimo ` block in any `.md` file is coloured like a
+`.khm` file and suggests the same names — the signal types, the device kinds, the themes —
+and is drawn in
 **VS Code's built-in Markdown preview**, with the schedules folded up underneath and any
 faults listed beside it. ` ```khm ` opens one too. A note that documents a rig shows the rig.
 

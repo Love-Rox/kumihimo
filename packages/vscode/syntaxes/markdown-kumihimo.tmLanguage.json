@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "markdown.kumihimo.codeblock",
+  "injectionSelector": "L:text.html.markdown",
+  "patterns": [{ "include": "#kumihimo-fence" }],
+  "repository": {
+    "kumihimo-fence": {
+      "comment": "A fenced block opened with `kumihimo` or `khm`, coloured with the same grammar a .khm file gets. The fence may be backticks or tildes and longer than three, which is how a block containing a fence is written.",
+      "begin": "(^|\\G)(\\s*)(`{3,}|~{3,})\\s*(?i:(kumihimo|khm))\\b[^`]*$",
+      "beginCaptures": {
+        "3": { "name": "punctuation.definition.markdown" },
+        "4": { "name": "fenced_code.block.language.markdown" }
+      },
+      "end": "(^|\\G)(\\2|\\s{0,3})(\\3)\\s*$",
+      "endCaptures": {
+        "3": { "name": "punctuation.definition.markdown" }
+      },
+      "patterns": [
+        {
+          "begin": "(^|\\G)(\\s*)(.*)",
+          "while": "(^|\\G)(?!\\s*([`~]{3,})\\s*$)",
+          "contentName": "meta.embedded.block.kumihimo",
+          "patterns": [{ "include": "source.kumihimo" }]
+        }
+      ]
+    }
+  }
+}
