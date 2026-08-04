@@ -69,6 +69,7 @@ program
   .argument('<file>', '入力する .khm ファイル。`-` で標準入力')
   .option('-o, --out <path>', '出力先の SVG。省略時は入力と同じ場所')
   .option('--stdout', 'ファイルに書かず SVG を標準出力に流す')
+  .option('-q, --quiet', '診断の要約を出さない。SVG だけが欲しいとき')
   .option('-d, --direction <dir>', 'レイアウト方向を上書きする (LR / TB)')
   .option('-t, --theme <name>', 'カラーテーマ (light / dark / mono / blueprint)')
   .option('--no-legend', '凡例を描かない')
@@ -97,6 +98,7 @@ program
         const result = await runBuild(file, {
           ...(out === undefined ? {} : { out }),
           legend: options['legend'] !== false,
+          quiet: options['quiet'] === true,
           strict: options['strict'] === true,
           color: options['color'] !== false,
           locale,

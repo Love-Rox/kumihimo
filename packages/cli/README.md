@@ -41,6 +41,29 @@ See [kumihimo.love-rox.cc](https://kumihimo.love-rox.cc/en) for the guide and an
 can type into, or the [project README](https://github.com/Love-Rox/kumihimo#readme) for the
 other packages.
 
+## Markdown Preview Enhanced
+
+MPE renders a fenced block by **running a command**, which is the only way in: it reads none
+of the VS Code extension's contributions. `stdin=true` hands the block to the command, and
+`--quiet` keeps the report out — MPE concatenates standard error into the output, so a clean
+run's `✓` would otherwise land in the page beside the drawing.
+
+````markdown
+```kumihimo {cmd="kumihimo" args=["-", "--stdout", "--quiet"] stdin=true output="html"}
+device cam "SONY FX3"  as camera   { out SDI : sdi }
+device sw  "ATEM Mini" as switcher { in 1 : sdi }
+
+cam.SDI -> sw.1 : sdi 30m "V-01"
+```
+````
+
+MPE asks before it runs anything. `$input_file` in `args` works too — it is replaced with a
+temporary file — but `stdin=true` is better here: MPE runs the command in the document's own
+directory, so a `use` of a file beside the note resolves the way it reads.
+
+A faulty diagram still draws, with the faults visible in the drawing rather than in a report
+that is not being shown.
+
 ## License
 
 MIT © SASAGAWA Kiyoshi
