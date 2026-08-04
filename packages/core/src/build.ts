@@ -779,6 +779,25 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         span: stmt.span,
       };
       if (carrier !== undefined) link.carrier = carrier;
+
+      // `[poe]` — power sharing the Cat lead, not a second cable. Only where a Cat lead is
+      // what is being drawn: nothing puts power down an SDI coax, and an author who wrote
+      // it there meant something else.
+      const poe = stmt.attrs.find((a) => a.key === 'poe');
+      if (poe !== undefined && String(poe.value.value) !== 'false') {
+        const over = link.carrier ?? link.signal;
+        if (over.connectors.includes('RJ45')) {
+          link.poe = true;
+        } else {
+          bag.report(
+            'invalid-value',
+            'link.poe-not-ethernet',
+            { signal: localise(over.label, locale) },
+            poe.span,
+          );
+        }
+      }
+
       if (stmt.length !== undefined) link.length = stmt.length;
       if (stmt.label !== undefined) link.label = stmt.label;
       if (stmt.via !== undefined) link.via = stmt.via;

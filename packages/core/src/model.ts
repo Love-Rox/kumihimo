@@ -176,6 +176,15 @@ export interface Link {
    */
   carrier?: SignalType;
   /**
+   * Whether this run carries power as well as data.
+   *
+   * `[poe]`. Not a second cable and not a second run: power and Ethernet share one Cat lead,
+   * and drawing them as two lines puts two cables on the schedule where one exists. Written
+   * on the run it stays one object with one row, and answers the questions somebody actually
+   * asks on site — which ports have to be PoE, and which boxes need no power supply.
+   */
+  poe?: boolean;
+  /**
    * Stroke colour overriding the signal's, resolved from `[color=…]`.
    *
    * This is the jacket colour of the actual cable, not a styling whim: it is how a run

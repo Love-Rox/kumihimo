@@ -45,6 +45,8 @@ export interface CableRow {
   fromConnector?: string;
   /** The connector on this cable's destination end. See {@link CableRow.fromConnector}. */
   toConnector?: string;
+  /** Whether the run carries power as well as data. */
+  poe?: boolean;
   /** Passive adapter this run needs, declared or detected. */
   adapter?: string;
   /** Why this run was flagged, when it was. */
@@ -270,6 +272,10 @@ export function cableSchedule(diagram: Diagram, locale: Locale = DEFAULT_LOCALE)
       if (ends.to !== undefined) row.toConnector = ends.to;
       if (link.label !== undefined) row.label = link.label;
       if (link.length !== undefined) row.length = link.length;
+      // Only when it is true. A `false` in every other row is a column of noise saying
+      // nothing, and `readableSchedules` drops a column that is empty everywhere — so a
+      // show with no PoE in it never grows one.
+      if (link.poe === true) row.poe = true;
       if (link.color !== undefined) row.color = link.color;
       if (link.compatibility.adapter !== undefined) {
         row.adapter = localise(link.compatibility.adapter, locale);
@@ -478,6 +484,15 @@ export interface ScheduleColumn {
    * particular run terminates in have their own columns.
    */
   dataOnly?: boolean;
+  /**
+   * What `true` reads as in this column.
+   *
+   * Defaults to "undeclared", which is right for the one column that started this — a device
+   * that exists only because a link named it. It is wrong everywhere else: a `true` under
+   * PoE means the run is powered, and printing "undeclared" there says the opposite of what
+   * is meant.
+   */
+  yes?: Localised;
 }
 
 /** What a schedule is, and how to get it. */
@@ -504,6 +519,7 @@ const COL = {
   length: { en: 'Length', ja: '長さ' },
   colour: { en: 'Colour', ja: '色' },
   connectors: { en: 'Connectors', ja: 'コネクタ' },
+  poe: { en: 'PoE', ja: '給電' },
   fromEnd: { en: 'Source end', ja: '送出端' },
   toEnd: { en: 'Far end', ja: '受け端' },
   adapter: { en: 'Adapter', ja: '変換部材' },
@@ -554,6 +570,7 @@ export const SCHEDULES: Readonly<Record<ScheduleKind, ScheduleDefinition>> = {
       // end is which.
       { key: 'fromConnector', head: COL.fromEnd },
       { key: 'toConnector', head: COL.toEnd },
+      { key: 'poe', head: COL.poe, yes: { en: 'yes', ja: 'あり' } },
       { key: 'adapter', head: COL.adapter },
       { key: 'note', head: COL.note },
     ],
@@ -663,11 +680,11 @@ export function readableSchedules(
 ): ReadableSheet[] {
   const undeclared = locale === 'ja' ? '未宣言' : 'undeclared';
 
-  const text = (value: unknown): string => {
+  const text = (value: unknown, yes: string): string => {
     // `false` is not a word anybody wants in a table. A device nobody declared is worth
     // marking; the seven that were declared are not worth seven `false`s.
     if (value === false) return '';
-    if (value === true) return undeclared;
+    if (value === true) return yes;
     return cell(value);
   };
 
@@ -677,8 +694,10 @@ export function readableSchedules(
     if (rows.length === 0) return [];
 
     const groups: { head: string; keys: string[] }[] = [];
+    const yesFor = new Map<string, string>();
     for (const column of schedule.columns) {
       if (column.dataOnly === true) continue;
+      yesFor.set(column.key, column.yes === undefined ? undeclared : localise(column.yes, locale));
       if (column.head !== undefined || groups.length === 0) {
         groups.push({
           head: column.head === undefined ? '' : localise(column.head, locale),
@@ -689,7 +708,9 @@ export function readableSchedules(
     }
 
     const cellOf = (row: Record<string, unknown>, group: { keys: string[] }): string => {
-      const parts = group.keys.map((key) => text(row[key])).filter((part) => part !== '');
+      const parts = group.keys
+        .map((key) => text(row[key], yesFor.get(key) ?? undeclared))
+        .filter((part) => part !== '');
       const [first, ...rest] = parts;
       if (first === undefined) return '';
       const head = first.toLowerCase();
