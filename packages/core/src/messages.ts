@@ -88,6 +88,10 @@ export const MESSAGES = {
     en: 'direction is LR or TB: {value}',
     ja: 'direction は LR か TB のいずれかです: {value}',
   },
+  'link.poe-not-ethernet': {
+    en: '`[poe]` is power on a Cat run. {signal} is not one',
+    ja: '`[poe]` は Cat ケーブルに電気を相乗りさせる印です。{signal} はそれではありません',
+  },
   'value.order': {
     en: 'order is `fixed`: {value}',
     ja: 'order に書けるのは `fixed` です: {value}',

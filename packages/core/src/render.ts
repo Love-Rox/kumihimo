@@ -261,7 +261,12 @@ function renderEdge(
   );
 
   // A wireless link carries a frequency where a cable carries a length.
-  const caption = [link.label, wireless ? link.frequency : link.length].filter(Boolean).join('  ');
+  //
+  // `PoE` joins them rather than getting a line of its own: power and Ethernet share the one
+  // Cat lead, and a second line would say there are two cables to pull.
+  const caption = [link.label, wireless ? link.frequency : link.length, link.poe ? 'PoE' : '']
+    .filter(Boolean)
+    .join('  ');
   const text = link.via ? `${caption} ⇄`.trim() : caption;
 
   if (wireless) {

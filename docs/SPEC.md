@@ -96,6 +96,27 @@ A theme can also be passed on the command line with `-t/--theme`, but a `diagram
 in the source wins: the drawing knows how it is meant to look, the caller only knows a
 default.
 
+### PoE
+
+`[poe]` says a Cat run carries **power as well as data**.
+
+```khm
+sw.LAN1 <-> cam.LAN : lan 30m "N-01" [poe]
+```
+
+**Not a second connection.** Power and Ethernet share one Cat lead, so drawing them as two
+links puts two rows on the cable schedule where one lead exists, and somebody packs two.
+Written on the run it stays one object with one row, and answers what gets asked on site:
+which ports have to be PoE, and which boxes need no power supply.
+
+The drawing shows `PoE` beside the number and the length. The schedule gains a column, and a
+show with no PoE in it never grows one.
+
+A run that is not Cat is reported — nothing puts power down a coax. A carrier makes it fine:
+`ndi over lan` is a Cat lead, and the carrier is what decides.
+
+An attribute with no value is a **flag**: `[poe]` means `[poe=true]`.
+
 ### The order things are written in
 
 `order: fixed` places devices **in the order they were written**. Omitted, the layout

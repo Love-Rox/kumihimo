@@ -165,8 +165,11 @@ class Parser {
     this.#skipNewlines();
     while (!this.#at('rbracket') && !this.#at('eof')) {
       const key = this.#expect('ident', { en: 'An attribute name', ja: '属性名' });
-      this.#expect('equals', '`=`');
-      const value = this.#literal();
+      // A bare name is a flag. `[poe]` says a Cat run carries power as well, and there is
+      // nothing to put on the other side of an `=` that reads better than saying it once.
+      const value: Literal = this.#accept('equals')
+        ? this.#literal()
+        : { kind: 'ident', value: 'true', span: key.span };
       entries.push({ key: key.value, value, span: this.#span(key) });
       this.#skipNewlines();
       const separated = this.#accept('comma') !== undefined;
