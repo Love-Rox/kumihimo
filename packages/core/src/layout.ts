@@ -9,7 +9,7 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api.js';
 
-import type { Diagram } from './model.js';
+import type { Device, Diagram } from './model.js';
 
 /** An axis-aligned rectangle in diagram coordinates. */
 export interface Rect {
@@ -126,6 +126,33 @@ interface Metrics {
  */
 const ORDER_RANK_STEP = 10_000;
 
+/**
+ * Layout options every level of the graph needs a copy of.
+ *
+ * Neither of these inherits. Spacing does not reach a child graph, and devices inside a group
+ * ended up close enough that cable labels had nowhere to sit. `INTERACTIVE` crossing
+ * minimisation is stricter still: the processor may not run at one level of the hierarchy
+ * without running at every level, and a graph with one ordered group and one ordinary one is
+ * refused outright — which is why `order: fixed` is a whole-diagram switch rather than
+ * something a single group can ask for.
+ *
+ * @param m - Resolved geometry.
+ * @param ordered - Whether the diagram asked for declaration order to be kept.
+ * @returns Options to spread into a node's `layoutOptions`.
+ */
+function sharedLayoutOptions(m: Metrics, ordered: boolean): Record<string, string> {
+  return {
+    'elk.spacing.nodeNode': String(m.nodeSpacing),
+    'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
+    'elk.spacing.edgeEdge': '12',
+    'elk.spacing.edgeNode': '16',
+    // `diagram { order: fixed }`. Crossing minimisation reorders a layer freely — three
+    // cameras written a, b, c come out b, c, a if that saves a crossing, which is right when
+    // the order is incidental and wrong when the order *is* the drawing.
+    ...(ordered ? { 'elk.layered.crossingMinimization.strategy': 'INTERACTIVE' } : {}),
+  };
+}
+
 function resolveMetrics(options: LayoutOptions): Metrics {
   const portPitch = options.portPitch ?? 22;
   return {
@@ -190,48 +217,55 @@ interface SidedPorts {
 }
 
 /**
- * Which face a bidirectional port belongs on, read off how it is used.
+ * Which ports are actually fed and which actually feed, read off the runs.
  *
- * `io` says a port *can* go either way, not that it does. Which one it is in this drawing
- * is written down already — in the runs that touch it. A port that only ever receives is
- * an input here, whatever it is capable of, and drawing it on the outgoing face sends
- * every run that reaches it around the box.
- *
- * Only a genuinely two-way port — an L2 switch, a `<->` — is ambiguous, and that keeps the
- * old default. So does a port nothing is connected to: there is nothing to read.
- *
- * @param diagram - The resolved diagram.
- * @param deviceId - Device the port belongs to.
- * @param portName - The port.
- * @returns Whether it should sit on the incoming face.
+ * Built once for the whole drawing. Asked per port, this was a walk of every link for every
+ * `io` port on the page — a 48-port switch on a busy diagram scanned the run list 48 times to
+ * answer the same question 48 different ways.
  */
-function receivesOnly(diagram: Diagram, deviceId: string, portName: string): boolean {
-  let receives = false;
-  let sends = false;
+interface PortUse {
+  /** Ids of ports something arrives at. */
+  receives: ReadonlySet<string>;
+  /** Ids of ports something leaves from. */
+  sends: ReadonlySet<string>;
+}
+
+function portUse(diagram: Diagram): PortUse {
+  const receives = new Set<string>();
+  const sends = new Set<string>();
   for (const link of diagram.links) {
-    if (link.to.deviceId === deviceId && link.to.portName === portName) receives = true;
-    if (link.from.deviceId === deviceId && link.from.portName === portName) sends = true;
+    receives.add(`${link.to.deviceId}.${link.to.portName}`);
+    sends.add(`${link.from.deviceId}.${link.from.portName}`);
   }
-  return receives && !sends;
+  return { receives, sends };
 }
 
 /**
  * Decide which face each port sits on.
  *
- * Inputs face the incoming side and outputs the outgoing one, so signal reads along the
- * flow direction. A bidirectional port joins whichever side it is actually used on — see
- * {@link receivesOnly} — and the outputs when it is used both ways or not at all.
+ * Inputs face the incoming side and outputs the outgoing one, so signal reads along the flow
+ * direction.
+ *
+ * `io` says a port *can* go either way, not that it does. Which one it is in this drawing is
+ * written down already — in the runs that touch it. A port that only ever receives is an
+ * input here, whatever it is capable of, and drawing it on the outgoing face sends every run
+ * that reaches it around the box. Only a genuinely two-way port — an L2 switch, a `<->` — is
+ * ambiguous, and that keeps the old default. So does a port nothing is connected to: there is
+ * nothing to read.
+ *
+ * @param device - The device whose ports are being sided.
+ * @param use - Which ports the runs feed and which they leave from.
+ * @returns The ports, split between the incoming and outgoing faces.
  */
-function sortPorts(diagram: Diagram, deviceId: string): SidedPorts {
-  const device = diagram.devices.find((d) => d.id === deviceId);
+function sortPorts(device: Device, use: PortUse): SidedPorts {
   const leading: SidedPort[] = [];
   const trailing: SidedPort[] = [];
-  for (const port of device?.ports ?? []) {
+  for (const port of device.ports) {
     const sided: SidedPort = { id: port.id, name: port.name };
     if (port.gapBefore !== undefined) sided.gapBefore = port.gapBefore;
     const incoming =
       port.direction === 'in' ||
-      (port.direction === 'io' && receivesOnly(diagram, deviceId, port.name));
+      (port.direction === 'io' && use.receives.has(port.id) && !use.sends.has(port.id));
     (incoming ? leading : trailing).push(sided);
   }
   return { leading, trailing };
@@ -244,14 +278,8 @@ interface BoxSpec {
   ports: { id: string; name: string; side: PortSide; dx: number; dy: number }[];
 }
 
-function measureDevice(
-  diagram: Diagram,
-  deviceId: string,
-  m: Metrics,
-  horizontal: boolean,
-): BoxSpec {
-  const device = diagram.devices.find((d) => d.id === deviceId)!;
-  const { leading, trailing } = sortPorts(diagram, deviceId);
+function measureDevice(device: Device, use: PortUse, m: Metrics, horizontal: boolean): BoxSpec {
+  const { leading, trailing } = sortPorts(device, use);
 
   const leadingGaps = gapOffsets(leading, m.gapStep);
   const trailingGaps = gapOffsets(trailing, m.gapStep);
@@ -345,9 +373,10 @@ export async function layoutDiagram(
   const m = resolveMetrics(options);
   const horizontal = diagram.direction === 'LR';
 
+  const use = portUse(diagram);
   const specs = new Map<string, BoxSpec>();
   for (const device of diagram.devices) {
-    specs.set(device.id, measureDevice(diagram, device.id, m, horizontal));
+    specs.set(device.id, measureDevice(device, use, m, horizontal));
   }
 
   const toElkNode = (deviceId: string): ElkNode => {
@@ -415,13 +444,6 @@ export async function layoutDiagram(
   const grouped = new Set(diagram.groups.flatMap((g) => g.deviceIds));
 
   /**
-   * Build one group and everything inside it.
-   *
-   * Recursive because groups nest: a venue holds a stage and a rack, and the stage holds
-   * the cameras. Built flat, the outer one had no children of its own, nothing to size
-   * itself from, and came out at NaN by NaN.
-   */
-  /**
    * Where a thing was written, for putting children back in the order they were typed.
    *
    * Groups and devices are held in separate lists, so building a node's children by
@@ -431,11 +453,13 @@ export async function layoutDiagram(
    * A device invented by a connection has no span; those sort last, which is where a thing
    * nobody declared belongs.
    */
-  const writtenAt = (id: string): number => {
-    const thing =
-      diagram.groups.find((g) => g.id === id) ?? diagram.devices.find((d) => d.id === id);
-    return thing?.span?.start.offset ?? Number.MAX_SAFE_INTEGER;
-  };
+  // Devices first, then groups over the top: a group and a device sharing an id is the group's
+  // offset, which is what looking through the groups first used to give.
+  const declaredAt = new Map<string, number>();
+  for (const thing of [...diagram.devices, ...diagram.groups]) {
+    declaredAt.set(thing.id, thing.span?.start.offset ?? Number.MAX_SAFE_INTEGER);
+  }
+  const writtenAt = (id: string): number => declaredAt.get(id) ?? Number.MAX_SAFE_INTEGER;
 
   /**
    * Declaration order handed to the layout as coordinates, across the flow.
@@ -456,6 +480,13 @@ export async function layoutDiagram(
     });
   };
 
+  /**
+   * Build one group and everything inside it.
+   *
+   * Recursive because groups nest: a venue holds a stage and a rack, and the stage holds
+   * the cameras. Built flat, the outer one had no children of its own, nothing to size
+   * itself from, and came out at NaN by NaN.
+   */
   const toGroupNode = (group: (typeof diagram.groups)[number]): ElkNode => {
     const children: ElkNode[] = [
       ...group.deviceIds.filter((id) => specs.has(id)).map(toElkNode),
@@ -471,15 +502,7 @@ export async function layoutDiagram(
       id: `grp:${group.id}`,
       layoutOptions: {
         'elk.padding': `[top=${m.groupPadding + 14},left=${m.groupPadding},bottom=${m.groupPadding},right=${m.groupPadding}]`,
-        // Spacing does not inherit into a child graph, and without it devices inside a
-        // group end up close enough that cable labels have nowhere to sit.
-        'elk.spacing.nodeNode': String(m.nodeSpacing),
-        'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
-        'elk.spacing.edgeEdge': '12',
-        'elk.spacing.edgeNode': '16',
-        ...(diagram.ordered === true
-          ? { 'elk.layered.crossingMinimization.strategy': 'INTERACTIVE' }
-          : {}),
+        ...sharedLayoutOptions(m, diagram.ordered === true),
       },
       children,
       edges: edgesByContainer.get(`grp:${group.id}`) ?? [],
@@ -502,22 +525,8 @@ export async function layoutDiagram(
       'elk.direction': horizontal ? 'RIGHT' : 'DOWN',
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-      'elk.spacing.nodeNode': String(m.nodeSpacing),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(m.layerSpacing),
-      'elk.spacing.edgeEdge': '12',
-      'elk.spacing.edgeNode': '16',
       'elk.padding': '[top=24,left=24,bottom=24,right=24]',
-      // `diagram { order: fixed }`. Crossing minimisation reorders a layer freely — three
-      // cameras written a, b, c come out b, c, a if that saves a crossing, which is right
-      // when the order is incidental and wrong when the order *is* the drawing.
-      //
-      // Whole-diagram rather than per-group, because that is the only shape ELK allows: the
-      // interactive processor may not run at one level of the hierarchy without running at
-      // every level, and a graph with one ordered group and one ordinary one is refused
-      // outright. A switch that cannot be local should not be spelled as though it is.
-      ...(diagram.ordered === true
-        ? { 'elk.layered.crossingMinimization.strategy': 'INTERACTIVE' }
-        : {}),
+      ...sharedLayoutOptions(m, diagram.ordered === true),
     },
     children,
     edges: edgesByContainer.get('root') ?? [],

@@ -16,12 +16,17 @@ import type {
   Document,
   DeviceDecl,
   ModelDecl,
+  PortDecl,
   PortRef,
   PortSpecItem,
   SignalDecl,
   Statement,
 } from './ast.js';
-import type { CompatibilityRule, CompatibilityVerdict } from './compatibility.js';
+import type {
+  CompatibilityResult,
+  CompatibilityRule,
+  CompatibilityVerdict,
+} from './compatibility.js';
 import { checkCompatibility } from './compatibility.js';
 import type { Diagnostic, SeverityConfig, SourceSpan } from './diagnostics.js';
 import type { Locale, Localised, MessageKey } from './messages.js';
@@ -29,7 +34,7 @@ import { DEFAULT_LOCALE, formatMessage, localise } from './messages.js';
 import { DiagnosticBag } from './diagnostics.js';
 import type { Device, Diagram, FlowDirection, Group, Link, Port } from './model.js';
 import { DEVICE_KINDS } from './model.js';
-import type { LineStyle, SignalCategory, SignalType } from './signals.js';
+import type { LineStyle, SignalCategory, SignalRegistry, SignalType } from './signals.js';
 import {
   CATEGORY_COLORS,
   CATEGORY_STYLES,
@@ -84,16 +89,18 @@ function reasonOf(result: { reason?: Localised }, fallback: MessageKey, locale: 
 }
 
 const VERDICTS: readonly string[] = ['ok', 'lossy', 'incompatible'];
-const CATEGORIES: readonly string[] = [
-  'video',
-  'audio',
-  'control',
-  'network',
-  'power',
-  'sync',
-  'generic',
-];
 const LINE_STYLES: readonly string[] = ['solid', 'dashed', 'dotted'];
+
+/**
+ * Whether a `signal … { category: … }` names a category that exists.
+ *
+ * Asked of the colour table rather than of a list written out here, because the table is
+ * keyed by the category union: a category added to the type has to be given a colour, and
+ * this accepts it in the same commit. A second list would have gone on rejecting it.
+ */
+function isCategory(name: string): name is SignalCategory {
+  return Object.hasOwn(CATEGORY_COLORS, name);
+}
 
 /**
  * Expand one port specification item into concrete port names.
@@ -253,8 +260,8 @@ function buildSignals(decls: readonly SignalDecl[], bag: DiagnosticBag) {
   for (const decl of decls) {
     let category: SignalCategory = 'generic';
     if (decl.category !== undefined) {
-      if (CATEGORIES.includes(decl.category)) {
-        category = decl.category as SignalCategory;
+      if (isCategory(decl.category)) {
+        category = decl.category;
       } else {
         bag.report('invalid-value', 'value.category', { value: decl.category }, decl.span);
       }
@@ -364,6 +371,188 @@ function buildCompatRules(decls: readonly CompatDecl[], bag: DiagnosticBag): Com
 function resolveEnd(port: Port, linkSignal: string | undefined): string {
   if (linkSignal !== undefined && port.accepts?.includes(linkSignal)) return linkSignal;
   return port.signal ?? linkSignal ?? 'generic';
+}
+
+/** The signal types a run names, once they are known to exist. */
+interface RunTypes {
+  /** What the run carries, when the author named it. */
+  payload?: SignalType;
+  /** What carries it — the `over` type — when the author named one. */
+  carrier?: SignalType;
+}
+
+/**
+ * Look up the types a connection names, reporting the ones that do not exist.
+ *
+ * @param stmt - The connection as written.
+ * @param signals - The registry to resolve against.
+ * @param bag - Where to report a name no registry entry answers to.
+ * @returns The types that resolved. A name that did not is simply absent.
+ */
+function resolveRunTypes(
+  stmt: ConnectionStmt,
+  signals: SignalRegistry,
+  bag: DiagnosticBag,
+): RunTypes {
+  const named = (name: string | undefined): SignalType | undefined => {
+    if (name === undefined) return undefined;
+    const type = signals[name];
+    if (type === undefined) bag.report('unknown-signal', 'signal.unknown', { name }, stmt.span);
+    return type;
+  };
+
+  const types: RunTypes = {};
+  const payload = named(stmt.signal);
+  if (payload !== undefined) types.payload = payload;
+  const carrier = named(stmt.carrier);
+  if (carrier !== undefined) types.carrier = carrier;
+  return types;
+}
+
+/**
+ * Which two types the compatibility check is given.
+ *
+ * `over` says the payload and the carrier travel together, so a socket for either is a socket
+ * this run plugs into: the camera declares `ndi`, the access point declares `wifi`, and both
+ * are right. Judged one against the other, the check found air meeting copper and asked for a
+ * transmitter that was already in the drawing.
+ *
+ * Both ends, not either. A Wi-Fi socket wired to an RJ45 socket does not become sound by
+ * saying what rides on it — that is a real fault, and the check still has to catch it.
+ *
+ * @param ends - What each port declares itself to be.
+ * @param types - What the run says it carries, and over what.
+ * @returns The pair to compare: the payload against itself when both ends are on this run.
+ */
+function judgedEnds(
+  ends: readonly [SignalType, SignalType],
+  { payload, carrier }: RunTypes,
+): readonly [SignalType, SignalType] {
+  if (payload === undefined || carrier === undefined) return ends;
+  const onThisRun = (type: SignalType): boolean =>
+    type.name === carrier.name || type.name === payload.name;
+  return ends.every(onThisRun) ? [payload, payload] : ends;
+}
+
+/**
+ * Say what the compatibility check found, when it found anything.
+ *
+ * The code depends on whether a cable could fix it: a run that already declares `via` and
+ * still does not work is a different complaint from one that never named a part.
+ *
+ * @param result - The verdict to report.
+ * @param from - Sending end, for the message.
+ * @param to - Receiving end, for the message.
+ * @param hasAdapter - Whether the run declares `via`.
+ * @param span - Where to point.
+ * @param bag - Where to report.
+ * @param locale - Language to render the reason in.
+ */
+function reportVerdict(
+  result: CompatibilityResult,
+  from: Port,
+  to: Port,
+  hasAdapter: boolean,
+  span: SourceSpan,
+  bag: DiagnosticBag,
+  locale: Locale,
+): void {
+  if (result.verdict === 'ok') return;
+
+  const incompatible = result.verdict === 'incompatible';
+  const code = incompatible
+    ? hasAdapter
+      ? 'adapter-insufficient'
+      : 'signal-mismatch'
+    : result.adapter !== undefined
+      ? 'adapter-required'
+      : 'signal-mismatch';
+
+  bag.report(
+    code,
+    'link.verdict',
+    {
+      from: from.id,
+      to: to.id,
+      reason: reasonOf(result, incompatible ? 'verdict.mismatch' : 'verdict.caution', locale),
+    },
+    span,
+  );
+}
+
+/**
+ * Apply the `[…]` list on a run, and say what does not belong on this kind of run.
+ *
+ * A radio path has nothing to measure and nothing to adapt; a cable has no channel to tune.
+ * Both mistakes are the same mistake — a line copied from the other kind of run — so both are
+ * named rather than quietly read by nobody.
+ *
+ * @param link - The run being built. Mutated in place.
+ * @param stmt - The connection as written.
+ * @param wireless - Whether this run goes through the air.
+ * @param bag - Where to report an attribute that does not belong.
+ * @param locale - Language for the values quoted back.
+ */
+function applyRunAttrs(
+  link: Link,
+  stmt: ConnectionStmt,
+  wireless: boolean,
+  bag: DiagnosticBag,
+  locale: Locale,
+): void {
+  // `[poe]` — power sharing the Cat lead, not a second cable. Only where a Cat lead is what
+  // is being drawn: nothing puts power down an SDI coax, and an author who wrote it there
+  // meant something else.
+  const poe = stmt.attrs.find((a) => a.key === 'poe');
+  if (poe !== undefined && String(poe.value.value) !== 'false') {
+    const over = link.carrier ?? link.signal;
+    if (over.connectors.includes('RJ45')) {
+      link.poe = true;
+    } else {
+      bag.report(
+        'invalid-value',
+        'link.poe-not-ethernet',
+        { signal: localise(over.label, locale) },
+        poe.span,
+      );
+    }
+  }
+
+  if (stmt.length !== undefined) link.length = stmt.length;
+  if (stmt.label !== undefined) link.label = stmt.label;
+  if (stmt.via !== undefined) link.via = stmt.via;
+
+  const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
+  if (wireless) {
+    if (stmt.length !== undefined) {
+      bag.report('invalid-value', 'link.wireless-length', { value: stmt.length }, stmt.span);
+      delete link.length;
+    }
+    if (stmt.via !== undefined) {
+      bag.report('invalid-value', 'link.wireless-via', {}, stmt.span);
+      delete link.via;
+    }
+    if (radio) {
+      link.frequency = radio.key === 'ch' ? `ch ${radio.value.value}` : radio.value.value;
+    }
+  } else if (radio) {
+    bag.report(
+      'invalid-value',
+      'link.cabled-channel',
+      { key: radio.key, value: radio.value.value },
+      radio.span,
+    );
+  }
+
+  const written = stmt.attrs.find((a) => a.key === 'color');
+  if (written) {
+    const color = resolveCableColor(written.value.value);
+    if (color) {
+      link.color = color;
+    } else {
+      bag.report('invalid-value', 'value.colour', { value: written.value.value }, written.span);
+    }
+  }
 }
 
 /** Mutable device state during the build. */
@@ -484,6 +673,113 @@ class DeviceTable {
   }
 }
 
+/**
+ * A device declaration with its model's defaults folded in.
+ *
+ * The model supplies defaults; anything the device states itself wins. Ports are added to
+ * the model's rather than replacing them, so one unit with an extra card stays easy to
+ * describe: name the model, then name the card.
+ *
+ * @param decl - The device as written.
+ * @param models - Every model declared or imported.
+ * @param bag - Where to report a model nobody declared.
+ * @returns The declaration to build from. The same one, when it names no model.
+ */
+function withModel(
+  decl: DeviceDecl,
+  models: ReadonlyMap<string, ModelDecl>,
+  bag: DiagnosticBag,
+): DeviceDecl {
+  if (decl.model === undefined) return decl;
+
+  const base = models.get(decl.model);
+  if (!base) {
+    bag.report('unknown-model', 'device.unknown-model', { name: decl.model }, decl.span);
+  }
+
+  const effective: DeviceDecl = {
+    ...decl,
+    ports: [...(base?.ports ?? []), ...decl.ports],
+    meta: [...(base?.meta ?? []), ...decl.meta],
+  };
+  if (decl.label === undefined && base?.label !== undefined) effective.label = base.label;
+  if (decl.kind === undefined && base?.kind !== undefined) effective.kind = base.kind;
+  return effective;
+}
+
+/**
+ * One concrete port, from the declaration that names it.
+ *
+ * A single `in CH[1..16] : xlr` makes sixteen of these, and each is checked in full — a
+ * misspelled type is reported for every port it would have made rather than once, because
+ * every one of them is a port whose type the schedules cannot state.
+ *
+ * @param name - The expanded name; one declaration may make many.
+ * @param decl - The `in` / `out` / `io` line it came from.
+ * @param deviceId - Device the port belongs to.
+ * @param signals - Registry to check declared types and connectors against.
+ * @param bag - Where to report what the registry does not carry.
+ * @returns The port, ready to be added to the device.
+ */
+function buildPort(
+  name: string,
+  decl: PortDecl,
+  deviceId: string,
+  signals: SignalRegistry,
+  bag: DiagnosticBag,
+): Port {
+  const port: Port = {
+    id: `${deviceId}.${name}`,
+    name,
+    deviceId,
+    direction: decl.direction,
+    implicit: false,
+    span: decl.span,
+  };
+
+  // Every name is checked, so `xlr | tsr` reports the typo rather than quietly accepting
+  // the half of the declaration that happened to be spelled right.
+  const accepted = (decl.signals ?? []).filter((declared) => {
+    if (signals[declared]) return true;
+    bag.report('unknown-signal', 'signal.unknown', { name: declared }, decl.span);
+    return false;
+  });
+  if (accepted[0] !== undefined) port.signal = accepted[0];
+  if (accepted.length > 1) port.accepts = accepted;
+
+  // A run's `[…]` list is kept on the model as free-form extra data, so an unknown key there
+  // survives for whoever wants it. A port's is not: `connector` is the only one read, and
+  // anything else goes nowhere at all. Saying so is the difference between a typo that does
+  // nothing and a typo that does nothing quietly.
+  for (const attr of decl.attrs ?? []) {
+    if (attr.key === 'connector') continue;
+    bag.report('invalid-value', 'port.attr-unknown', { name: attr.key }, attr.span);
+  }
+
+  // `[connector=XLR-M]` — which of the type's connectors this box actually has. Checked
+  // against the type, because a name the type does not list is either a typo or a claim the
+  // schedules cannot act on, and both are worth saying.
+  const declared = decl.attrs?.find((attr) => attr.key === 'connector');
+  if (declared !== undefined) {
+    const type = port.signal === undefined ? undefined : signals[port.signal];
+    const value = String(declared.value.value);
+    if (type === undefined) {
+      bag.report('invalid-value', 'port.connector-needs-signal', {}, declared.span);
+    } else if (!type.connectors.includes(value)) {
+      bag.report(
+        'invalid-value',
+        'port.connector-unknown',
+        { name: value, signal: type.name, expected: type.connectors.join(' / ') },
+        declared.span,
+      );
+    } else {
+      port.connector = value;
+    }
+  }
+
+  return port;
+}
+
 /** Pair up the two ends of a connection, accounting for the parenthesised multi form. */
 function pairEnds(
   from: PortRef,
@@ -533,25 +829,7 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
 
   // ── declarations ────────────────────────────────────────────────────────
   for (const { decl, groupId } of collector.devices) {
-    // A device may inherit from a model. The model supplies defaults; anything the
-    // device states itself wins, and its ports are added to the model's rather than
-    // replacing them, so one unit with an extra card stays easy to describe.
-    let base: ModelDecl | undefined;
-    if (decl.model !== undefined) {
-      base = collector.models.get(decl.model);
-      if (!base) {
-        bag.report('unknown-model', 'device.unknown-model', { name: decl.model }, decl.span);
-      }
-    }
-
-    const effective: DeviceDecl = {
-      ...decl,
-      ports: [...(base?.ports ?? []), ...decl.ports],
-      meta: [...(base?.meta ?? []), ...decl.meta],
-    };
-    if (decl.label === undefined && base?.label !== undefined) effective.label = base.label;
-    if (decl.kind === undefined && base?.kind !== undefined) effective.kind = base.kind;
-
+    const effective = withModel(decl, collector.models, bag);
     const device = table.declare(effective, groupId, collector.adapters.has(decl.id));
 
     const asCable = collector.cables.get(decl.id);
@@ -566,60 +844,11 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
 
       for (const item of portDecl.spec) {
         for (const name of expandPortSpec(item, bag)) {
-          const port: Port = {
-            id: `${device.id}.${name}`,
-            name,
-            deviceId: device.id,
-            direction: portDecl.direction,
-            implicit: false,
-            span: portDecl.span,
-          };
+          const port = buildPort(name, portDecl, device.id, signals, bag);
           if (gapPending !== undefined) {
             port.gapBefore = gapPending;
             gapPending = undefined;
           }
-          // Every name is checked, so `xlr | tsr` reports the typo rather than quietly
-          // accepting the half of the declaration that happened to be spelled right.
-          const accepted = (portDecl.signals ?? []).filter((declared) => {
-            if (signals[declared]) return true;
-            bag.report('unknown-signal', 'signal.unknown', { name: declared }, portDecl.span);
-            return false;
-          });
-
-          if (accepted[0] !== undefined) port.signal = accepted[0];
-          if (accepted.length > 1) port.accepts = accepted;
-
-          // A run's `[…]` list is kept on the model as free-form extra data, so an unknown
-          // key there survives for whoever wants it. A port's is not: `connector` is the
-          // only one read, and anything else goes nowhere at all. Saying so is the
-          // difference between a typo that does nothing and a typo that does nothing
-          // quietly.
-          for (const attr of portDecl.attrs ?? []) {
-            if (attr.key === 'connector') continue;
-            bag.report('invalid-value', 'port.attr-unknown', { name: attr.key }, attr.span);
-          }
-
-          // `[connector=XLR-M]` — which of the type's connectors this box actually has.
-          // Checked against the type, because a name the type does not list is either a
-          // typo or a claim the schedules cannot act on, and both are worth saying.
-          const declared = portDecl.attrs?.find((attr) => attr.key === 'connector');
-          if (declared !== undefined) {
-            const type = port.signal === undefined ? undefined : signals[port.signal];
-            const value = String(declared.value.value);
-            if (type === undefined) {
-              bag.report('invalid-value', 'port.connector-needs-signal', {}, declared.span);
-            } else if (!type.connectors.includes(value)) {
-              bag.report(
-                'invalid-value',
-                'port.connector-unknown',
-                { name: value, signal: type.name, expected: type.connectors.join(' / ') },
-                declared.span,
-              );
-            } else {
-              port.connector = value;
-            }
-          }
-
           table.addPort(device, port);
         }
       }
@@ -644,60 +873,23 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       const fromPort = table.resolvePort(fromDevice, fromName, 'from', stmt.span);
       const toPort = table.resolvePort(toDevice, toName, 'to', stmt.span);
 
-      let signalName = stmt.signal;
-      if (signalName !== undefined && !signals[signalName]) {
-        bag.report('unknown-signal', 'signal.unknown', { name: signalName }, stmt.span);
-        signalName = undefined;
-      }
-
-      let carrierName = stmt.carrier;
-      if (carrierName !== undefined && !signals[carrierName]) {
-        bag.report('unknown-signal', 'signal.unknown', { name: carrierName }, stmt.span);
-        carrierName = undefined;
-      }
+      const types = resolveRunTypes(stmt, signals, bag);
+      const { payload, carrier } = types;
 
       // Each end is judged by what its own port declares. The signal named on the link
       // describes the cable, and only fills in for an end that declares nothing — if it
       // spoke for both ends it would compare a type against itself and never catch a
       // mismatch, which is precisely the case worth catching.
+      //
+      // The carrier speaks first when one was named, because the carrier is what the ports
+      // physically are: an RJ45 socket is an RJ45 socket whether the run carries NDI or
+      // Dante. Without a carrier the signal speaks for the run, as before.
       const generic = signals['generic']!;
-      // The ends are judged by the carrier when one was named, because the carrier is what
-      // the ports physically are: an RJ45 socket is an RJ45 socket whether the run carries
-      // NDI or Dante. Without a carrier the signal speaks for the run, as before.
-      const endName = carrierName ?? signalName;
+      const endName = (carrier ?? payload)?.name;
       const fromSignal = signals[resolveEnd(fromPort, endName)] ?? generic;
       const toSignal = signals[resolveEnd(toPort, endName)] ?? generic;
-      const carrier = carrierName === undefined ? undefined : signals[carrierName];
 
-      // An end that declares the carrier itself is right, not mismatched. `ndi over wifi`
-      // into a port declared `wifi` is the whole point of writing `over`: the payload rides
-      // on the carrier, and the socket it plugs into is a socket for the carrier. Judged
-      // without knowing that, the check compared `ndi` against `wifi`, found air meeting
-      // copper, and asked for a transmitter that is already there.
-      // Both ends declaring the carrier is the run working as written: `ndi over wifi`
-      // between two Wi-Fi sockets is a radio hop carrying NDI, and judging the payload
-      // against the carrier found air meeting copper and asked for a transmitter that was
-      // already in the drawing.
-      //
-      // Both, not either. A Wi-Fi socket wired to an RJ45 socket does not become sound by
-      // saying what rides on it — that is a real fault and the check still has to catch it.
-      const payload = signalName === undefined ? undefined : signals[signalName];
-      // `over` says these two travel together, so a socket for either is a socket this run
-      // can plug into. A camera declares `ndi` and the access point declares `wifi`; both
-      // are right, and comparing one against the other found air meeting copper and asked
-      // for a transmitter that was already in the drawing.
-      //
-      // Both ends, not either. A Wi-Fi socket wired to an RJ45 socket does not become sound
-      // by saying what rides on it — that is a real fault and the check still catches it.
-      const onThisRun = (type: SignalType) =>
-        carrier !== undefined &&
-        payload !== undefined &&
-        (type.name === carrier.name || type.name === payload.name);
-      const [fromEnd, toEnd] =
-        onThisRun(fromSignal) && onThisRun(toSignal) && payload !== undefined
-          ? [payload, payload]
-          : [fromSignal, toSignal];
-
+      const [fromEnd, toEnd] = judgedEnds([fromSignal, toSignal], types);
       const compatibility = checkCompatibility(fromEnd, toEnd, {
         overrides: compatRules,
         hasAdapter: stmt.via !== undefined,
@@ -714,40 +906,30 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         }
       }
 
-      // Compatibility.
-      if (compatibility.verdict === 'incompatible') {
-        const code = stmt.via !== undefined ? 'adapter-insufficient' : 'signal-mismatch';
-        bag.report(
-          code,
-          'link.verdict',
-          {
-            from: fromPort.id,
-            to: toPort.id,
-            reason: reasonOf(compatibility, 'verdict.mismatch', locale),
-          },
-          stmt.span,
-        );
-      } else if (compatibility.verdict === 'lossy') {
-        const code = compatibility.adapter !== undefined ? 'adapter-required' : 'signal-mismatch';
-        bag.report(
-          code,
-          'link.verdict',
-          {
-            from: fromPort.id,
-            to: toPort.id,
-            reason: reasonOf(compatibility, 'verdict.caution', locale),
-          },
-          stmt.span,
-        );
-      }
+      reportVerdict(
+        compatibility,
+        fromPort,
+        toPort,
+        stmt.via !== undefined,
+        stmt.span,
+        bag,
+        locale,
+      );
 
       // Duplicates and overbooked inputs.
-      const key = `${fromPort.id} ${toPort.id}`;
+      // The pair, as a key. The separator is a NUL — nothing an id can contain — written as
+      // an escape. It had been typed as a raw byte, which turned this file binary to `grep`
+      // and to `file`, and which the message below then carried to the reader: built by
+      // swapping a space that was not there, it arrived with the control character intact.
+      const key = `${fromPort.id}\u0000${toPort.id}`;
       if (seenPairs.has(key)) {
+        // Built from the ids rather than by patching the key back into something readable.
+        // The key is a key; what the reader sees is a sentence, and the two stopped being
+        // the same string the moment the separator did.
         bag.report(
           'duplicate-connection',
           'link.duplicate',
-          { pair: key.replace(' ', ' → ') },
+          { pair: `${fromPort.id} → ${toPort.id}` },
           stmt.span,
         );
       }
@@ -757,7 +939,13 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
       // radio has none. An access point with five laptops on it is not overbooked, it is
       // an access point. The carrier decides, as it does everywhere else: what reaches
       // this end is a wire or it is the air.
-      const throughAir = (carrier ?? signals[signalName ?? ''] ?? toSignal).wireless === true;
+      //
+      // Asked of the receiving end, because that is the socket in question. The run as a
+      // whole is asked separately below, and the two answers can differ: a run named `wifi`
+      // between two ports declared `sdi` arrives at copper by one reading and through the
+      // air by the other. Left as it stands — both readings are defensible, and picking one
+      // here would change what the compiler says about a file nobody has complained about.
+      const throughAir = (carrier ?? payload ?? toSignal).wireless === true;
       if (stmt.arrow === '->' && !throughAir) {
         const count = (inboundCount.get(toPort.id) ?? 0) + 1;
         inboundCount.set(toPort.id, count);
@@ -771,83 +959,21 @@ export function buildModel(document: Document, options: BuildOptions = {}): Buil
         from: { deviceId: fromDevice.id, portName: fromPort.name },
         to: { deviceId: toDevice.id, portName: toPort.name },
         arrow: stmt.arrow,
-        signal:
-          (signalName !== undefined ? signals[signalName] : undefined) ??
-          (fromSignal.category === 'generic' ? toSignal : fromSignal),
+        signal: payload ?? (fromSignal.category === 'generic' ? toSignal : fromSignal),
         attrs: Object.fromEntries(stmt.attrs.map((a) => [a.key, a.value.value])),
         compatibility,
         span: stmt.span,
       };
       if (carrier !== undefined) link.carrier = carrier;
 
-      // `[poe]` — power sharing the Cat lead, not a second cable. Only where a Cat lead is
-      // what is being drawn: nothing puts power down an SDI coax, and an author who wrote
-      // it there meant something else.
-      const poe = stmt.attrs.find((a) => a.key === 'poe');
-      if (poe !== undefined && String(poe.value.value) !== 'false') {
-        const over = link.carrier ?? link.signal;
-        if (over.connectors.includes('RJ45')) {
-          link.poe = true;
-        } else {
-          bag.report(
-            'invalid-value',
-            'link.poe-not-ethernet',
-            { signal: localise(over.label, locale) },
-            poe.span,
-          );
-        }
-      }
-
-      if (stmt.length !== undefined) link.length = stmt.length;
-      if (stmt.label !== undefined) link.label = stmt.label;
-      if (stmt.via !== undefined) link.via = stmt.via;
-
-      // A wireless link has nothing to measure and nothing to adapt. Carrying either
-      // over from a copy-pasted cable line is a mistake worth naming.
-      //
-      // The carrier decides this when there is one: NDI over Wi-Fi has a channel and
-      // nothing to coil, and the same NDI over Cat has a length and nothing to tune.
+      // The run as a whole. The carrier decides when there is one: NDI over Wi-Fi has a
+      // channel and nothing to coil, and the same NDI over Cat has a length and nothing to
+      // tune. See {@link throughAir} above for why the socket is asked separately.
       const wireless =
         carrier !== undefined
           ? carrier.wireless === true
           : fromSignal.wireless || toSignal.wireless;
-      if (wireless) {
-        if (stmt.length !== undefined) {
-          bag.report('invalid-value', 'link.wireless-length', { value: stmt.length }, stmt.span);
-          delete link.length;
-        }
-        if (stmt.via !== undefined) {
-          bag.report('invalid-value', 'link.wireless-via', {}, stmt.span);
-          delete link.via;
-        }
-        const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
-        if (radio) {
-          link.frequency = radio.key === 'ch' ? `ch ${radio.value.value}` : radio.value.value;
-        }
-      } else {
-        // The mirror of the rule above, which was missing: a length on a radio path has
-        // always been reported, but a channel on a cable was read by nothing and said
-        // nothing. Both are the same mistake — a line copied from the other kind of run.
-        const radio = stmt.attrs.find((a) => a.key === 'freq' || a.key === 'ch');
-        if (radio) {
-          bag.report(
-            'invalid-value',
-            'link.cabled-channel',
-            { key: radio.key, value: radio.value.value },
-            radio.span,
-          );
-        }
-      }
-
-      const written = stmt.attrs.find((a) => a.key === 'color');
-      if (written) {
-        const color = resolveCableColor(written.value.value);
-        if (color) {
-          link.color = color;
-        } else {
-          bag.report('invalid-value', 'value.colour', { value: written.value.value }, written.span);
-        }
-      }
+      applyRunAttrs(link, stmt, wireless, bag, locale);
 
       links.push(link);
     }

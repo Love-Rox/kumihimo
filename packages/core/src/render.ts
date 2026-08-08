@@ -5,12 +5,13 @@
  * the same file works in a browser, in a Markdown preview, and pasted into a document.
  */
 
-import type { DiagramLayout, EdgeLayout, Point } from './layout.js';
+import type { DeviceLayout, DiagramLayout, EdgeLayout, Point } from './layout.js';
 import type { Locale } from './messages.js';
 import { DEFAULT_LOCALE, localise } from './messages.js';
 import { estimateTextWidth, layoutDiagram } from './layout.js';
 import type { LayoutOptions } from './layout.js';
-import type { Diagram, Link } from './model.js';
+import type { Device, Diagram, Link } from './model.js';
+import type { SignalType } from './signals.js';
 import type { StrokeSpec, Theme } from './theme.js';
 import { DEFAULT_THEME, lookupTheme, strokeFor } from './theme.js';
 
@@ -288,6 +289,128 @@ function renderEdge(
   return parts.join('');
 }
 
+/** Everything the device and port drawing needs that is not the device itself. */
+interface BoxStyle {
+  theme: Theme;
+  fontFamily: string;
+  fontSize: number;
+  headerHeight: number;
+}
+
+/**
+ * Draw one device box and the ports on it.
+ *
+ * @param device - The device as resolved.
+ * @param placed - Where the layout put it.
+ * @param style - Theme and type sizes.
+ * @returns SVG fragments, in drawing order.
+ */
+function renderDevice(device: Device, placed: DeviceLayout, style: BoxStyle): string[] {
+  const { theme, fontFamily, fontSize, headerHeight } = style;
+  const { x, y, width: w, height: h } = placed.bounds;
+  const stroke = device.implicit ? theme.muted : theme.boxStroke;
+  const parts: string[] = [];
+
+  if (device.passive) {
+    // A part, not a box in a rack. Drawn as a pill with no header band, because the header
+    // band is what makes the other boxes read as equipment — and a reader who cannot tell the
+    // splitter from the switcher will look for the splitter in the rack.
+    parts.push(
+      `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${n(Math.min(14, h / 2))}" ` +
+        `fill="${theme.background}" stroke="${stroke}" stroke-width="1.2" stroke-dasharray="1 3"/>`,
+      `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize - 1}" ` +
+        `fill="${theme.muted}" text-anchor="middle" ` +
+        `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
+    );
+  } else {
+    parts.push(
+      `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6" ` +
+        `fill="${theme.boxFill}" stroke="${stroke}" stroke-width="1.5"` +
+        `${device.implicit ? ' stroke-dasharray="5 3"' : ''}/>`,
+      `<path d="M ${n(x)} ${n(y + headerHeight)} h ${n(w)}" stroke="${stroke}" stroke-width="1"/>`,
+      `<rect x="${n(x + 1)}" y="${n(y + 1)}" width="${n(w - 2)}" height="${n(headerHeight - 1)}" ` +
+        `rx="5" fill="${theme.header}"/>`,
+      `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize}" ` +
+        `font-weight="600" fill="${theme.text}" text-anchor="middle" ` +
+        `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
+    );
+  }
+
+  for (const port of placed.ports) {
+    const inward = port.side === 'WEST' || port.side === 'NORTH';
+    parts.push(
+      `<circle cx="${n(port.center.x)}" cy="${n(port.center.y)}" r="3" fill="${stroke}"/>`,
+    );
+    if (port.side === 'WEST' || port.side === 'EAST') {
+      parts.push(
+        `<text x="${n(port.center.x + (inward ? 8 : -8))}" y="${n(port.center.y + 3.5)}" ` +
+          `font-size="${fontSize - 3}" fill="${theme.muted}" ` +
+          `text-anchor="${inward ? 'start' : 'end'}" ` +
+          `font-family="${escape(fontFamily)}">${escape(port.name)}</text>`,
+      );
+    } else {
+      // Top to bottom. The name cannot sit beside the dot the way it does on a side — there
+      // is nothing beside it but the next port — so it goes directly beneath, or above for
+      // the bottom edge, sharing the dot's x. Clear of the header band, which the top edge
+      // runs along, and clear of the cable, which arrives vertically.
+      //
+      // Without this branch a vertical drawing had dots and no names at all: the box knew
+      // which port was which and the drawing did not say.
+      parts.push(
+        `<text x="${n(port.center.x)}" ` +
+          `y="${n(port.side === 'NORTH' ? y + headerHeight + 12 : y + h - 8)}" ` +
+          `font-size="${fontSize - 3}" fill="${theme.muted}" text-anchor="middle" ` +
+          `font-family="${escape(fontFamily)}">${escape(port.name)}</text>`,
+      );
+    }
+  }
+
+  return parts;
+}
+
+/**
+ * Draw the key of signal types in use.
+ *
+ * @param signals - The types to list, already ordered.
+ * @param names - Their captions, in the same order and the reader's language.
+ * @param caption - What the key is called.
+ * @param y - Baseline for the row.
+ * @param style - Theme and type sizes.
+ * @returns SVG fragments, in drawing order.
+ */
+function renderLegend(
+  signals: readonly SignalType[],
+  names: readonly string[],
+  caption: string,
+  y: number,
+  style: Pick<BoxStyle, 'theme' | 'fontFamily'>,
+): string[] {
+  const { theme, fontFamily } = style;
+  const parts: string[] = [];
+  let cursor = 16;
+
+  parts.push(
+    `<text x="${n(cursor)}" y="${n(y + 4)}" font-size="11" font-weight="600" ` +
+      `fill="${theme.muted}" font-family="${escape(fontFamily)}">${escape(caption)}</text>`,
+  );
+  cursor += estimateTextWidth(caption, 11) + 18;
+
+  signals.forEach((signal, i) => {
+    const key = strokeFor(signal, theme);
+    const dash = dashArray(key, signal.width, signal.wireless);
+    const name = names[i] ?? signal.name;
+    parts.push(
+      `<path d="M ${n(cursor)} ${n(y)} h 22" stroke="${safeColor(key.color)}" ` +
+        `stroke-width="${signal.width}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`,
+      `<text x="${n(cursor + 27)}" y="${n(y + 4)}" font-size="11" fill="${theme.muted}" ` +
+        `font-family="${escape(fontFamily)}">${escape(name)}</text>`,
+    );
+    cursor += 27 + estimateTextWidth(name, 11) + 22;
+  });
+
+  return parts;
+}
+
 /**
  * Draw a laid-out diagram as an SVG document.
  *
@@ -351,9 +474,16 @@ export function renderSvg(
 
   body.push(`<g transform="translate(0 ${titleHeight})">`);
 
+  // The layout hands back placements keyed by id, and every one of them has to find the thing
+  // it placed. Searched rather than looked up, that was a walk of the whole model per box and
+  // per cable — quadratic in the size of the drawing, on the one path every render takes.
+  const groupsById = new Map(diagram.groups.map((g) => [g.id, g]));
+  const devicesById = new Map(diagram.devices.map((d) => [d.id, d]));
+  const linksById = new Map(diagram.links.map((l) => [l.id, l]));
+
   // Groups first, so device boxes sit on top of their frames.
   for (const group of layout.groups) {
-    const model = diagram.groups.find((g) => g.id === group.id);
+    const model = groupsById.get(group.id);
     const { x, y, width: w, height: h } = group.bounds;
     body.push(
       `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="8" ` +
@@ -366,93 +496,21 @@ export function renderSvg(
   // Edges below boxes, so a cable never crosses over a device it merely passes.
   const packer = new LabelPacker(layout.devices.map((d) => d.bounds));
   for (const edge of layout.edges) {
-    const link = diagram.links.find((l) => l.id === edge.id);
+    const link = linksById.get(edge.id);
     if (link) body.push(renderEdge(link, edge, packer, theme, { fontFamily, highlightProblems }));
   }
 
+  const boxStyle: BoxStyle = { theme, fontFamily, fontSize, headerHeight };
   for (const placed of layout.devices) {
-    const device = diagram.devices.find((d) => d.id === placed.id);
-    if (!device) continue;
-    const { x, y, width: w, height: h } = placed.bounds;
-    const stroke = device.implicit ? theme.muted : theme.boxStroke;
-
-    if (device.passive) {
-      // A part, not a box in a rack. Drawn as a pill with no header band, because the
-      // header band is what makes the other boxes read as equipment — and a reader who
-      // cannot tell the splitter from the switcher will look for the splitter in the rack.
-      body.push(
-        `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="${n(Math.min(14, h / 2))}" ` +
-          `fill="${theme.background}" stroke="${stroke}" stroke-width="1.2" stroke-dasharray="1 3"/>`,
-        `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize - 1}" ` +
-          `fill="${theme.muted}" text-anchor="middle" ` +
-          `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
-      );
-    } else {
-      body.push(
-        `<rect x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="6" ` +
-          `fill="${theme.boxFill}" stroke="${stroke}" stroke-width="1.5"` +
-          `${device.implicit ? ' stroke-dasharray="5 3"' : ''}/>`,
-        `<path d="M ${n(x)} ${n(y + headerHeight)} h ${n(w)}" stroke="${stroke}" stroke-width="1"/>`,
-        `<rect x="${n(x + 1)}" y="${n(y + 1)}" width="${n(w - 2)}" height="${n(headerHeight - 1)}" ` +
-          `rx="5" fill="${theme.header}"/>`,
-        `<text x="${n(x + w / 2)}" y="${n(y + headerHeight / 2 + 4)}" font-size="${fontSize}" ` +
-          `font-weight="600" fill="${theme.text}" text-anchor="middle" ` +
-          `font-family="${escape(fontFamily)}">${escape(device.label)}</text>`,
-      );
-    }
-
-    for (const port of placed.ports) {
-      const inward = port.side === 'WEST' || port.side === 'NORTH';
-      body.push(
-        `<circle cx="${n(port.center.x)}" cy="${n(port.center.y)}" r="3" fill="${stroke}"/>`,
-      );
-      if (port.side === 'WEST' || port.side === 'EAST') {
-        body.push(
-          `<text x="${n(port.center.x + (inward ? 8 : -8))}" y="${n(port.center.y + 3.5)}" ` +
-            `font-size="${fontSize - 3}" fill="${theme.muted}" ` +
-            `text-anchor="${inward ? 'start' : 'end'}" ` +
-            `font-family="${escape(fontFamily)}">${escape(port.name)}</text>`,
-        );
-      } else {
-        // Top to bottom. The name cannot sit beside the dot the way it does on a side —
-        // there is nothing beside it but the next port — so it goes directly beneath, or
-        // above for the bottom edge, sharing the dot's x. Clear of the header band, which
-        // the top edge runs along, and clear of the cable, which arrives vertically.
-        //
-        // Without this branch a vertical drawing had dots and no names at all: the box knew
-        // which port was which and the drawing did not say.
-        body.push(
-          `<text x="${n(port.center.x)}" ` +
-            `y="${n(port.side === 'NORTH' ? y + headerHeight + 12 : y + h - 8)}" ` +
-            `font-size="${fontSize - 3}" fill="${theme.muted}" text-anchor="middle" ` +
-            `font-family="${escape(fontFamily)}">${escape(port.name)}</text>`,
-        );
-      }
-    }
+    const device = devicesById.get(placed.id);
+    if (device) body.push(...renderDevice(device, placed, boxStyle));
   }
 
   body.push('</g>');
 
   if (legendHeight > 0) {
     const y = titleHeight + layout.height + 18;
-    let cursor = 16;
-    body.push(
-      `<text x="${n(cursor)}" y="${n(y + 4)}" font-size="11" font-weight="600" ` +
-        `fill="${theme.muted}" font-family="${escape(fontFamily)}">${escape(caption)}</text>`,
-    );
-    cursor += estimateTextWidth(caption, 11) + 18;
-    usedSignals.forEach((signal, i) => {
-      const key = strokeFor(signal, theme);
-      const dash = dashArray(key, signal.width, signal.wireless);
-      const name = legendNames[i] ?? signal.name;
-      body.push(
-        `<path d="M ${n(cursor)} ${n(y)} h 22" stroke="${safeColor(key.color)}" ` +
-          `stroke-width="${signal.width}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`,
-        `<text x="${n(cursor + 27)}" y="${n(y + 4)}" font-size="11" fill="${theme.muted}" ` +
-          `font-family="${escape(fontFamily)}">${escape(name)}</text>`,
-      );
-      cursor += 27 + estimateTextWidth(name, 11) + 22;
-    });
+    body.push(...renderLegend(usedSignals, legendNames, caption, y, { theme, fontFamily }));
   }
 
   return (

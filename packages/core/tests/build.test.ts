@@ -257,6 +257,19 @@ describe('duplicates and overbooking', () => {
     expect(codes(`${decls} a.X -> b.Y : sdi\na.X -> b.Y : sdi`)).toContain('duplicate-connection');
   });
 
+  it('names both ends of the duplicate, and says so in printable characters', () => {
+    // The message used to be the lookup key with a space swapped for an arrow — except the
+    // separator was a NUL that had been typed into the source, so the swap found nothing and
+    // the reader got a control character where the arrow belonged.
+    const { diagnostics } = build(`${decls} a.X -> b.Y : sdi\na.X -> b.Y : sdi`);
+    const duplicate = diagnostics.find((d) => d.code === 'duplicate-connection');
+    expect(duplicate?.message).toContain('a.X → b.Y');
+    // Checked by codepoint rather than against a pattern, so this test cannot reintroduce
+    // the very character it exists to keep out.
+    const points = [...(duplicate?.message ?? '')].map((c) => c.codePointAt(0) ?? 0);
+    expect(points.every((point) => point >= 0x20)).toBe(true);
+  });
+
   it('flags two sources feeding one input', () => {
     expect(codes(`${decls} a.X -> b.Y : sdi\nc.X -> b.Y : sdi`)).toContain('port-overbooked');
   });
