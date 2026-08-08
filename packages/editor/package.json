@@ -1,6 +1,6 @@
 {
   "name": "@love-rox/kumihimo-editor",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "Embeddable live editor for kumihimo AV signal flow diagrams (系統図)",
   "keywords": [
     "av",

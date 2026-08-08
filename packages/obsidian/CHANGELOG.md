@@ -1,5 +1,12 @@
 # kumihimo-obsidian
 
+## 1.1.15
+
+### Patch Changes
+
+- Updated dependencies [a33bb38]
+  - @love-rox/kumihimo-core@0.12.1
+
 ## 1.1.14
 
 ### Patch Changes
