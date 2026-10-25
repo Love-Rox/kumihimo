@@ -5,7 +5,7 @@ kumihimo への貢献を歓迎します。このドキュメントでは開発�
 ## 開発環境
 
 - Node.js 22 以降（CI は 24）
-- pnpm 10.x
+- pnpm 12.x
 - Oxc（`oxlint` / `oxfmt`）を lint/format に使用
 
 ```bash
