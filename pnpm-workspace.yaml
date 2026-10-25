@@ -7,3 +7,7 @@ allowBuilds:
   # pnpm 10 でも動かしていなかったもの。pnpm 12 は未指定だと install を止めるため、明示的に動かさないとする
   '@vscode/vsce-sign': false
   keytar: false
+
+overrides:
+  # oxfmt が tinypool を 2.1.0 に固定しているため、脆弱性（<2.1.2）の直った 2.1.2 以上に上げる
+  'tinypool@^2': ^2.1.2
