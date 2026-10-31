@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
 
       - id: version
         name: Decide whether this is a release
@@ -65,10 +65,10 @@ jobs:
           fi
 
       - if: steps.version.outputs.publish == 'true'
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6.1.0
 
       - if: steps.version.outputs.publish == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
           cache: pnpm
